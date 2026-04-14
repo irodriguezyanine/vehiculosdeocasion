@@ -23,6 +23,7 @@ function normalizeConfig(config?: Partial<EditorConfig> | null): EditorConfig {
     },
     hiddenVehicleIds: config?.hiddenVehicleIds ?? [],
     vehiclePrices: config?.vehiclePrices ?? {},
+    vehicleDetails: config?.vehicleDetails ?? {},
   };
 }
 

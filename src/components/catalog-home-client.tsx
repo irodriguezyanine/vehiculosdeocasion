@@ -2,12 +2,20 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { CatalogCard } from "@/components/catalog-card";
 import type { CatalogFeed, CatalogItem } from "@/types/catalog";
-import { DEFAULT_EDITOR_CONFIG, type EditorConfig, type SectionId, type VehicleTypeId } from "@/types/editor";
+import {
+  DEFAULT_EDITOR_CONFIG,
+  type EditorConfig,
+  type EditorVehicleDetails,
+  type SectionId,
+  type VehicleTypeId,
+} from "@/types/editor";
 
 const EDITOR_STORAGE_KEY = "vedisa_editor_config_local";
 const EDITOR_SECTIONS: SectionId[] = ["proximos-remates", "ventas-directas", "novedades", "catalogo"];
+const EDITOR_PAGE_SIZE = 20;
 
 function normalizeText(value?: string): string {
   return (value ?? "")
@@ -63,6 +71,86 @@ function formatPrice(value?: string): string | null {
 
 function sectionFallback(items: CatalogItem[], start: number, count: number): CatalogItem[] {
   return items.slice(start, start + count);
+}
+
+function cleanOptional(value?: string): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function parseImagesCsv(value?: string): string[] {
+  return (value ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.startsWith("http"));
+}
+
+function buildDetailsDraft(item: CatalogItem, override?: EditorVehicleDetails): EditorVehicleDetails {
+  const raw = item.raw as Record<string, unknown>;
+  const baseImages = item.images.filter((url) => url.startsWith("http")).join(", ");
+  return {
+    title: override?.title ?? item.title,
+    subtitle: override?.subtitle ?? (item.subtitle ?? ""),
+    status: override?.status ?? (item.status ?? ""),
+    location: override?.location ?? (item.location ?? ""),
+    lot: override?.lot ?? (item.lot ?? ""),
+    auctionDate: override?.auctionDate ?? (item.auctionDate ?? ""),
+    description: override?.description ?? String(raw.descripcion ?? raw.description ?? ""),
+    brand: override?.brand ?? String(raw.marca ?? raw.brand ?? ""),
+    model: override?.model ?? String(raw.modelo ?? raw.model ?? ""),
+    year: override?.year ?? String(raw.ano ?? raw.anio ?? raw.year ?? ""),
+    category: override?.category ?? String(raw.categoria ?? ""),
+    thumbnail: override?.thumbnail ?? (item.thumbnail ?? ""),
+    view3dUrl: override?.view3dUrl ?? (item.view3dUrl ?? ""),
+    imagesCsv: override?.imagesCsv ?? baseImages,
+  };
+}
+
+function sanitizeDetails(details: EditorVehicleDetails): EditorVehicleDetails | undefined {
+  const clean: EditorVehicleDetails = {
+    title: cleanOptional(details.title),
+    subtitle: cleanOptional(details.subtitle),
+    status: cleanOptional(details.status),
+    location: cleanOptional(details.location),
+    lot: cleanOptional(details.lot),
+    auctionDate: cleanOptional(details.auctionDate),
+    description: cleanOptional(details.description),
+    brand: cleanOptional(details.brand),
+    model: cleanOptional(details.model),
+    year: cleanOptional(details.year),
+    category: cleanOptional(details.category),
+    thumbnail: cleanOptional(details.thumbnail),
+    view3dUrl: cleanOptional(details.view3dUrl),
+    imagesCsv: cleanOptional(details.imagesCsv),
+  };
+
+  if (Object.values(clean).every((value) => !value)) return undefined;
+  return clean;
+}
+
+function applyDetailsOverride(item: CatalogItem, override?: EditorVehicleDetails): CatalogItem {
+  if (!override) return item;
+  const images = parseImagesCsv(override.imagesCsv);
+  return {
+    ...item,
+    title: override.title ?? item.title,
+    subtitle: override.subtitle ?? item.subtitle,
+    status: override.status ?? item.status,
+    location: override.location ?? item.location,
+    lot: override.lot ?? item.lot,
+    auctionDate: override.auctionDate ?? item.auctionDate,
+    thumbnail: override.thumbnail ?? item.thumbnail,
+    view3dUrl: override.view3dUrl ?? item.view3dUrl,
+    images: images.length > 0 ? images : item.images,
+    raw: {
+      ...item.raw,
+      ...(override.description ? { descripcion: override.description, description: override.description } : {}),
+      ...(override.brand ? { marca: override.brand, brand: override.brand } : {}),
+      ...(override.model ? { modelo: override.model, model: override.model } : {}),
+      ...(override.year ? { ano: override.year, anio: override.year, year: override.year } : {}),
+      ...(override.category ? { categoria: override.category } : {}),
+    },
+  };
 }
 
 type FeaturedStripProps = {
@@ -168,11 +256,14 @@ export function CatalogHomeClient({ feed }: Props) {
   const [saving, setSaving] = useState(false);
   const [activeTypeTab, setActiveTypeTab] = useState<VehicleTypeId>("livianos");
   const [searchTerm, setSearchTerm] = useState("");
+  const [editorPage, setEditorPage] = useState(1);
+  const [editingVehicleKey, setEditingVehicleKey] = useState<string | null>(null);
+  const [editingDetails, setEditingDetails] = useState<EditorVehicleDetails | null>(null);
   const [loginEmail, setLoginEmail] = useState("jpmontero@vedisaremates.cl");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [selectedVehicle, setSelectedVehicle] = useState<CatalogItem | null>(null);
-  const items = feed.items;
+  const rawItems = feed.items;
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -202,6 +293,14 @@ export function CatalogHomeClient({ feed }: Props) {
       }
     })();
   }, []);
+
+  const items = useMemo(
+    () =>
+      rawItems.map((item) =>
+        applyDetailsOverride(item, config.vehicleDetails[getVehicleKey(item)]),
+      ),
+    [rawItems, config.vehicleDetails],
+  );
 
   const itemsByKey = useMemo(() => {
     const map = new Map<string, CatalogItem>();
@@ -259,8 +358,15 @@ export function CatalogHomeClient({ feed }: Props) {
     const source = query
       ? items.filter((item) => normalizeText(`${item.title} ${item.subtitle ?? ""}`).includes(query))
       : items;
-    return source.slice(0, 120);
+    return source;
   }, [items, searchTerm]);
+
+  const totalEditorPages = Math.max(1, Math.ceil(filteredEditorItems.length / EDITOR_PAGE_SIZE));
+  const currentEditorPage = Math.min(editorPage, totalEditorPages);
+  const paginatedEditorItems = useMemo(() => {
+    const start = (currentEditorPage - 1) * EDITOR_PAGE_SIZE;
+    return filteredEditorItems.slice(start, start + EDITOR_PAGE_SIZE);
+  }, [filteredEditorItems, currentEditorPage]);
 
   const toggleItemInSection = (sectionId: SectionId, itemKey: string) => {
     setConfig((prev) => {
@@ -288,6 +394,30 @@ export function CatalogHomeClient({ feed }: Props) {
       ...prev,
       vehiclePrices: { ...prev.vehiclePrices, [itemKey]: value },
     }));
+  };
+
+  const openDetailsEditor = (item: CatalogItem) => {
+    const key = getVehicleKey(item);
+    setEditingVehicleKey(key);
+    setEditingDetails(buildDetailsDraft(item, config.vehicleDetails[key]));
+  };
+
+  const saveDetailsEditor = () => {
+    if (!editingVehicleKey || !editingDetails) return;
+    const sanitized = sanitizeDetails(editingDetails);
+    setConfig((prev) => {
+      const nextDetails = { ...prev.vehicleDetails };
+      if (sanitized) nextDetails[editingVehicleKey] = sanitized;
+      else delete nextDetails[editingVehicleKey];
+      return { ...prev, vehicleDetails: nextDetails };
+    });
+    setEditingVehicleKey(null);
+    setEditingDetails(null);
+  };
+
+  const cancelDetailsEditor = () => {
+    setEditingVehicleKey(null);
+    setEditingDetails(null);
   };
 
   const saveConfig = async () => {
@@ -329,6 +459,8 @@ export function CatalogHomeClient({ feed }: Props) {
     setIsAdmin(false);
   };
 
+  const editingItem = editingVehicleKey ? itemsByKey.get(editingVehicleKey) ?? null : null;
+
   return (
     <main className="premium-bg min-h-screen text-slate-900">
       <div className="premium-glow premium-glow-cyan" />
@@ -337,7 +469,16 @@ export function CatalogHomeClient({ feed }: Props) {
       <section className="relative z-10 border-b border-cyan-100 bg-white/90 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-5 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <Image src="/vedisa-logo.png" alt="Logo Vedisa Remates" width={440} height={90} priority className="h-auto w-full max-w-md" />
+            <Link href="/" className="inline-flex">
+              <Image
+                src="/vedisa-logo.png"
+                alt="Logo Vedisa Remates"
+                width={352}
+                height={72}
+                priority
+                className="h-auto w-full max-w-[352px]"
+              />
+            </Link>
             <div className="flex items-center gap-2">
               <nav className="flex flex-wrap gap-2 text-sm">
                 <a href="#proximos-remates" className="rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-700 transition hover:border-cyan-400 hover:text-cyan-700">
@@ -365,12 +506,14 @@ export function CatalogHomeClient({ feed }: Props) {
             </div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-1 text-sm text-slate-600">
-              <p>Bienvenidos al catálogo de vehículos del portal líder en subastas de vehículos siniestrados.</p>
-              <p>
+            <div className="rounded-xl border border-cyan-100 bg-gradient-to-r from-cyan-50 via-white to-slate-50 px-4 py-3 shadow-sm">
+              <p className="text-base font-semibold leading-snug text-slate-800">
+                Bienvenidos al catálogo de vehículos del portal líder en subastas de vehículos siniestrados.
+              </p>
+              <p className="mt-1 text-sm text-slate-600">
                 Participa fácilmente: regístrate en{" "}
                 <a
-                  className="font-semibold text-cyan-700 underline"
+                  className="font-semibold text-cyan-700 underline decoration-cyan-500/60 underline-offset-2"
                   href="https://vehiculoschocados.cl/"
                   target="_blank"
                   rel="noreferrer"
@@ -392,33 +535,40 @@ export function CatalogHomeClient({ feed }: Props) {
         <section className="relative z-10 mx-auto mt-6 max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="section-shell space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h3 className="text-lg font-semibold text-slate-900">Modo editor administrador</h3>
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900">Modo editor administrador</h3>
+                <p className="text-xs text-slate-500">Gestion de visibilidad, categorias, precios y detalles manuales por publicacion.</p>
+              </div>
               <button onClick={saveConfig} disabled={saving} className="rounded-md bg-cyan-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
                 {saving ? "Guardando..." : "Guardar cambios"}
               </button>
             </div>
             <input
               value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
+              onChange={(event) => {
+                setSearchTerm(event.target.value);
+                setEditorPage(1);
+              }}
               placeholder="Buscar vehículo para editar..."
               className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
             />
             <div className="max-h-[70vh] overflow-auto rounded-lg border border-slate-200">
               <div className="sticky top-0 z-10 grid grid-cols-12 items-center gap-2 border-b border-slate-200 bg-slate-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
                 <div className="col-span-2">Patente</div>
-                <div className="col-span-3">Modelo vehículo</div>
+                <div className="col-span-3">Modelo vehiculo</div>
                 <div className="col-span-1 text-center">Visible</div>
                 <div className="col-span-1 text-center">Próx.</div>
                 <div className="col-span-1 text-center">V. Directa</div>
                 <div className="col-span-1 text-center">Novedad</div>
                 <div className="col-span-1 text-center">Catálogo</div>
-                <div className="col-span-2">Precio</div>
+                <div className="col-span-1">Precio</div>
+                <div className="col-span-1 text-center">Detalle</div>
               </div>
-              {filteredEditorItems.map((item) => {
+              {paginatedEditorItems.map((item) => {
                 const key = getVehicleKey(item);
                 const hidden = config.hiddenVehicleIds.includes(key);
                 return (
-                  <div key={`editor-${key}`} className="grid grid-cols-12 items-center gap-2 border-b border-slate-100 px-3 py-2 text-xs">
+                  <div key={`editor-${key}`} className="grid grid-cols-12 items-center gap-2 border-b border-slate-100 px-3 py-2 text-xs transition hover:bg-cyan-50/40">
                     <div className="col-span-2 font-semibold text-slate-700">{getPatent(item)}</div>
                     <div className="col-span-3 text-slate-700">{getModel(item)}</div>
                     <label className="col-span-1 flex items-center justify-center">
@@ -433,17 +583,52 @@ export function CatalogHomeClient({ feed }: Props) {
                       );
                     })}
                     <input
-                      className="col-span-2 rounded border border-slate-200 px-2 py-1"
-                      placeholder="Precio CLP (opcional)"
+                      className="col-span-1 rounded border border-slate-200 px-2 py-1"
+                      placeholder="Precio"
                       value={config.vehiclePrices[key] ?? ""}
                       onChange={(event) => setPrice(key, event.target.value)}
                     />
+                    <div className="col-span-1 flex justify-center">
+                      <button
+                        type="button"
+                        onClick={() => openDetailsEditor(item)}
+                        className="rounded border border-cyan-300 bg-cyan-50 px-2 py-1 text-[11px] font-semibold text-cyan-700 transition hover:bg-cyan-100"
+                      >
+                        Editar
+                      </button>
+                    </div>
                   </div>
                 );
               })}
             </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-3 py-2">
+              <p className="text-xs text-slate-600">
+                Mostrando {paginatedEditorItems.length} de {filteredEditorItems.length} resultados.
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditorPage((prev) => Math.max(1, prev - 1))}
+                  disabled={currentEditorPage === 1}
+                  className="rounded border border-slate-300 px-3 py-1 text-xs disabled:opacity-50"
+                >
+                  Anterior
+                </button>
+                <span className="text-xs font-semibold text-slate-700">
+                  Pagina {currentEditorPage} / {totalEditorPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setEditorPage((prev) => Math.min(totalEditorPages, prev + 1))}
+                  disabled={currentEditorPage >= totalEditorPages}
+                  className="rounded border border-slate-300 px-3 py-1 text-xs disabled:opacity-50"
+                >
+                  Siguiente
+                </button>
+              </div>
+            </div>
             <p className="text-xs text-slate-500">
-              Edición masiva dinámica: marca/desmarca categorías por fila, visibilidad y precio. Se muestran 120 resultados por búsqueda.
+              Edicion masiva dinamica: marca/desmarca categorias por fila, visibilidad y precio. Ahora con paginacion de 20 vehiculos por pagina.
             </p>
           </div>
         </section>
@@ -457,20 +642,34 @@ export function CatalogHomeClient({ feed }: Props) {
           <h1 className="mt-3 text-3xl font-black leading-tight text-slate-900 md:text-5xl">
             Catálogo de vehículos de VEDISA REMATES
           </h1>
-          <div className="mt-4 max-w-3xl space-y-2 text-sm text-slate-600 md:text-base">
-            <p>
+          <div className="mt-4 max-w-3xl rounded-xl border border-slate-200/80 bg-white/80 p-4 shadow-sm">
+            <p className="text-sm font-medium text-slate-700 md:text-base">
               Revisa nuestro inventario, y ofertanos en nuestra plataforma{" "}
-              <a className="font-semibold text-cyan-700 underline" href="https://vedisaremates.cl" target="_blank" rel="noreferrer">
+              <a
+                className="font-semibold text-cyan-700 underline decoration-cyan-500/70 underline-offset-2"
+                href="https://vedisaremates.cl"
+                target="_blank"
+                rel="noreferrer"
+              >
                 vedisaremates.cl
               </a>
               .
             </p>
-            <p>Puedes revisar la exhibición presencial en Arturo Prat 6457, Noviciado, Pudahuel.</p>
-            <p>Horario: Lunes a Viernes 9:00 - 13:00 / 14:00 - 17:00 / Sab-Dom Cerrado.</p>
-            <p>
-              Remates 100% Online: Puede revisar las unidades pre-compra presencialmente en nuestra bodega sin necesidad de garantía.
-            </p>
-            <p>Oficinas: Américo Vespucio 2880, Piso 7.</p>
+            <div className="mt-3 space-y-2 text-sm text-slate-600 md:text-[15px]">
+              <p>
+                <span className="font-semibold text-slate-800">Exhibición presencial:</span>{" "}
+                Arturo Prat 6457, Noviciado, Pudahuel.
+              </p>
+              <p>
+                <span className="font-semibold text-slate-800">Horario:</span> Lunes a Viernes 9:00 - 13:00 / 14:00 - 17:00 / Sab-Dom Cerrado.
+              </p>
+              <p>
+                <span className="font-semibold text-slate-800">Remates 100% Online:</span> Puede revisar las unidades pre-compra presencialmente en nuestra bodega sin necesidad de garantía.
+              </p>
+              <p>
+                <span className="font-semibold text-slate-800">Oficinas:</span> Américo Vespucio 2880, Piso 7.
+              </p>
+            </div>
           </div>
           <div className="mt-6 flex flex-wrap gap-3">
             <a href="#catalogo" className="premium-btn-primary">Ver catalogo completo</a>
@@ -606,6 +805,50 @@ export function CatalogHomeClient({ feed }: Props) {
             <div className="mt-4 flex justify-end gap-2">
               <button onClick={() => setShowLogin(false)} className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-600">Cancelar</button>
               <button onClick={login} className="rounded-md bg-cyan-600 px-3 py-2 text-sm font-semibold text-white">Entrar</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isAdmin && editingVehicleKey && editingDetails && editingItem ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/70 p-4" onClick={cancelDetailsEditor}>
+          <div className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-2xl bg-white p-5 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Editar detalle manual</h3>
+                <p className="text-xs text-slate-500">
+                  {getPatent(editingItem)} · {getModel(editingItem)}
+                </p>
+              </div>
+              <button type="button" onClick={cancelDetailsEditor} className="rounded border border-slate-300 px-3 py-1 text-xs text-slate-600">
+                Cerrar
+              </button>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Titulo" value={editingDetails.title ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), title: event.target.value }))} />
+              <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Subtitulo" value={editingDetails.subtitle ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), subtitle: event.target.value }))} />
+              <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Estado" value={editingDetails.status ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), status: event.target.value }))} />
+              <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Ubicacion" value={editingDetails.location ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), location: event.target.value }))} />
+              <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Lote" value={editingDetails.lot ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), lot: event.target.value }))} />
+              <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Fecha remate" value={editingDetails.auctionDate ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), auctionDate: event.target.value }))} />
+              <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Marca" value={editingDetails.brand ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), brand: event.target.value }))} />
+              <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Modelo" value={editingDetails.model ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), model: event.target.value }))} />
+              <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Año" value={editingDetails.year ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), year: event.target.value }))} />
+              <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Categoria" value={editingDetails.category ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), category: event.target.value }))} />
+              <input className="rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Imagen principal URL" value={editingDetails.thumbnail ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), thumbnail: event.target.value }))} />
+              <input className="rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Visor 3D URL" value={editingDetails.view3dUrl ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), view3dUrl: event.target.value }))} />
+              <textarea className="min-h-20 rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Descripcion" value={editingDetails.description ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), description: event.target.value }))} />
+              <textarea className="min-h-20 rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="URLs de galeria separadas por coma" value={editingDetails.imagesCsv ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), imagesCsv: event.target.value }))} />
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={cancelDetailsEditor} className="rounded border border-slate-300 px-4 py-2 text-sm text-slate-700">
+                Cancelar
+              </button>
+              <button type="button" onClick={saveDetailsEditor} className="rounded bg-cyan-600 px-4 py-2 text-sm font-semibold text-white">
+                Guardar detalle
+              </button>
             </div>
           </div>
         </div>

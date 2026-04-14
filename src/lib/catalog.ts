@@ -10,6 +10,9 @@ const DEFAULT_ORDER_BY = process.env.CATALOG_SUPABASE_ORDER_BY ?? "created_at";
 const GLO3D_INVENTORY_POST_URL =
   "https://us-central1-glo3d-c338b.cloudfunctions.net/outbound/api/v1/inventory";
 const GLO3D_MAX_PAGES = Number(process.env.GLO3D_MAX_PAGES ?? "8");
+const GLO3D_IFRAME_NOVA_BASE = "https://glo3d.net/iframeNova";
+const GLO3D_IFRAME_PARAMS =
+  "gallery=true&featurevideos=true&condition=false&interior=false&footerGallery=false&zoom=false&navigationarrows=false&spinicon=basic&font=Roboto&topbarblinking=false&fullscreen=false&load=false&autorotate=false&themetextcolor=black";
 
 function getStringFromKeys(
   row: Record<string, unknown>,
@@ -154,14 +157,25 @@ function normalizeRow(row: Record<string, unknown>): CatalogItem | null {
     getStringFromKeys(row, ["thumbnail", "imagen_principal", "foto_portada"]) ??
     images[0];
 
-  const view3dUrl = getStringFromKeys(row, [
+  const view3dRaw = getStringFromKeys(row, [
     "url_3d",
     "link_3d",
     "visor_3d_url",
     "glo3d_url",
     "iframe_3d",
     "view3d",
+    "iframe",
+    "iframe_with_params",
+    "src",
+    "src_with_params",
   ]);
+  const parsed3d = extractEmbedUrl(view3dRaw);
+  const parsed3dId = extractGlo3dId(parsed3d);
+  const view3dUrl = parsed3dId
+    ? buildGlo3dIframeNovaUrl(parsed3dId)
+    : parsed3d
+      ? normalizeGlo3dUrl(parsed3d)
+      : undefined;
 
   return {
     id,
@@ -341,6 +355,22 @@ function normalizeAwsVehicle(vehicle: AwsVehicle): CatalogItem {
   const patent = normalizeStock(vehicle.patente);
   const title = [vehicle.marca, vehicle.modelo].filter(Boolean).join(" ").trim() || patent || `Vehículo ${id.slice(0, 8)}`;
   const subtitle = [patent, vehicle.ano].filter(Boolean).join(" · ");
+  const awsFields = vehicle.aws_campos ?? {};
+  const view3dRaw = pickString(awsFields, [
+    "iframe_with_params",
+    "iframe",
+    "src_with_params",
+    "src",
+    "url_3d",
+    "glo3d_url",
+  ]);
+  const parsed3d = extractEmbedUrl(view3dRaw);
+  const parsed3dId = extractGlo3dId(parsed3d);
+  const view3dUrl = parsed3dId
+    ? buildGlo3dIframeNovaUrl(parsed3dId)
+    : parsed3d
+      ? normalizeGlo3dUrl(parsed3d)
+      : undefined;
 
   return {
     id,
@@ -348,8 +378,9 @@ function normalizeAwsVehicle(vehicle: AwsVehicle): CatalogItem {
     subtitle: subtitle || undefined,
     images: (vehicle.imagenes ?? []).filter((url) => url.startsWith("http")),
     thumbnail: vehicle.imagenes?.[0],
+    view3dUrl,
     raw: {
-      ...vehicle.aws_campos,
+      ...awsFields,
       patente: patent || vehicle.patente,
       descripcion: vehicle.descripcion,
       source: "aws",
@@ -405,6 +436,36 @@ function extractEmbedUrl(value: unknown): string | undefined {
   return match?.[1];
 }
 
+function extractGlo3dId(value?: string): string | undefined {
+  if (!value) return undefined;
+  const s = value.trim();
+  if (!s) return undefined;
+
+  const idQuery = s.match(/[?&]id=([^&\s]+)/);
+  if (idQuery?.[1]) return idQuery[1];
+
+  const iframePath = s.match(/glo3d\.net\/(?:iframe|iframeNova)\/([^/?\s]+)/);
+  if (iframePath?.[1]) return iframePath[1];
+
+  const relativeIframePath = s.match(/(?:^|\/)(?:iframe|iframeNova)\/([^/?\s]+)/);
+  if (relativeIframePath?.[1]) return relativeIframePath[1];
+
+  const genericPath = s.match(/glo3d\.net\/([^/?\s]+)(?:\?|$)/);
+  if (genericPath?.[1] && !genericPath[1].includes("embed")) return genericPath[1];
+
+  return undefined;
+}
+
+function buildGlo3dIframeNovaUrl(id: string): string {
+  return `${GLO3D_IFRAME_NOVA_BASE}/${id}?&${GLO3D_IFRAME_PARAMS}`;
+}
+
+function normalizeGlo3dUrl(value: string): string {
+  if (value.startsWith("//")) return `https:${value}`;
+  if (value.startsWith("/")) return `https://glo3d.net${value}`;
+  return value;
+}
+
 async function fetchGlo3dByStocks(stocks: string[]): Promise<Map<string, string>> {
   const username = process.env.GLO3D_API_USERNAME ?? process.env.VITE_GLO3D_API_USERNAME;
   const password = process.env.GLO3D_API_PASSWORD ?? process.env.VITE_GLO3D_API_PASSWORD;
@@ -446,8 +507,16 @@ async function fetchGlo3dByStocks(stocks: string[]): Promise<Map<string, string>
         extractEmbedUrl(item.src) ??
         extractEmbedUrl(item.iframe_with_params) ??
         extractEmbedUrl(item.iframe);
-      if (embed) {
-        resolved.set(stock, embed);
+
+      const glo3dId = extractGlo3dId(embed);
+      if (glo3dId) {
+        resolved.set(stock, buildGlo3dIframeNovaUrl(glo3dId));
+        pending.delete(stock);
+        continue;
+      }
+
+      if (embed && /(?:iframe|iframeNova)\//i.test(embed)) {
+        resolved.set(stock, normalizeGlo3dUrl(embed));
         pending.delete(stock);
       }
     }
@@ -466,12 +535,6 @@ function getItemStock(item: CatalogItem): string | undefined {
       extractPatentFromText(item.subtitle) ??
       extractPatentFromText(item.title),
   );
-}
-
-function getPublicGlo3dUrl(stock?: string): string | undefined {
-  const normalized = normalizeStock(stock);
-  if (!normalized) return undefined;
-  return `https://glo3d.net/embed?stock=${encodeURIComponent(normalized)}`;
 }
 
 function mergeCatalogItems(primary: CatalogItem[], secondary: CatalogItem[]): CatalogItem[] {
@@ -526,8 +589,7 @@ export async function getCatalogFeed(): Promise<CatalogFeed> {
           ...item,
           view3dUrl:
             item.view3dUrl ??
-            glo3dMap.get(getItemStock(item) ?? "") ??
-            getPublicGlo3dUrl(getItemStock(item)),
+            glo3dMap.get(getItemStock(item) ?? ""),
         })),
       };
     }
@@ -549,8 +611,7 @@ export async function getCatalogFeed(): Promise<CatalogFeed> {
       ...item,
       view3dUrl:
         item.view3dUrl ??
-        glo3dMap.get(getItemStock(item) ?? "") ??
-        getPublicGlo3dUrl(getItemStock(item)),
+        glo3dMap.get(getItemStock(item) ?? ""),
     }));
 
     return {

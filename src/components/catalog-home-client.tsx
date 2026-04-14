@@ -198,10 +198,6 @@ function formatPrice(value?: string): string | null {
   return new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(amount);
 }
 
-function sectionFallback(items: CatalogItem[], start: number, count: number): CatalogItem[] {
-  return items.slice(start, start + count);
-}
-
 function formatAuctionDateLabel(value?: string): string {
   if (!value) return "";
   const date = new Date(value);
@@ -784,21 +780,18 @@ export function CatalogHomeClient({ feed }: Props) {
     return sorted;
   }, [homeQuickFilteredItems, homeSort, config.vehiclePrices]);
 
-  const getSectionItems = (sectionId: SectionId, fallback: CatalogItem[]): CatalogItem[] => {
-    const selected = config.sectionVehicleIds[sectionId] ?? [];
-    if (selected.length === 0) return fallback;
-    return selected.map((id) => itemsByKey.get(id)).filter((item): item is CatalogItem => !!item);
-  };
+  const homeVisibleKeys = useMemo(
+    () => new Set(homeVisibleItems.map((item) => getVehicleKey(item))),
+    [homeVisibleItems],
+  );
 
-  const proximosByKeyword = homeVisibleItems.filter((item) =>
-    normalizeText([item.status, item.subtitle, item.title, item.location].filter(Boolean).join(" ")).includes("proxim"),
-  );
-  const ventasByKeyword = homeVisibleItems.filter((item) =>
-    normalizeText([item.status, item.subtitle, item.title].filter(Boolean).join(" ")).includes("venta directa"),
-  );
-  const novedadesByKeyword = homeVisibleItems.filter((item) =>
-    normalizeText([item.status, item.subtitle, item.title].filter(Boolean).join(" ")).includes("novedad"),
-  );
+  const getSectionItems = (sectionId: SectionId): CatalogItem[] => {
+    const selected = config.sectionVehicleIds[sectionId] ?? [];
+    return selected
+      .map((id) => itemsByKey.get(id))
+      .filter((item): item is CatalogItem => !!item)
+      .filter((item) => homeVisibleKeys.has(getVehicleKey(item)));
+  };
 
   const upcomingAuctionByVehicleKey = useMemo(() => {
     const labels: Record<string, string> = {};
@@ -826,38 +819,28 @@ export function CatalogHomeClient({ feed }: Props) {
     () =>
       sortedUpcomingAuctions.map((auction) => ({
         auction,
-        items: homeVisibleItems.filter(
-          (item) =>
-            (config.vehicleUpcomingAuctionIds[getVehicleKey(item)] ?? "") === auction.id,
-        ),
+        items: homeVisibleItems.filter((item) => {
+          const key = getVehicleKey(item);
+          return (
+            (config.vehicleUpcomingAuctionIds[key] ?? "") === auction.id &&
+            (config.sectionVehicleIds["proximos-remates"] ?? []).includes(key)
+          );
+        }),
       })),
-    [sortedUpcomingAuctions, homeVisibleItems, config.vehicleUpcomingAuctionIds],
+    [sortedUpcomingAuctions, homeVisibleItems, config.vehicleUpcomingAuctionIds, config.sectionVehicleIds],
   );
 
   const hasUpcomingAuctionCategories =
     sortedUpcomingAuctions.length > 0 &&
     upcomingAuctionGroups.some((group) => group.items.length > 0);
 
-  const proximosRemates = getSectionItems(
-    "proximos-remates",
-    proximosByKeyword.length > 0
-      ? proximosByKeyword.slice(0, 12)
-      : sectionFallback(homeVisibleItems, 0, 12),
-  );
-  const ventasDirectas = getSectionItems(
-    "ventas-directas",
-    ventasByKeyword.length > 0
-      ? ventasByKeyword.slice(0, 12)
-      : sectionFallback(homeVisibleItems, 10, 12),
-  );
-  const novedades = getSectionItems(
-    "novedades",
-    novedadesByKeyword.length > 0
-      ? novedadesByKeyword.slice(0, 12)
-      : sectionFallback(homeVisibleItems, 20, 12),
-  );
-  const catalogoItems = getSectionItems("catalogo", homeVisibleItems);
+  const proximosRemates = getSectionItems("proximos-remates");
+  const ventasDirectas = getSectionItems("ventas-directas");
+  const novedades = getSectionItems("novedades");
+  const catalogoItems = getSectionItems("catalogo");
   const filteredCatalogItems = catalogoItems.filter((item) => inferVehicleType(item) === activeTypeTab);
+
+  const featuredItems = useMemo(() => proximosRemates.slice(0, 8), [proximosRemates]);
 
   const favoritesItems = useMemo(
     () => homeVisibleItems.filter((item) => favoriteKeys.includes(getVehicleKey(item))).slice(0, 12),
@@ -866,14 +849,14 @@ export function CatalogHomeClient({ feed }: Props) {
 
   const latestItems = useMemo(
     () =>
-      [...homeVisibleItems]
+      [...novedades]
         .sort(
           (a, b) =>
             new Date(b.auctionDate ?? "1900-01-01").getTime() -
             new Date(a.auctionDate ?? "1900-01-01").getTime(),
         )
         .slice(0, 6),
-    [homeVisibleItems],
+    [novedades],
   );
 
   const nextAuction = useMemo(() => {
@@ -2043,29 +2026,118 @@ export function CatalogHomeClient({ feed }: Props) {
           className={`section-shell transition-all duration-500 ease-out ${
             hasActiveSearch
               ? "pointer-events-none max-h-0 -translate-y-2 overflow-hidden opacity-0"
-              : "max-h-[480px] translate-y-0 opacity-100"
+              : "max-h-[1400px] translate-y-0 opacity-100"
           }`}
         >
           <div className="mb-4">
             <p className="premium-kicker">Cómo participar</p>
-            <h2 className="text-2xl font-bold text-slate-900">Compra en 3 pasos</h2>
+            <h2 className="text-2xl font-bold text-[#2980b9]">¿Cómo participar en los remates?</h2>
+            <p className="mt-2 text-sm text-slate-700">
+              Participar en nuestras subastas online es <strong>fácil y seguro</strong>. Sigue estos pasos:
+            </p>
           </div>
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {[
-              ["1", "Regístrate", "Crea tu cuenta en vehiculoschocados.cl en pocos minutos."],
-              ["2", "Activa garantía", "Gestiona tu garantía para habilitar ofertas seguras."],
-              ["3", "Oferta y adjudica", "Participa online con seguimiento comercial de VEDISA."],
-            ].map(([step, title, description]) => (
-              <div key={step} className="rounded-xl border border-cyan-100 bg-white p-4">
-                <p className="text-xs font-bold text-cyan-700">Paso {step}</p>
-                <h3 className="mt-1 text-base font-semibold text-slate-900">{title}</h3>
-                <p className="mt-1 text-sm text-slate-600">{description}</p>
+              {
+                step: "1",
+                title: "Regístrate",
+                icon: "https://img.icons8.com/color/96/user-male-circle.png",
+                body: (
+                  <>
+                    Crea tu cuenta en{" "}
+                    <a
+                      href="https://vehiculoschocados.cl/Account/Register"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="ui-focus font-semibold text-cyan-700 underline"
+                    >
+                      este enlace
+                    </a>{" "}
+                    y confirma tu correo electrónico.
+                  </>
+                ),
+              },
+              {
+                step: "2",
+                title: "Constituye tu garantía",
+                icon: "https://img.icons8.com/color/96/money-bag.png",
+                body: (
+                  <>
+                    Para ofertar, debes constituir tu garantía. Contáctanos por{" "}
+                    <a
+                      href="https://wa.me/56989323397?text=Hola%20quiero%20información%20sobre%20la%20garantía"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="ui-focus font-semibold text-cyan-700 underline"
+                    >
+                      WhatsApp
+                    </a>{" "}
+                    o revisa la ayuda{" "}
+                    <a
+                      href="https://vehiculoschocados.cl/Help"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="ui-focus font-semibold text-cyan-700 underline"
+                    >
+                      aquí
+                    </a>
+                    .
+                  </>
+                ),
+              },
+              {
+                step: "3",
+                title: "Revisa los lotes",
+                icon: "https://img.icons8.com/color/96/car.png",
+                body: (
+                  <>
+                    Explora los{" "}
+                    <a
+                      href="https://vehiculoschocados.cl/Listing"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="ui-focus font-semibold text-cyan-700 underline"
+                    >
+                      vehículos disponibles
+                    </a>{" "}
+                    con fotos, videos y descripciones.
+                  </>
+                ),
+              },
+              {
+                step: "4",
+                title: "Ofertar y adjudicación",
+                icon: "https://cdn-icons-png.flaticon.com/128/2162/2162183.png",
+                body: (
+                  <>Haz tu oferta en línea. Si ganas, coordinamos tu pago y retiro en nuestras bodegas.</>
+                ),
+              },
+            ].map((step) => (
+              <div
+                key={step.step}
+                className="h-full rounded-[14px] border-2 border-[#ffc107] bg-gradient-to-b from-[#fffdf5] via-white to-[#fff9e8] px-4 py-6 text-center shadow-[0_6px_24px_rgba(255,193,7,0.4)] transition duration-200 hover:-translate-y-[3px] hover:shadow-[0_10px_30px_rgba(255,193,7,0.6)]"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={step.icon}
+                  alt={step.title}
+                  className="mx-auto mb-4 w-[120px] max-w-full md:w-[96px]"
+                  loading="lazy"
+                />
+                <span className="mx-auto mb-2 inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                  <span aria-hidden="true">✓</span>
+                  Proceso seguro
+                </span>
+                <h3 className="text-base font-bold text-slate-900">
+                  {step.step}. {step.title}
+                </h3>
+                <p className="mt-2 text-sm text-slate-600">{step.body}</p>
               </div>
             ))}
           </div>
         </section>
         {config.homeLayout.showFeaturedStrip ? (
-          <FeaturedStrip items={homeVisibleItems.slice(0, 8)} onOpenVehicle={setSelectedVehicle} />
+          <FeaturedStrip items={featuredItems} onOpenVehicle={setSelectedVehicle} />
         ) : null}
         {favoritesItems.length > 0 ? (
           <section className="section-shell">

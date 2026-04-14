@@ -2,6 +2,7 @@ import type { CatalogItem } from "@/types/catalog";
 
 type CatalogCardProps = {
   item: CatalogItem;
+  priceLabel?: string | null;
 };
 
 function formatDate(date?: string): string {
@@ -21,7 +22,7 @@ function shortText(value?: string, max = 90): string | undefined {
   return value.length > max ? `${value.slice(0, max)}...` : value;
 }
 
-export function CatalogCard({ item }: CatalogCardProps) {
+export function CatalogCard({ item, priceLabel }: CatalogCardProps) {
   const cover = item.thumbnail ?? item.images[0] ?? "/placeholder-car.svg";
   const thumbs = item.images.slice(0, 8);
   const formattedDate = formatDate(item.auctionDate);
@@ -87,9 +88,12 @@ export function CatalogCard({ item }: CatalogCardProps) {
         ) : null}
 
         <div className="flex items-center justify-between border-t border-slate-200 pt-3">
-          <span className="text-xs text-slate-500">
-            {item.images.length} foto{item.images.length === 1 ? "" : "s"}
-          </span>
+          <div className="flex flex-col">
+            {priceLabel ? <span className="text-sm font-semibold text-cyan-700">{priceLabel}</span> : null}
+            <span className="text-xs text-slate-500">
+              {item.images.length} foto{item.images.length === 1 ? "" : "s"}
+            </span>
+          </div>
           {item.view3dUrl ? (
             <a
               href={item.view3dUrl}

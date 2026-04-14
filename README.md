@@ -23,6 +23,30 @@ Campos principales:
 - `CATALOG_SOURCE_API_TOKEN`: token opcional (si el endpoint lo exige).
 - `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`: fallback a Supabase.
 - `CATALOG_SUPABASE_TABLE`: tabla origen (por defecto `inventario`).
+- `AWS_*`: inventario DynamoDB (misma lógica que Tasaciones).
+- `GLO3D_API_USERNAME` / `GLO3D_API_PASSWORD`: visores 3D.
+- `ADMIN_EDITOR_EMAIL` / `ADMIN_EDITOR_PASSWORD`: acceso al modo editor.
+
+## Modo editor administrador
+
+Incluye login y edición de:
+
+- selección de vehículos por sección (`proximos-remates`, `ventas-directas`, `novedades`, `catalogo`)
+- ocultar/mostrar vehículos
+- precio personalizado por vehículo
+
+El modo editor guarda en Supabase en la tabla `catalogo_editor_config` (configurable con `CATALOG_EDITOR_TABLE`).
+
+SQL sugerido:
+
+```sql
+create table if not exists public.catalogo_editor_config (
+  id text primary key,
+  config jsonb not null default '{}'::jsonb,
+  updated_by text,
+  updated_at timestamptz default now()
+);
+```
 
 ## Desarrollo local
 

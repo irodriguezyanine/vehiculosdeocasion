@@ -13,8 +13,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Catalogo Vedisa",
-  description: "Catalogo historico de remates Vedisa con integracion dinamica",
+  title: "Vedisa Remates | Catalogo",
+  description: "Plataforma profesional de remates, ventas directas, novedades y catalogo dinamico.",
+  icons: {
+    icon: "/vedisa-logo.png",
+    apple: "/vedisa-logo.png",
+  },
 };
 
 export default function RootLayout({

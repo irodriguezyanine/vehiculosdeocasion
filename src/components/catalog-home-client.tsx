@@ -1433,7 +1433,7 @@ export function CatalogHomeClient({ feed }: Props) {
 
       <section className="sticky top-0 z-30 border-b border-cyan-100/80 bg-white/88 shadow-[0_8px_24px_rgba(87,141,167,0.08)] backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:px-6 md:py-4 lg:px-8">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center justify-between gap-3 md:gap-4">
             <Link
               href="/"
               className="inline-flex"
@@ -1457,7 +1457,7 @@ export function CatalogHomeClient({ feed }: Props) {
             <button
               type="button"
               onClick={() => setMobileMenuOpen((prev) => !prev)}
-              className="ui-focus inline-flex items-center justify-center self-end rounded-md border border-slate-300 bg-white px-2 py-1 text-slate-700 md:hidden"
+              className="ui-focus inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-2 py-1 text-slate-700 md:hidden"
               aria-label="Abrir menú"
               aria-expanded={mobileMenuOpen}
               aria-controls="mobile-main-menu"

@@ -673,25 +673,22 @@ export function CatalogHomeClient({ feed }: Props) {
               )}
             </div>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="glass-soft rounded-xl px-4 py-3">
-              <p className="text-lg font-bold leading-snug text-slate-900">
-                Catálogo oficial de VEDISA REMATES
-              </p>
-              <p className="mt-1 text-sm text-slate-600">
-                Participa de forma segura en subastas de vehículos siniestrados: regístrate en{" "}
-                <a
-                  className="font-semibold text-cyan-700 underline decoration-cyan-500/60 underline-offset-2"
-                  href="https://vehiculoschocados.cl/"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  https://vehiculoschocados.cl/
-                </a>{" "}
-                y activa tu garantía para comenzar a ofertar.
-              </p>
-            </div>
-            <span className="rounded-full bg-cyan-600 px-3 py-1 text-xs font-semibold text-white">{visibleItems.length} vehiculos</span>
+          <div className="pt-1">
+            <h2 className="text-xl font-bold tracking-tight text-slate-900 md:text-2xl">
+              Catálogo oficial de VEDISA REMATES
+            </h2>
+            <p className="mt-1 max-w-4xl text-sm leading-relaxed text-slate-600 md:text-[15px]">
+              Accede a una experiencia de subasta segura y profesional. Regístrate en{" "}
+              <a
+                className="font-semibold text-cyan-700 underline decoration-cyan-500/60 underline-offset-2"
+                href="https://vehiculoschocados.cl/"
+                target="_blank"
+                rel="noreferrer"
+              >
+                https://vehiculoschocados.cl/
+              </a>{" "}
+              y activa tu garantía para comenzar a ofertar.
+            </p>
           </div>
           {feed.warning ? (
             <p className="rounded-md border border-amber-300/60 bg-amber-100 px-3 py-2 text-sm text-amber-900">{feed.warning}</p>
@@ -870,15 +867,15 @@ export function CatalogHomeClient({ feed }: Props) {
 
       {!isAdmin ? (
         <>
-      <section className="relative z-10 mx-auto grid max-w-7xl gap-6 px-4 py-10 sm:px-6 lg:grid-cols-5 lg:px-8">
-        <div className="premium-panel premium-panel-hero lg:col-span-3">
+      <section className="relative z-10 mx-auto grid max-w-7xl gap-6 px-4 py-10 sm:px-6 lg:grid-cols-12 lg:px-8">
+        <div className="premium-panel premium-panel-hero lg:col-span-8">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-700">VEDISA REMATES</p>
           <h1 className="mt-3 text-3xl font-black leading-tight text-slate-900 md:text-5xl">
-            Catálogo de vehículos de VEDISA REMATES
+            Inventario de vehículos para remate y venta directa
           </h1>
           <div className="glass-soft mt-4 max-w-3xl rounded-xl p-5">
             <p className="text-base font-semibold text-slate-800 md:text-lg">
-              Inventario disponible para ofertar online en{" "}
+              Plataforma oficial de ofertas online en{" "}
               <a
                 className="font-semibold text-cyan-700 underline decoration-cyan-500/70 underline-offset-2"
                 href="https://vedisaremates.cl"
@@ -889,26 +886,13 @@ export function CatalogHomeClient({ feed }: Props) {
               </a>
               .
             </p>
-            <p className="mt-2 text-sm text-slate-600 md:text-base">
-              Revisa cada unidad con detalle y concreta tu participación con respaldo profesional.
+            <p className="mt-2 text-sm leading-relaxed text-slate-600 md:text-[15px]">
+              Revisa cada unidad con información clara, fotos y trazabilidad comercial para tomar decisiones con confianza.
             </p>
-            <div className="mt-4 grid gap-2 text-sm text-slate-700 md:text-[15px]">
-              <div className="info-tile flex items-start gap-2">
-                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-cyan-100 text-xs">📍</span>
-                <p><span className="font-semibold text-slate-900">Exhibición presencial:</span> Arturo Prat 6457, Noviciado, Pudahuel.</p>
-              </div>
-              <div className="info-tile flex items-start gap-2">
-                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-cyan-100 text-xs">🕒</span>
-                <p><span className="font-semibold text-slate-900">Horario:</span> Lunes a Viernes 9:00 - 13:00 / 14:00 - 17:00 / Sáb-Dom cerrado.</p>
-              </div>
-              <div className="info-tile flex items-start gap-2">
-                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-cyan-100 text-xs">💻</span>
-                <p><span className="font-semibold text-slate-900">Remates 100% online:</span> visita las unidades pre-compra presencialmente en nuestra bodega, sin garantía previa.</p>
-              </div>
-              <div className="info-tile flex items-start gap-2">
-                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-cyan-100 text-xs">🏢</span>
-                <p><span className="font-semibold text-slate-900">Oficinas:</span> Américo Vespucio 2880, Piso 7.</p>
-              </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <span className="rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-700">Visor 3D</span>
+              <span className="rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-700">Agenda por remate</span>
+              <span className="rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-700">Contacto inmediato</span>
             </div>
           </div>
           <div className="mt-6 flex flex-wrap gap-3">
@@ -916,7 +900,7 @@ export function CatalogHomeClient({ feed }: Props) {
             <a href="#proximos-remates" className="premium-btn-secondary ui-focus">Explorar secciones</a>
           </div>
         </div>
-        <div className="grid gap-3 lg:col-span-2">
+        <div className="grid gap-3 sm:grid-cols-2 lg:col-span-4 lg:grid-cols-1 xl:grid-cols-2">
           <div className="premium-stat">
             <p className="text-xs uppercase tracking-widest text-slate-500">📍 Exhibición presencial</p>
             <p className="mt-1 text-sm font-semibold text-slate-900">Arturo Prat 6457, Noviciado, Pudahuel</p>

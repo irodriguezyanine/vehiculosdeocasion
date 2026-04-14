@@ -1465,10 +1465,10 @@ export function CatalogHomeClient({ feed }: Props) {
               <Image
                 src="/vedisa-logo.png"
                 alt="Logo Vedisa Remates"
-                width={260}
-                height={54}
+                width={208}
+                height={43}
                 priority
-                className="h-auto w-full max-w-[240px] sm:max-w-[260px] md:max-w-[280px]"
+                className="h-auto w-full max-w-[192px] sm:max-w-[208px] md:max-w-[224px]"
               />
             </Link>
             <button

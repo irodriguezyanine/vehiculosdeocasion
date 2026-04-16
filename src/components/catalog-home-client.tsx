@@ -22,6 +22,7 @@ const EDITOR_PAGE_SIZE = 20;
 type AdminTabId = "vehiculos" | "categorias" | "layout";
 type SortOption = "relevancia" | "fecha-remate" | "precio-asc" | "precio-desc" | "titulo";
 type QuickFilterId = "livianos" | "pesados" | "con3d" | "conPrecio" | "recientes" | "manuales";
+type DetailEditorTabId = "general" | "tecnica";
 type ClientLeadForm = {
   name: string;
   phone: string;
@@ -367,10 +368,13 @@ function mapManualPublicationToCatalogItem(entry: ManualPublication): CatalogIte
 
 function buildDetailsDraft(item: CatalogItem, override?: EditorVehicleDetails): EditorVehicleDetails {
   const raw = item.raw as Record<string, unknown>;
+  const cav = (raw.cav_campos as Record<string, unknown> | undefined) ?? {};
   const baseImages = item.images.filter((url) => url.startsWith("http")).join(", ");
   return {
     title: override?.title ?? item.title,
     subtitle: override?.subtitle ?? (item.subtitle ?? ""),
+    patente: override?.patente ?? String(raw.patente ?? raw.PPU ?? ""),
+    vin: override?.vin ?? String(raw.vin ?? cav.vin ?? cav.numero_chasis ?? ""),
     status: override?.status ?? (item.status ?? ""),
     location: override?.location ?? (item.location ?? ""),
     lot: override?.lot ?? (item.lot ?? ""),
@@ -380,6 +384,13 @@ function buildDetailsDraft(item: CatalogItem, override?: EditorVehicleDetails): 
     model: override?.model ?? String(raw.modelo ?? raw.model ?? ""),
     year: override?.year ?? String(raw.ano ?? raw.anio ?? raw.year ?? ""),
     category: override?.category ?? String(raw.categoria ?? ""),
+    kilometraje: override?.kilometraje ?? String(raw.kilometraje ?? cav.kilometraje ?? cav.km ?? ""),
+    color: override?.color ?? String(raw.color ?? cav.color ?? ""),
+    combustible: override?.combustible ?? String(raw.combustible ?? cav.combustible ?? ""),
+    transmision: override?.transmision ?? String(raw.transmision ?? cav.transmision ?? cav.caja ?? ""),
+    traccion: override?.traccion ?? String(raw.traccion ?? cav.traccion ?? ""),
+    aro: override?.aro ?? String(raw.aro ?? cav.aro ?? ""),
+    cilindrada: override?.cilindrada ?? String(raw.cilindrada ?? cav.cilindrada ?? ""),
     thumbnail: override?.thumbnail ?? (item.thumbnail ?? ""),
     view3dUrl: override?.view3dUrl ?? (item.view3dUrl ?? ""),
     imagesCsv: override?.imagesCsv ?? baseImages,
@@ -390,6 +401,8 @@ function sanitizeDetails(details: EditorVehicleDetails): EditorVehicleDetails | 
   const clean: EditorVehicleDetails = {
     title: cleanOptional(details.title),
     subtitle: cleanOptional(details.subtitle),
+    patente: cleanOptional(details.patente),
+    vin: cleanOptional(details.vin),
     status: cleanOptional(details.status),
     location: cleanOptional(details.location),
     lot: cleanOptional(details.lot),
@@ -399,6 +412,13 @@ function sanitizeDetails(details: EditorVehicleDetails): EditorVehicleDetails | 
     model: cleanOptional(details.model),
     year: cleanOptional(details.year),
     category: cleanOptional(details.category),
+    kilometraje: cleanOptional(details.kilometraje),
+    color: cleanOptional(details.color),
+    combustible: cleanOptional(details.combustible),
+    transmision: cleanOptional(details.transmision),
+    traccion: cleanOptional(details.traccion),
+    aro: cleanOptional(details.aro),
+    cilindrada: cleanOptional(details.cilindrada),
     thumbnail: cleanOptional(details.thumbnail),
     view3dUrl: cleanOptional(details.view3dUrl),
     imagesCsv: cleanOptional(details.imagesCsv),
@@ -424,11 +444,20 @@ function applyDetailsOverride(item: CatalogItem, override?: EditorVehicleDetails
     images: images.length > 0 ? images : item.images,
     raw: {
       ...item.raw,
+      ...(override.patente ? { patente: override.patente, PPU: override.patente } : {}),
+      ...(override.vin ? { vin: override.vin } : {}),
       ...(override.description ? { descripcion: override.description, description: override.description } : {}),
       ...(override.brand ? { marca: override.brand, brand: override.brand } : {}),
       ...(override.model ? { modelo: override.model, model: override.model } : {}),
       ...(override.year ? { ano: override.year, anio: override.year, year: override.year } : {}),
       ...(override.category ? { categoria: override.category } : {}),
+      ...(override.kilometraje ? { kilometraje: override.kilometraje, km: override.kilometraje } : {}),
+      ...(override.color ? { color: override.color } : {}),
+      ...(override.combustible ? { combustible: override.combustible } : {}),
+      ...(override.transmision ? { transmision: override.transmision, caja: override.transmision } : {}),
+      ...(override.traccion ? { traccion: override.traccion } : {}),
+      ...(override.aro ? { aro: override.aro } : {}),
+      ...(override.cilindrada ? { cilindrada: override.cilindrada } : {}),
     },
   };
 }
@@ -683,6 +712,7 @@ export function CatalogHomeClient({ feed }: Props) {
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [selectedVehicle, setSelectedVehicle] = useState<CatalogItem | null>(null);
+  const [detailEditorTab, setDetailEditorTab] = useState<DetailEditorTabId>("general");
   const [selectedVehicleTab, setSelectedVehicleTab] = useState<VehicleDetailTabId>("general");
   const [revalidating, setRevalidating] = useState(false);
   const rawItems = feed.items;
@@ -1539,6 +1569,7 @@ export function CatalogHomeClient({ feed }: Props) {
     const key = getVehicleKey(item);
     setEditingVehicleKey(key);
     setEditingDetails(buildDetailsDraft(item, config.vehicleDetails[key]));
+    setDetailEditorTab("general");
   };
 
   const saveDetailsEditor = () => {
@@ -3163,6 +3194,48 @@ export function CatalogHomeClient({ feed }: Props) {
               </button>
             </div>
 
+            <div className="mb-3 flex flex-wrap gap-2">
+              {([
+                ["general", "Información del vehículo"],
+                ["tecnica", "Detalles técnicos"],
+              ] as Array<[DetailEditorTabId, string]>).map(([tabId, label]) => (
+                <button
+                  key={tabId}
+                  type="button"
+                  onClick={() => setDetailEditorTab(tabId)}
+                  className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold transition ${
+                    detailEditorTab === tabId
+                      ? "bg-cyan-600 text-white"
+                      : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {detailEditorTab === "general" ? (
+              <div className="grid gap-3 md:grid-cols-2">
+                <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Patente" value={editingDetails.patente ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), patente: event.target.value }))} />
+                <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="VIN" value={editingDetails.vin ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), vin: event.target.value }))} />
+                <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Marca" value={editingDetails.brand ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), brand: event.target.value }))} />
+                <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Modelo" value={editingDetails.model ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), model: event.target.value }))} />
+                <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Año" value={editingDetails.year ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), year: event.target.value }))} />
+                <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Categoría" value={editingDetails.category ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), category: event.target.value }))} />
+              </div>
+            ) : (
+              <div className="grid gap-3 md:grid-cols-2">
+                <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Kilometraje / KM" value={editingDetails.kilometraje ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), kilometraje: event.target.value }))} />
+                <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Color" value={editingDetails.color ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), color: event.target.value }))} />
+                <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Combustible" value={editingDetails.combustible ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), combustible: event.target.value }))} />
+                <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Transmisión" value={editingDetails.transmision ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), transmision: event.target.value }))} />
+                <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Tracción" value={editingDetails.traccion ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), traccion: event.target.value }))} />
+                <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Aro" value={editingDetails.aro ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), aro: event.target.value }))} />
+                <input className="rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Cilindrada" value={editingDetails.cilindrada ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), cilindrada: event.target.value }))} />
+              </div>
+            )}
+
+            <p className="mt-4 mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Campos editoriales opcionales</p>
             <div className="grid gap-3 md:grid-cols-2">
               <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Titulo" value={editingDetails.title ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), title: event.target.value }))} />
               <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Subtitulo" value={editingDetails.subtitle ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), subtitle: event.target.value }))} />
@@ -3170,10 +3243,6 @@ export function CatalogHomeClient({ feed }: Props) {
               <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Ubicacion" value={editingDetails.location ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), location: event.target.value }))} />
               <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Lote" value={editingDetails.lot ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), lot: event.target.value }))} />
               <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Fecha remate" value={editingDetails.auctionDate ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), auctionDate: event.target.value }))} />
-              <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Marca" value={editingDetails.brand ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), brand: event.target.value }))} />
-              <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Modelo" value={editingDetails.model ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), model: event.target.value }))} />
-              <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Año" value={editingDetails.year ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), year: event.target.value }))} />
-              <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Categoria" value={editingDetails.category ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), category: event.target.value }))} />
               <input className="rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Imagen principal URL" value={editingDetails.thumbnail ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), thumbnail: event.target.value }))} />
               <input className="rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Visor 3D URL" value={editingDetails.view3dUrl ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), view3dUrl: event.target.value }))} />
               <textarea className="min-h-20 rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Descripcion" value={editingDetails.description ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), description: event.target.value }))} />

@@ -106,7 +106,7 @@ export const DEFAULT_EDITOR_CONFIG: EditorConfig = {
   },
   homeLayout: {
     heroKicker: "Catálogo oficial de VEDISA REMATES",
-    heroTitle: "Inventario de vehículos para remate y venta directa",
+    heroTitle: "Inventario de vehiculos",
     heroDescription:
       "Plataforma oficial de ofertas online en vedisaremates.cl. Revisa cada unidad con información clara, fotos y trazabilidad comercial para tomar decisiones con confianza.",
     showFeaturedStrip: true,

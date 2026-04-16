@@ -59,6 +59,13 @@ function normalizeEditorConfigClient(
   value?: Partial<EditorConfig> | null,
 ): EditorConfig {
   const defaults = DEFAULT_EDITOR_CONFIG;
+  const legacyHeroTitle = "Inventario de vehículos para remate y venta directa";
+  const requestedHeroTitle = "Inventario de vehiculos";
+  const incomingHeroTitle = value?.homeLayout?.heroTitle;
+  const normalizedHeroTitle =
+    !incomingHeroTitle || incomingHeroTitle.trim() === legacyHeroTitle
+      ? requestedHeroTitle
+      : incomingHeroTitle;
   return {
     sectionVehicleIds: {
       "proximos-remates":
@@ -89,7 +96,7 @@ function normalizeEditorConfigClient(
     },
     homeLayout: {
       heroKicker: value?.homeLayout?.heroKicker ?? defaults.homeLayout.heroKicker,
-      heroTitle: value?.homeLayout?.heroTitle ?? defaults.homeLayout.heroTitle,
+      heroTitle: normalizedHeroTitle,
       heroDescription:
         value?.homeLayout?.heroDescription ?? defaults.homeLayout.heroDescription,
       showFeaturedStrip:
@@ -610,6 +617,7 @@ export function CatalogHomeClient({ feed }: Props) {
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [selectedVehicle, setSelectedVehicle] = useState<CatalogItem | null>(null);
+  const [revalidating, setRevalidating] = useState(false);
   const rawItems = feed.items;
 
   useEffect(() => {
@@ -1380,6 +1388,27 @@ export function CatalogHomeClient({ feed }: Props) {
     showSystemNotice("success", "Configuración guardada", "Tus cambios se aplicaron correctamente.");
   };
 
+  const revalidateInventory = async () => {
+    setRevalidating(true);
+    try {
+      const response = await fetch("/api/admin/revalidate", { method: "POST" });
+      if (!response.ok) throw new Error("Error al revalidar");
+      showSystemNotice(
+        "success",
+        "Inventario actualizado",
+        "El catálogo se actualizó con los vehículos en bodega del sistema interno. Recarga la página para ver los cambios.",
+      );
+    } catch {
+      showSystemNotice(
+        "error",
+        "Error al actualizar",
+        "No se pudo actualizar el inventario. Intenta nuevamente.",
+      );
+    } finally {
+      setRevalidating(false);
+    }
+  };
+
   const login = async () => {
     trackEvent("admin_login_attempt");
     setLoginError("");
@@ -1573,9 +1602,21 @@ export function CatalogHomeClient({ feed }: Props) {
                 <h3 className="text-lg font-semibold text-slate-900">Modo editor administrador</h3>
                 <p className="text-xs text-slate-500">Gestion de visibilidad, categorias, precios y detalles manuales por publicacion.</p>
               </div>
-              <button onClick={saveConfig} disabled={saving} className="ui-focus rounded-md bg-cyan-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-cyan-500 disabled:opacity-60">
-                {saving ? "Guardando..." : "Guardar cambios"}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={revalidateInventory}
+                  disabled={revalidating}
+                  className="ui-focus inline-flex items-center gap-1.5 rounded-md border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-100 disabled:opacity-60"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`h-4 w-4 ${revalidating ? "animate-spin" : ""}`}>
+                    <path fillRule="evenodd" d="M15.312 11.424a5.5 5.5 0 0 1-9.201 2.466l-.312-.311h2.433a.75.75 0 0 0 0-1.5H4.598a.75.75 0 0 0-.75.75v3.634a.75.75 0 0 0 1.5 0v-2.033l.262.263A7 7 0 0 0 17.25 10a.75.75 0 0 0-1.5 0 5.48 5.48 0 0 1-.438 1.424ZM4.688 8.576a5.5 5.5 0 0 1 9.201-2.466l.312.311h-2.433a.75.75 0 0 0 0 1.5h3.634a.75.75 0 0 0 .75-.75V3.537a.75.75 0 0 0-1.5 0v2.033l-.262-.263A7 7 0 0 0 2.75 10a.75.75 0 0 0 1.5 0c0-.51.07-1.003.438-1.424Z" clipRule="evenodd" />
+                  </svg>
+                  {revalidating ? "Actualizando..." : "Actualizar inventario"}
+                </button>
+                <button onClick={saveConfig} disabled={saving} className="ui-focus rounded-md bg-cyan-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-cyan-500 disabled:opacity-60">
+                  {saving ? "Guardando..." : "Guardar cambios"}
+                </button>
+              </div>
             </div>
             <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
               {([

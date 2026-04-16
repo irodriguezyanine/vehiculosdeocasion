@@ -177,6 +177,11 @@ function normalizeRow(row: Record<string, unknown>): CatalogItem | null {
       ? normalizeGlo3dUrl(parsed3d)
       : undefined;
 
+  const estadoRetiro = getStringFromKeys(row, ["estado_retiro"]);
+  const enBodega = estadoRetiro
+    ? estadoRetiro.startsWith("en_bodega")
+    : undefined;
+
   return {
     id,
     title,
@@ -188,6 +193,7 @@ function normalizeRow(row: Record<string, unknown>): CatalogItem | null {
     images,
     thumbnail,
     view3dUrl,
+    enBodega,
     raw: row,
   };
 }
@@ -568,6 +574,18 @@ function mergeCatalogItems(primary: CatalogItem[], secondary: CatalogItem[]): Ca
   return Array.from(merged.values());
 }
 
+const BODEGA_FILTER_ENABLED =
+  (process.env.CATALOG_BODEGA_FILTER ?? "true") !== "false";
+
+function filterEnBodega(items: CatalogItem[]): CatalogItem[] {
+  if (!BODEGA_FILTER_ENABLED) return items;
+
+  const hasEstadoRetiro = items.some((item) => item.enBodega !== undefined);
+  if (!hasEstadoRetiro) return items;
+
+  return items.filter((item) => item.enBodega === true || item.enBodega === undefined);
+}
+
 export async function getCatalogFeed(): Promise<CatalogFeed> {
   let resolvedSource: CatalogSource = "empty";
 
@@ -583,14 +601,17 @@ export async function getCatalogFeed(): Promise<CatalogFeed> {
         .filter((value): value is string => !!value);
       const glo3dMap = await fetchGlo3dByStocks(stocks);
 
+      const itemsWith3d = mergedItems.map((item) => ({
+        ...item,
+        view3dUrl:
+          item.view3dUrl ??
+          glo3dMap.get(getItemStock(item) ?? ""),
+      }));
+      const filtered = filterEnBodega(itemsWith3d);
+
       return {
         source: resolvedSource,
-        items: mergedItems.map((item) => ({
-          ...item,
-          view3dUrl:
-            item.view3dUrl ??
-            glo3dMap.get(getItemStock(item) ?? ""),
-        })),
+        items: filtered,
       };
     }
   } catch (error) {
@@ -613,12 +634,13 @@ export async function getCatalogFeed(): Promise<CatalogFeed> {
         item.view3dUrl ??
         glo3dMap.get(getItemStock(item) ?? ""),
     }));
+    const filtered = filterEnBodega(itemsWith3d);
 
     return {
-      source: itemsWith3d.length > 0 ? "supabase" : "empty",
-      items: itemsWith3d,
+      source: filtered.length > 0 ? "supabase" : "empty",
+      items: filtered,
       warning:
-        itemsWith3d.length === 0
+        filtered.length === 0
           ? "No hay inventario disponible por ahora."
           : undefined,
     };

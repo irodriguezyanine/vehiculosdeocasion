@@ -11,6 +11,7 @@ export type CatalogItem = {
   images: string[];
   thumbnail?: string;
   view3dUrl?: string;
+  enBodega?: boolean;
   raw: Record<string, unknown>;
 };
 

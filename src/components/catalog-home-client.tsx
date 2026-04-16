@@ -27,7 +27,7 @@ type ClientLeadForm = {
   phone: string;
   interest: string;
 };
-type VehicleDetailTabId = "general" | "tecnica" | "documentacion" | "estado";
+type VehicleDetailTabId = "general" | "tecnica";
 type SystemNotice = {
   id: number;
   tone: "success" | "error" | "info";
@@ -224,18 +224,6 @@ function hasValue(value: unknown): boolean {
   if (typeof value === "string") return value.trim().length > 0;
   if (Array.isArray(value)) return value.length > 0;
   return true;
-}
-
-function formatBooleanText(value: unknown): string {
-  if (typeof value === "boolean") return value ? "Sí" : "No";
-  const normalized = normalizeText(String(value));
-  if (["si", "sí", "true", "1", "vigente", "aprobado", "ok", "bueno"].includes(normalized)) {
-    return "Sí";
-  }
-  if (["no", "false", "0", "vencido", "rechazado", "malo"].includes(normalized)) {
-    return "No";
-  }
-  return String(value);
 }
 
 function getVehicleKey(item: CatalogItem): string {
@@ -1007,8 +995,6 @@ export function CatalogHomeClient({ feed }: Props) {
       [
         { id: "general", label: "Información del vehículo" },
         { id: "tecnica", label: "Detalles técnicos" },
-        { id: "documentacion", label: "Documentación" },
-        { id: "estado", label: "Estado y pruebas" },
       ] as Array<{ id: VehicleDetailTabId; label: string }>,
     [],
   );
@@ -1022,8 +1008,6 @@ export function CatalogHomeClient({ feed }: Props) {
       return {
         general: [] as Array<[string, string]>,
         tecnica: [] as Array<[string, string]>,
-        documentacion: [] as Array<[string, string]>,
-        estado: [] as Array<[string, string]>,
       };
     }
 
@@ -1110,104 +1094,6 @@ export function CatalogHomeClient({ feed }: Props) {
         },
         { label: "Aro", value: getLookupValue(selectedVehicleLookup, ["aro", "aro_llanta", "rin", "rines"]) },
         { label: "Cilindrada", value: getLookupValue(selectedVehicleLookup, ["cilindrada", "cc", "motor_cc"]) },
-      ]),
-      documentacion: toPairs([
-        {
-          label: "Permiso de circulación vence",
-          value: getLookupValue(selectedVehicleLookup, [
-            "permiso_circulacion_vence",
-            "vencimiento_permiso_circulacion",
-            "permiso_vence",
-          ]),
-        },
-        {
-          label: "Revisión técnica",
-          value: getLookupValue(selectedVehicleLookup, [
-            "revision_tecnica",
-            "revision_tecnica_vence",
-            "vencimiento_revision_tecnica",
-          ]),
-        },
-        {
-          label: "Seguro obligatorio",
-          value: getLookupValue(selectedVehicleLookup, [
-            "seguro_obligatorio",
-            "soap",
-            "soap_vigente",
-            "seguro_obligatorio_vence",
-          ]),
-          formatter: formatBooleanText,
-        },
-        {
-          label: "Multas de tránsito",
-          value: getLookupValue(selectedVehicleLookup, [
-            "multas_transito",
-            "multas",
-            "partes",
-          ]),
-        },
-        {
-          label: "Único propietario",
-          value: getLookupValue(selectedVehicleLookup, [
-            "unico_propietario",
-            "único_propietario",
-            "primer_dueno",
-            "primer_dueño",
-          ]),
-          formatter: formatBooleanText,
-        },
-      ]),
-      estado: toPairs([
-        {
-          label: "Condicionado",
-          value: getLookupValue(selectedVehicleLookup, [
-            "condicionado",
-            "acondicionado",
-            "estado_condicionado",
-          ]),
-          formatter: formatBooleanText,
-        },
-        {
-          label: "Prueba básica motor",
-          value: getLookupValue(selectedVehicleLookup, [
-            "prueba_basica_motor",
-            "prueba_motor",
-          ]),
-        },
-        {
-          label: "Prueba básica desplazamiento",
-          value: getLookupValue(selectedVehicleLookup, [
-            "prueba_basica_desplazamiento",
-            "prueba_desplazamiento",
-          ]),
-        },
-        {
-          label: "Estado de airbag",
-          value: getLookupValue(selectedVehicleLookup, [
-            "estado_airbag",
-            "airbag",
-            "airbags",
-          ]),
-        },
-        {
-          label: "Aire acondicionado",
-          value: getLookupValue(selectedVehicleLookup, [
-            "aire_acondicionado",
-            "ac_acondicionado",
-            "aa",
-          ]),
-          formatter: formatBooleanText,
-        },
-        {
-          label: "Observaciones",
-          value: getLookupValue(selectedVehicleLookup, [
-            "observaciones",
-            "observacion",
-            "nota",
-            "notas",
-            "observaciones_tasacion",
-          ]),
-        },
       ]),
     };
   }, [selectedVehicle, selectedVehicleLookup]);

@@ -22,6 +22,7 @@ Campos principales:
 - `CATALOG_SOURCE_API_URL`: base URL remota de Tasaciones (ej: `https://vedisa.vercel.app`).
 - `CATALOG_SOURCE_API_TOKEN`: token para header `x-api-key`.
 - `CATALOG_SOURCE_API_LIMIT`: límite solicitado al endpoint público.
+- `CATALOG_SOURCE_API_ESTADO`: estado de inventario solicitado (recomendado `en_bodega`).
 - `CATALOG_SOURCE_API_INCLUIR_HISTORICOS`: envía `incluir_historicos=true|false` al endpoint.
 - `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`: fallback a Supabase.
 - `CATALOG_SUPABASE_TABLE`: tabla origen (por defecto `inventario`).

@@ -225,21 +225,38 @@ function extractRowsFromPayload(payload: unknown): Record<string, unknown>[] {
 }
 
 async function fetchFromTasacionesApi(): Promise<CatalogItem[] | null> {
-  const apiUrl = process.env.CATALOG_SOURCE_API_URL;
-  if (!apiUrl) return null;
+  const apiBase = process.env.CATALOG_SOURCE_API_URL;
+  if (!apiBase) return null;
 
   const token = process.env.CATALOG_SOURCE_API_TOKEN;
-  const response = await fetch(apiUrl, {
+  const endpoint =
+    apiBase.includes("/api/")
+      ? new URL(apiBase)
+      : new URL("/api/inventario-publico", apiBase);
+
+  endpoint.searchParams.set(
+    "limit",
+    process.env.CATALOG_SOURCE_API_LIMIT ?? "500",
+  );
+  endpoint.searchParams.set("solo_visible", "true");
+  endpoint.searchParams.set(
+    "incluir_historicos",
+    process.env.CATALOG_SOURCE_API_INCLUIR_HISTORICOS ?? "true",
+  );
+
+  const response = await fetch(endpoint.toString(), {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(token ? { "x-api-key": token } : {}),
     },
-    next: { revalidate: 300 },
+    next: { revalidate: 120 },
   });
 
   if (!response.ok) {
-    throw new Error(`CATALOG_SOURCE_API_URL respondió ${response.status}`);
+    throw new Error(
+      `CATALOG_SOURCE_API_URL respondió ${response.status}`,
+    );
   }
 
   const payload = (await response.json()) as unknown;

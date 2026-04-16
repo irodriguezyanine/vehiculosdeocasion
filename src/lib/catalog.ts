@@ -557,15 +557,15 @@ function mergeCatalogItems(primary: CatalogItem[], secondary: CatalogItem[]): Ca
     merged.set(key, {
       ...existing,
       ...item,
-      subtitle: existing.subtitle ?? item.subtitle,
-      lot: existing.lot ?? item.lot,
-      status: existing.status ?? item.status,
-      location: existing.location ?? item.location,
-      auctionDate: existing.auctionDate ?? item.auctionDate,
-      images: existing.images.length > 0 ? existing.images : item.images,
-      thumbnail: existing.thumbnail ?? item.thumbnail,
-      view3dUrl: existing.view3dUrl ?? item.view3dUrl,
-      raw: { ...item.raw, ...existing.raw },
+      subtitle: item.subtitle ?? existing.subtitle,
+      lot: item.lot ?? existing.lot,
+      status: item.status ?? existing.status,
+      location: item.location ?? existing.location,
+      auctionDate: item.auctionDate ?? existing.auctionDate,
+      images: item.images.length > 0 ? item.images : existing.images,
+      thumbnail: item.thumbnail ?? existing.thumbnail,
+      view3dUrl: item.view3dUrl ?? existing.view3dUrl,
+      raw: { ...existing.raw, ...item.raw },
     });
   };
 
@@ -583,7 +583,7 @@ function filterEnBodega(items: CatalogItem[]): CatalogItem[] {
   const hasEstadoRetiro = items.some((item) => item.enBodega !== undefined);
   if (!hasEstadoRetiro) return items;
 
-  return items.filter((item) => item.enBodega === true || item.enBodega === undefined);
+  return items.filter((item) => item.enBodega === true);
 }
 
 export async function getCatalogFeed(): Promise<CatalogFeed> {

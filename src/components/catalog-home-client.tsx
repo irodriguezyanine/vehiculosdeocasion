@@ -27,6 +27,7 @@ type ClientLeadForm = {
   phone: string;
   interest: string;
 };
+type VehicleDetailTabId = "general" | "tecnica" | "documentacion" | "estado";
 type SystemNotice = {
   id: number;
   tone: "success" | "error" | "info";
@@ -171,6 +172,70 @@ function extractPatentTokens(value: string): string[] {
     .map((token) => normalizePatentToken(token))
     .filter((token) => /^[A-Z]{4}\d{2}$/.test(token));
   return Array.from(new Set(normalized));
+}
+
+function normalizeLookupKey(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function buildVehicleLookup(
+  source: unknown,
+  lookup: Map<string, unknown> = new Map(),
+  path = "",
+): Map<string, unknown> {
+  if (!source || typeof source !== "object") return lookup;
+
+  for (const [key, value] of Object.entries(source as Record<string, unknown>)) {
+    const currentPath = path ? `${path}.${key}` : key;
+    const normalizedPath = normalizeLookupKey(currentPath);
+    const normalizedLeaf = normalizeLookupKey(key);
+
+    if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+      buildVehicleLookup(value, lookup, currentPath);
+      continue;
+    }
+
+    if (!lookup.has(normalizedPath)) lookup.set(normalizedPath, value);
+    if (!lookup.has(normalizedLeaf)) lookup.set(normalizedLeaf, value);
+  }
+
+  return lookup;
+}
+
+function getLookupValue(
+  lookup: Map<string, unknown>,
+  aliases: string[],
+): unknown {
+  for (const alias of aliases) {
+    const value = lookup.get(normalizeLookupKey(alias));
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function hasValue(value: unknown): boolean {
+  if (value === null || value === undefined) return false;
+  if (typeof value === "string") return value.trim().length > 0;
+  if (Array.isArray(value)) return value.length > 0;
+  return true;
+}
+
+function formatBooleanText(value: unknown): string {
+  if (typeof value === "boolean") return value ? "Sí" : "No";
+  const normalized = normalizeText(String(value));
+  if (["si", "sí", "true", "1", "vigente", "aprobado", "ok", "bueno"].includes(normalized)) {
+    return "Sí";
+  }
+  if (["no", "false", "0", "vencido", "rechazado", "malo"].includes(normalized)) {
+    return "No";
+  }
+  return String(value);
 }
 
 function getVehicleKey(item: CatalogItem): string {
@@ -630,6 +695,7 @@ export function CatalogHomeClient({ feed }: Props) {
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [selectedVehicle, setSelectedVehicle] = useState<CatalogItem | null>(null);
+  const [selectedVehicleTab, setSelectedVehicleTab] = useState<VehicleDetailTabId>("general");
   const [revalidating, setRevalidating] = useState(false);
   const rawItems = feed.items;
 
@@ -927,6 +993,224 @@ export function CatalogHomeClient({ feed }: Props) {
     () => homeVisibleItems.filter((item) => compareKeys.includes(getVehicleKey(item))),
     [homeVisibleItems, compareKeys],
   );
+
+  const selectedVehicleLookup = useMemo(
+    () =>
+      selectedVehicle
+        ? buildVehicleLookup(selectedVehicle.raw as Record<string, unknown>)
+        : new Map<string, unknown>(),
+    [selectedVehicle],
+  );
+
+  const selectedVehicleTabs = useMemo(
+    () =>
+      [
+        { id: "general", label: "Información del vehículo" },
+        { id: "tecnica", label: "Detalles técnicos" },
+        { id: "documentacion", label: "Documentación" },
+        { id: "estado", label: "Estado y pruebas" },
+      ] as Array<{ id: VehicleDetailTabId; label: string }>,
+    [],
+  );
+
+  useEffect(() => {
+    if (selectedVehicle) setSelectedVehicleTab("general");
+  }, [selectedVehicle]);
+
+  const selectedVehicleFieldsByTab = useMemo(() => {
+    if (!selectedVehicle) {
+      return {
+        general: [] as Array<[string, string]>,
+        tecnica: [] as Array<[string, string]>,
+        documentacion: [] as Array<[string, string]>,
+        estado: [] as Array<[string, string]>,
+      };
+    }
+
+    const raw = selectedVehicle.raw as Record<string, unknown>;
+    const toPairs = (
+      entries: Array<{
+        label: string;
+        value: unknown;
+        formatter?: (value: unknown) => string;
+      }>,
+    ): Array<[string, string]> =>
+      entries
+        .filter((entry) => hasValue(entry.value))
+        .map((entry) => [
+          entry.label,
+          entry.formatter ? entry.formatter(entry.value) : String(entry.value),
+        ]);
+
+    return {
+      general: toPairs([
+        { label: "Patente", value: getPatent(selectedVehicle) },
+        {
+          label: "VIN",
+          value: getLookupValue(selectedVehicleLookup, [
+            "vin",
+            "numero_chasis",
+            "nro_chasis",
+            "chasis",
+          ]),
+        },
+        { label: "Marca", value: getLookupValue(selectedVehicleLookup, ["marca", "brand"]) ?? raw.marca },
+        { label: "Modelo", value: getLookupValue(selectedVehicleLookup, ["modelo", "model"]) ?? getModel(selectedVehicle) },
+        { label: "Año", value: getLookupValue(selectedVehicleLookup, ["ano", "anio", "year"]) },
+        {
+          label: "Categoría",
+          value:
+            getLookupValue(selectedVehicleLookup, ["categoria", "tipo_vehiculo", "tipo"]) ??
+            inferVehicleType(selectedVehicle),
+        },
+      ]),
+      tecnica: toPairs([
+        {
+          label: "Kilometraje",
+          value: getLookupValue(selectedVehicleLookup, [
+            "kilometraje",
+            "km",
+            "kms",
+            "odometro",
+            "odómetro",
+          ]),
+        },
+        {
+          label: "Color",
+          value: getLookupValue(selectedVehicleLookup, [
+            "color",
+            "color_exterior",
+            "color_vehiculo",
+          ]),
+        },
+        {
+          label: "Combustible",
+          value: getLookupValue(selectedVehicleLookup, [
+            "combustible",
+            "tipo_combustible",
+            "fuel",
+          ]),
+        },
+        {
+          label: "Transmisión",
+          value: getLookupValue(selectedVehicleLookup, [
+            "transmision",
+            "transmisión",
+            "caja",
+            "tipo_caja",
+          ]),
+        },
+        {
+          label: "Tracción",
+          value: getLookupValue(selectedVehicleLookup, [
+            "traccion",
+            "tracción",
+            "tipo_traccion",
+          ]),
+        },
+        { label: "Aro", value: getLookupValue(selectedVehicleLookup, ["aro", "aro_llanta", "rin", "rines"]) },
+        { label: "Cilindrada", value: getLookupValue(selectedVehicleLookup, ["cilindrada", "cc", "motor_cc"]) },
+      ]),
+      documentacion: toPairs([
+        {
+          label: "Permiso de circulación vence",
+          value: getLookupValue(selectedVehicleLookup, [
+            "permiso_circulacion_vence",
+            "vencimiento_permiso_circulacion",
+            "permiso_vence",
+          ]),
+        },
+        {
+          label: "Revisión técnica",
+          value: getLookupValue(selectedVehicleLookup, [
+            "revision_tecnica",
+            "revision_tecnica_vence",
+            "vencimiento_revision_tecnica",
+          ]),
+        },
+        {
+          label: "Seguro obligatorio",
+          value: getLookupValue(selectedVehicleLookup, [
+            "seguro_obligatorio",
+            "soap",
+            "soap_vigente",
+            "seguro_obligatorio_vence",
+          ]),
+          formatter: formatBooleanText,
+        },
+        {
+          label: "Multas de tránsito",
+          value: getLookupValue(selectedVehicleLookup, [
+            "multas_transito",
+            "multas",
+            "partes",
+          ]),
+        },
+        {
+          label: "Único propietario",
+          value: getLookupValue(selectedVehicleLookup, [
+            "unico_propietario",
+            "único_propietario",
+            "primer_dueno",
+            "primer_dueño",
+          ]),
+          formatter: formatBooleanText,
+        },
+      ]),
+      estado: toPairs([
+        {
+          label: "Condicionado",
+          value: getLookupValue(selectedVehicleLookup, [
+            "condicionado",
+            "acondicionado",
+            "estado_condicionado",
+          ]),
+          formatter: formatBooleanText,
+        },
+        {
+          label: "Prueba básica motor",
+          value: getLookupValue(selectedVehicleLookup, [
+            "prueba_basica_motor",
+            "prueba_motor",
+          ]),
+        },
+        {
+          label: "Prueba básica desplazamiento",
+          value: getLookupValue(selectedVehicleLookup, [
+            "prueba_basica_desplazamiento",
+            "prueba_desplazamiento",
+          ]),
+        },
+        {
+          label: "Estado de airbag",
+          value: getLookupValue(selectedVehicleLookup, [
+            "estado_airbag",
+            "airbag",
+            "airbags",
+          ]),
+        },
+        {
+          label: "Aire acondicionado",
+          value: getLookupValue(selectedVehicleLookup, [
+            "aire_acondicionado",
+            "ac_acondicionado",
+            "aa",
+          ]),
+          formatter: formatBooleanText,
+        },
+        {
+          label: "Observaciones",
+          value: getLookupValue(selectedVehicleLookup, [
+            "observaciones",
+            "observacion",
+            "nota",
+            "notas",
+            "observaciones_tasacion",
+          ]),
+        },
+      ]),
+    };
+  }, [selectedVehicle, selectedVehicleLookup]);
 
   const leadWhatsappUrl = useMemo(() => {
     const base = "https://api.whatsapp.com/send/?phone=56989323397";
@@ -2517,27 +2801,41 @@ export function CatalogHomeClient({ feed }: Props) {
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <h4 className="mb-3 text-base font-semibold text-slate-900">Resumen del vehículo</h4>
-                <dl className="grid grid-cols-2 gap-2 text-sm">
-                  {(
-                    [
-                      ["Patente", (selectedVehicle.raw as Record<string, unknown>).patente ?? (selectedVehicle.raw as Record<string, unknown>).PPU],
-                      ["Marca", (selectedVehicle.raw as Record<string, unknown>).marca ?? (selectedVehicle.raw as Record<string, unknown>).brand],
-                      ["Modelo", (selectedVehicle.raw as Record<string, unknown>).modelo ?? (selectedVehicle.raw as Record<string, unknown>).model],
-                      ["Año", (selectedVehicle.raw as Record<string, unknown>).ano ?? (selectedVehicle.raw as Record<string, unknown>).anio ?? (selectedVehicle.raw as Record<string, unknown>).year],
-                      ["Categoría", (selectedVehicle.raw as Record<string, unknown>).categoria ?? inferVehicleType(selectedVehicle)],
-                      ["Estado", selectedVehicle.status ?? "Disponible"],
-                      ["Ubicación", selectedVehicle.location ?? (selectedVehicle.raw as Record<string, unknown>).ubicacion],
-                      ["Lote", selectedVehicle.lot ?? (selectedVehicle.raw as Record<string, unknown>).stock_number],
-                      ["Remate asignado", upcomingAuctionByVehicleKey[getVehicleKey(selectedVehicle)] ?? "Sin asignar"],
-                      ["Precio", formatPrice(config.vehiclePrices[getVehicleKey(selectedVehicle)]) ?? "No informado"],
-                      ["Fotos", `${selectedVehicle.images.length}`],
-                    ] as Array<[string, unknown]>
-                  ).map(([label, value]) => (
-                    <div key={label} className="rounded-md bg-white p-2">
-                      <dt className="text-xs uppercase text-slate-500">{label}</dt>
-                      <dd className="font-medium text-slate-800">{String(value ?? "—")}</dd>
-                    </div>
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {selectedVehicleTabs.map((tab) => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setSelectedVehicleTab(tab.id)}
+                      className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold transition ${
+                        selectedVehicleTab === tab.id
+                          ? "bg-cyan-600 text-white"
+                          : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
                   ))}
+                </div>
+                {selectedVehicleFieldsByTab[selectedVehicleTab].length === 0 ? (
+                  <p className="rounded-md border border-dashed border-slate-300 bg-white p-3 text-sm text-slate-500">
+                    No hay datos disponibles para esta pestaña.
+                  </p>
+                ) : (
+                  <dl className="grid grid-cols-2 gap-2 text-sm">
+                    {selectedVehicleFieldsByTab[selectedVehicleTab].map(([label, value]) => (
+                      <div key={label} className="rounded-md bg-white p-2">
+                        <dt className="text-xs uppercase text-slate-500">{label}</dt>
+                        <dd className="font-medium text-slate-800">{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
+                <dl className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                  <div className="rounded-md bg-white p-2">
+                    <dt className="text-xs uppercase text-slate-500">Fotos</dt>
+                    <dd className="font-medium text-slate-800">{selectedVehicle.images.length}</dd>
+                  </div>
                 </dl>
               </div>
             </div>

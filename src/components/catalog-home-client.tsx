@@ -22,6 +22,7 @@ const HOME_QUICK_FILTERS_STORAGE_KEY = "vedisa_home_quick_filters";
 const HOME_CARD_DENSITY_STORAGE_KEY = "vedisa_home_card_density";
 const EDITOR_PAGE_SIZE = 20;
 type AdminTabId = "vehiculos" | "categorias" | "layout";
+type EditorGroupFilter = "all" | SectionId;
 type SortOption = "recomendado" | "relevancia" | "fecha-remate" | "precio-asc" | "precio-desc" | "titulo";
 type QuickFilterId = "livianos" | "pesados" | "con3d" | "conPrecio" | "recientes" | "manuales";
 type CardDensity = "compact" | "detailed";
@@ -54,6 +55,12 @@ const VEHICLE_CONDITION_OPTIONS = [
   "Con problemas",
   "Desarme",
   "Recuperado por robo sin registrar en la Cia de seguros",
+] as const;
+const VEHICLE_CATEGORY_OPTIONS = [
+  { value: "vehiculo_liviano", label: "Vehículo liviano" },
+  { value: "vehiculo_pesado", label: "Vehículo pesado" },
+  { value: "maquinaria", label: "Maquinaria" },
+  { value: "chatarra", label: "Chatarra" },
 ] as const;
 
 const WHATSAPP_CTA_URL =
@@ -322,6 +329,24 @@ function getConditionBadgeClasses(condition?: string | null): string {
     return "border-amber-200 bg-amber-50 text-amber-800";
   }
   return "border-indigo-200 bg-indigo-50 text-indigo-800";
+}
+
+function normalizeVehicleCategoryValue(value?: string): string {
+  const sample = normalizeText(value ?? "");
+  if (!sample) return "";
+  if (/livian|vehiculoliviano/.test(sample)) return "vehiculo_liviano";
+  if (/pesad|vehiculopesado/.test(sample)) return "vehiculo_pesado";
+  if (/maquinaria|maquina/.test(sample)) return "maquinaria";
+  if (/chatarra|scrap/.test(sample)) return "chatarra";
+  return (value ?? "").trim().toLowerCase().replace(/\s+/g, "_");
+}
+
+function getVehicleCategoryLabel(value?: string): string {
+  const normalized = normalizeVehicleCategoryValue(value);
+  const known = VEHICLE_CATEGORY_OPTIONS.find((option) => option.value === normalized);
+  if (known) return known.label;
+  if (!value) return "—";
+  return value.replace(/_/g, " ");
 }
 
 function formatAuctionDateLabel(value?: string): string {
@@ -767,6 +792,8 @@ export function CatalogHomeClient({ feed }: Props) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [autoSaveState, setAutoSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [lastAutoSaveAt, setLastAutoSaveAt] = useState<string>("");
   const [activeTypeTab, setActiveTypeTab] = useState<VehicleTypeId>("livianos");
   const [homeSearchTerm, setHomeSearchTerm] = useState("");
   const [homeSort, setHomeSort] = useState<SortOption>("recomendado");
@@ -809,6 +836,7 @@ export function CatalogHomeClient({ feed }: Props) {
   const [searchTerm, setSearchTerm] = useState("");
   const [adminTab, setAdminTab] = useState<AdminTabId>("vehiculos");
   const [auctionFilterId, setAuctionFilterId] = useState("");
+  const [editorGroupFilter, setEditorGroupFilter] = useState<EditorGroupFilter>("all");
   const [editorPage, setEditorPage] = useState(1);
   const [editingVehicleKey, setEditingVehicleKey] = useState<string | null>(null);
   const [managingVehicleKey, setManagingVehicleKey] = useState<string | null>(null);
@@ -817,6 +845,7 @@ export function CatalogHomeClient({ feed }: Props) {
   const [newAuctionDate, setNewAuctionDate] = useState("");
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryDescription, setNewCategoryDescription] = useState("");
+  const [showCreateCategoryForm, setShowCreateCategoryForm] = useState(false);
   const [assignCategoryId, setAssignCategoryId] = useState<string | null>(null);
   const [assignSearchTerm, setAssignSearchTerm] = useState("");
   const [manualDraft, setManualDraft] = useState<ManualPublicationDraft>(
@@ -837,6 +866,8 @@ export function CatalogHomeClient({ feed }: Props) {
   const [selectedVehicleTab, setSelectedVehicleTab] = useState<VehicleDetailTabId>("general");
   const [revalidating, setRevalidating] = useState(false);
   const [isBootstrapping, setIsBootstrapping] = useState(true);
+  const autoSaveReadyRef = useRef(false);
+  const lastPersistedConfigRef = useRef("");
   const rawItems = feed.items;
   const updateVehicleUrlParam = useCallback((vehicleKey?: string) => {
     if (typeof window === "undefined") return;
@@ -1398,9 +1429,13 @@ export function CatalogHomeClient({ feed }: Props) {
         { label: "Año", value: getLookupValue(selectedVehicleLookup, ["ano", "anio", "year"]) },
         {
           label: "Categoría",
-          value:
-            getLookupValue(selectedVehicleLookup, ["categoria", "tipo_vehiculo", "tipo"]) ??
-            inferVehicleType(selectedVehicle),
+          value: getVehicleCategoryLabel(
+            String(
+              selectedVehicleOverride?.category ??
+                getLookupValue(selectedVehicleLookup, ["categoria", "tipo_vehiculo", "tipo"]) ??
+                inferVehicleType(selectedVehicle),
+            ),
+          ),
         },
         {
           label: "Condición",
@@ -1619,12 +1654,29 @@ export function CatalogHomeClient({ feed }: Props) {
           return normalizeText(`${item.title} ${item.subtitle ?? ""}`).includes(query);
         })
       : items;
-    if (!auctionFilterId) return source;
-    return source.filter(
+    const byGroup =
+      editorGroupFilter === "all"
+        ? source
+        : editorGroupFilter === "proximos-remates"
+          ? source.filter((item) =>
+              Boolean(config.vehicleUpcomingAuctionIds[getVehicleKey(item)]),
+            )
+          : source.filter((item) =>
+              (config.sectionVehicleIds[editorGroupFilter] ?? []).includes(getVehicleKey(item)),
+            );
+    if (!auctionFilterId) return byGroup;
+    return byGroup.filter(
       (item) =>
         (config.vehicleUpcomingAuctionIds[getVehicleKey(item)] ?? "") === auctionFilterId,
     );
-  }, [items, searchTerm, auctionFilterId, config.vehicleUpcomingAuctionIds]);
+  }, [
+    items,
+    searchTerm,
+    auctionFilterId,
+    editorGroupFilter,
+    config.vehicleUpcomingAuctionIds,
+    config.sectionVehicleIds,
+  ]);
 
   const totalEditorPages = Math.max(1, Math.ceil(filteredEditorItems.length / EDITOR_PAGE_SIZE));
   const currentEditorPage = Math.min(editorPage, totalEditorPages);
@@ -1653,6 +1705,17 @@ export function CatalogHomeClient({ feed }: Props) {
     });
     return source.slice(0, 120);
   }, [activeManagedCategory, assignSearchTerm, items]);
+
+  const sectionVehicleCounts = useMemo(
+    () =>
+      ({
+        "proximos-remates": Object.values(config.vehicleUpcomingAuctionIds).filter(Boolean).length,
+        "ventas-directas": (config.sectionVehicleIds["ventas-directas"] ?? []).length,
+        novedades: (config.sectionVehicleIds.novedades ?? []).length,
+        catalogo: (config.sectionVehicleIds.catalogo ?? []).length,
+      }) satisfies Record<SectionId, number>,
+    [config.vehicleUpcomingAuctionIds, config.sectionVehicleIds],
+  );
 
   const toggleItemInSection = (sectionId: SectionId, itemKey: string) => {
     setConfig((prev) => {
@@ -1684,6 +1747,22 @@ export function CatalogHomeClient({ feed }: Props) {
       ...prev,
       vehiclePrices: { ...prev.vehiclePrices, [itemKey]: value },
     }));
+  };
+
+  const setVehicleCategory = (itemKey: string, value: string) => {
+    setConfig((prev) => {
+      const nextDetails = { ...prev.vehicleDetails };
+      const current = { ...(nextDetails[itemKey] ?? {}) };
+      const normalized = normalizeVehicleCategoryValue(value);
+      if (normalized) current.category = normalized;
+      else delete current.category;
+      if (Object.values(current).every((fieldValue) => !fieldValue)) {
+        delete nextDetails[itemKey];
+      } else {
+        nextDetails[itemKey] = current;
+      }
+      return { ...prev, vehicleDetails: nextDetails };
+    });
   };
 
   const setSectionText = (sectionId: SectionId, field: "title" | "subtitle", value: string) => {
@@ -1747,7 +1826,7 @@ export function CatalogHomeClient({ feed }: Props) {
     setNewAuctionDate("");
   };
 
-  const createManagedCategory = () => {
+  const createManagedCategory = (openAssign = false) => {
     const name = newCategoryName.trim();
     const description = newCategoryDescription.trim();
     if (!name) {
@@ -1773,9 +1852,18 @@ export function CatalogHomeClient({ feed }: Props) {
       ...prev,
       managedCategories: [...(prev.managedCategories ?? []), next],
     }));
+    if (openAssign) {
+      setAssignCategoryId(next.id);
+      setAssignSearchTerm("");
+    }
     setNewCategoryName("");
     setNewCategoryDescription("");
-    showSystemNotice("success", "Categoría creada", "Ahora puedes asignar vehículos.");
+    setShowCreateCategoryForm(false);
+    showSystemNotice(
+      "success",
+      "Categoría creada",
+      openAssign ? "Selecciona las unidades para esta categoría." : "Ahora puedes asignar vehículos.",
+    );
   };
 
   const updateManagedCategory = (
@@ -2050,16 +2138,18 @@ export function CatalogHomeClient({ feed }: Props) {
     setEditingDetails(null);
   };
 
-  const saveConfig = async () => {
+  const persistEditorConfig = useCallback(async (nextConfig: EditorConfig) => {
     setSaving(true);
-    localStorage.setItem(EDITOR_STORAGE_KEY, JSON.stringify(config));
+    setAutoSaveState("saving");
+    localStorage.setItem(EDITOR_STORAGE_KEY, JSON.stringify(nextConfig));
     const response = await fetch("/api/admin/editor-config", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ config }),
+      body: JSON.stringify({ config: nextConfig }),
     });
     setSaving(false);
     if (!response.ok) {
+      setAutoSaveState("error");
       showSystemNotice(
         "info",
         "Guardado local activo",
@@ -2067,8 +2157,26 @@ export function CatalogHomeClient({ feed }: Props) {
       );
       return;
     }
-    showSystemNotice("success", "Configuración guardada", "Tus cambios se aplicaron correctamente.");
-  };
+    setAutoSaveState("saved");
+    setLastAutoSaveAt(new Date().toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" }));
+    lastPersistedConfigRef.current = JSON.stringify(nextConfig);
+  }, [showSystemNotice]);
+
+  useEffect(() => {
+    const isAdminEditorOpen = isAdmin && adminView === "editor";
+    if (isBootstrapping || !isAdminEditorOpen) return;
+    const serializedConfig = JSON.stringify(config);
+    if (!autoSaveReadyRef.current) {
+      autoSaveReadyRef.current = true;
+      lastPersistedConfigRef.current = serializedConfig;
+      return;
+    }
+    if (serializedConfig === lastPersistedConfigRef.current) return;
+    const timeout = window.setTimeout(() => {
+      void persistEditorConfig(config);
+    }, 550);
+    return () => window.clearTimeout(timeout);
+  }, [adminView, config, isAdmin, isBootstrapping, persistEditorConfig]);
 
   const revalidateInventory = async () => {
     setRevalidating(true);
@@ -2286,7 +2394,26 @@ export function CatalogHomeClient({ feed }: Props) {
                 <h3 className="text-lg font-semibold text-slate-900">Modo editor administrador</h3>
                 <p className="text-xs text-slate-500">Lista limpia de unidades con gestión individual de remates, categorías, visibilidad y precio.</p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                    autoSaveState === "error"
+                      ? "border border-rose-200 bg-rose-50 text-rose-700"
+                      : autoSaveState === "saving" || saving
+                        ? "border border-amber-200 bg-amber-50 text-amber-700"
+                        : autoSaveState === "saved"
+                          ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
+                          : "border border-slate-200 bg-slate-100 text-slate-600"
+                  }`}
+                >
+                  {autoSaveState === "error"
+                    ? "Guardado automático con respaldo local"
+                    : autoSaveState === "saving" || saving
+                      ? "Guardando cambios..."
+                      : autoSaveState === "saved"
+                        ? `Guardado automático ${lastAutoSaveAt ? `· ${lastAutoSaveAt}` : ""}`
+                        : "Guardado automático activo"}
+                </span>
                 <button
                   onClick={revalidateInventory}
                   disabled={revalidating}
@@ -2296,9 +2423,6 @@ export function CatalogHomeClient({ feed }: Props) {
                     <path fillRule="evenodd" d="M15.312 11.424a5.5 5.5 0 0 1-9.201 2.466l-.312-.311h2.433a.75.75 0 0 0 0-1.5H4.598a.75.75 0 0 0-.75.75v3.634a.75.75 0 0 0 1.5 0v-2.033l.262.263A7 7 0 0 0 17.25 10a.75.75 0 0 0-1.5 0 5.48 5.48 0 0 1-.438 1.424ZM4.688 8.576a5.5 5.5 0 0 1 9.201-2.466l.312.311h-2.433a.75.75 0 0 0 0 1.5h3.634a.75.75 0 0 0 .75-.75V3.537a.75.75 0 0 0-1.5 0v2.033l-.262-.263A7 7 0 0 0 2.75 10a.75.75 0 0 0 1.5 0c0-.51.07-1.003.438-1.424Z" clipRule="evenodd" />
                   </svg>
                   {revalidating ? "Actualizando..." : "Actualizar inventario"}
-                </button>
-                <button onClick={saveConfig} disabled={saving} className="ui-focus rounded-md bg-cyan-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-cyan-500 disabled:opacity-60">
-                  {saving ? "Guardando..." : "Guardar cambios"}
                 </button>
               </div>
             </div>
@@ -2325,7 +2449,7 @@ export function CatalogHomeClient({ feed }: Props) {
 
             {adminTab === "vehiculos" ? (
               <>
-                <div className="grid gap-2 sm:grid-cols-3">
+                <div className="grid gap-2 sm:grid-cols-4">
                   <input
                     value={searchTerm}
                     onChange={(event) => {
@@ -2339,6 +2463,7 @@ export function CatalogHomeClient({ feed }: Props) {
                     value={auctionFilterId}
                     onChange={(event) => {
                       setAuctionFilterId(event.target.value);
+                      if (event.target.value) setEditorGroupFilter("proximos-remates");
                       setEditorPage(1);
                     }}
                     className="ui-focus rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
@@ -2349,6 +2474,22 @@ export function CatalogHomeClient({ feed }: Props) {
                         {auction.name} ({formatAuctionDateLabel(auction.date)})
                       </option>
                     ))}
+                  </select>
+                  <select
+                    value={editorGroupFilter}
+                    onChange={(event) => {
+                      const next = event.target.value as EditorGroupFilter;
+                      setEditorGroupFilter(next);
+                      if (next !== "proximos-remates") setAuctionFilterId("");
+                      setEditorPage(1);
+                    }}
+                    className="ui-focus rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
+                  >
+                    <option value="all">Todos los grupos</option>
+                    <option value="proximos-remates">Próximos remates</option>
+                    <option value="ventas-directas">Ventas directas</option>
+                    <option value="novedades">Novedades</option>
+                    <option value="catalogo">Catálogo</option>
                   </select>
                   <button
                     type="button"
@@ -2502,6 +2643,8 @@ export function CatalogHomeClient({ feed }: Props) {
                                 type="button"
                                 onClick={() => {
                                   setAuctionFilterId(auction.id);
+                                  setEditorGroupFilter("proximos-remates");
+                                  setEditorPage(1);
                                   setAdminTab("vehiculos");
                                 }}
                                 className="ui-focus rounded border border-cyan-200 bg-cyan-50 px-2 py-1 text-cyan-700"
@@ -2523,30 +2666,55 @@ export function CatalogHomeClient({ feed }: Props) {
                   </div>
 
                   <div className="rounded-xl border border-cyan-100 bg-cyan-50/40 p-3">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-cyan-800">
-                      Crear categoría nueva
-                    </p>
-                    <div className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
-                      <input
-                        value={newCategoryName}
-                        onChange={(event) => setNewCategoryName(event.target.value)}
-                        placeholder="Nombre categoría"
-                        className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
-                      />
-                      <input
-                        value={newCategoryDescription}
-                        onChange={(event) => setNewCategoryDescription(event.target.value)}
-                        placeholder="Descripción categoría"
-                        className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
-                      />
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-cyan-800">
+                          Crear categoría nueva
+                        </p>
+                        <p className="text-xs text-cyan-700/80">
+                          Crea la categoría y luego asigna unidades en el mismo flujo.
+                        </p>
+                      </div>
                       <button
                         type="button"
-                        onClick={createManagedCategory}
-                        className="ui-focus rounded-md bg-cyan-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500"
+                        onClick={() => setShowCreateCategoryForm((prev) => !prev)}
+                        className="ui-focus inline-flex h-9 w-9 items-center justify-center rounded-full border border-cyan-300 bg-cyan-600 text-xl font-bold leading-none text-white transition hover:bg-cyan-500"
+                        aria-label={showCreateCategoryForm ? "Cerrar formulario categoría" : "Abrir formulario categoría"}
+                        title={showCreateCategoryForm ? "Cerrar" : "Nueva categoría"}
                       >
-                        Agregar categoría nueva
+                        {showCreateCategoryForm ? "−" : "+"}
                       </button>
                     </div>
+                    {showCreateCategoryForm ? (
+                      <div className="mt-3 grid gap-2 md:grid-cols-[1fr_1fr_auto_auto]">
+                        <input
+                          value={newCategoryName}
+                          onChange={(event) => setNewCategoryName(event.target.value)}
+                          placeholder="Nombre categoría"
+                          className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
+                        />
+                        <input
+                          value={newCategoryDescription}
+                          onChange={(event) => setNewCategoryDescription(event.target.value)}
+                          placeholder="Descripción categoría"
+                          className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => createManagedCategory(false)}
+                          className="ui-focus rounded-md border border-cyan-300 bg-white px-3 py-2 text-sm font-semibold text-cyan-700 transition hover:bg-cyan-50"
+                        >
+                          Guardar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => createManagedCategory(true)}
+                          className="ui-focus rounded-md bg-cyan-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500"
+                        >
+                          Agregar unidades
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
 
@@ -2630,7 +2798,7 @@ export function CatalogHomeClient({ feed }: Props) {
                     (sectionId) => (
                       <article
                         key={sectionId}
-                        className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-slate-50/30 px-2.5 py-2 md:grid-cols-[0.9fr_1fr_2fr]"
+                        className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-slate-50/30 px-2.5 py-2 md:grid-cols-[0.9fr_1fr_2fr_auto_auto]"
                       >
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
                           {SECTION_LABELS[sectionId]}
@@ -2647,6 +2815,21 @@ export function CatalogHomeClient({ feed }: Props) {
                           placeholder="Descripción"
                           className="ui-focus rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm"
                         />
+                        <div className="flex items-center justify-center rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
+                          {sectionVehicleCounts[sectionId]} unidades
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditorGroupFilter(sectionId);
+                            if (sectionId !== "proximos-remates") setAuctionFilterId("");
+                            setEditorPage(1);
+                            setAdminTab("vehiculos");
+                          }}
+                          className="ui-focus rounded border border-cyan-300 bg-cyan-50 px-2.5 py-1.5 text-xs font-semibold text-cyan-700 transition hover:bg-cyan-100"
+                        >
+                          Ver y gestionar
+                        </button>
                       </article>
                     ),
                   )}
@@ -4116,6 +4299,28 @@ export function CatalogHomeClient({ feed }: Props) {
                     value={config.vehiclePrices[managingVehicleKey] ?? ""}
                     onChange={(event) => setPrice(managingVehicleKey, event.target.value)}
                   />
+                  <select
+                    className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm sm:col-span-2"
+                    value={normalizeVehicleCategoryValue(
+                      String(
+                        config.vehicleDetails[managingVehicleKey]?.category ??
+                          getLookupValue(buildVehicleLookup(managingItem.raw as Record<string, unknown>), [
+                            "categoria",
+                            "tipo_vehiculo",
+                            "tipo",
+                          ]) ??
+                          "",
+                      ),
+                    )}
+                    onChange={(event) => setVehicleCategory(managingVehicleKey, event.target.value)}
+                  >
+                    <option value="">Seleccionar categoría de vehículo</option>
+                    {VEHICLE_CATEGORY_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -4249,7 +4454,23 @@ export function CatalogHomeClient({ feed }: Props) {
                 <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Marca" value={editingDetails.brand ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), brand: event.target.value }))} />
                 <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Modelo" value={editingDetails.model ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), model: event.target.value }))} />
                 <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Año" value={editingDetails.year ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), year: event.target.value }))} />
-                <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Categoría" value={editingDetails.category ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), category: event.target.value }))} />
+                <select
+                  className="rounded border border-slate-300 px-3 py-2 text-sm"
+                  value={normalizeVehicleCategoryValue(editingDetails.category ?? "")}
+                  onChange={(event) =>
+                    setEditingDetails((prev) => ({
+                      ...(prev ?? {}),
+                      category: event.target.value,
+                    }))
+                  }
+                >
+                  <option value="">Categoría</option>
+                  {VEHICLE_CATEGORY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             ) : (
               <div className="grid gap-3 md:grid-cols-2">

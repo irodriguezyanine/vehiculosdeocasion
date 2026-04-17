@@ -1481,8 +1481,9 @@ export function CatalogHomeClient({ feed }: Props) {
     if (!shareUrl) return;
     const title = `${getPatent(selectedVehicle)} · ${getModel(selectedVehicle)}`;
     const text = `Revisa este vehículo en Catálogo Vedisa: ${title}`;
+    const canUseNativeShare = typeof navigator.share === "function";
     try {
-      if (navigator.share) {
+      if (canUseNativeShare) {
         await navigator.share({ title, text, url: shareUrl });
       } else if (navigator.clipboard) {
         await navigator.clipboard.writeText(shareUrl);
@@ -1493,7 +1494,7 @@ export function CatalogHomeClient({ feed }: Props) {
       showSystemNotice(
         "success",
         "Enlace listo",
-        navigator.share
+        canUseNativeShare
           ? "Se compartió el vehículo correctamente."
           : "Copiamos el enlace del vehículo para compartir.",
       );

@@ -2456,185 +2456,200 @@ export function CatalogHomeClient({ feed }: Props) {
 
             {adminTab === "categorias" ? (
               <div className="space-y-4">
-                <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-3">
-                  <div className="flex flex-wrap items-end gap-2">
-                    <div className="min-w-52 flex-1">
-                      <label className="mb-1 block text-xs font-semibold text-indigo-800">Nombre del remate</label>
+                <div className="grid gap-4 xl:grid-cols-2">
+                  <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-3">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-indigo-800">
+                      Gestión de remates
+                    </p>
+                    <div className="grid gap-2 md:grid-cols-[1fr_auto_auto]">
                       <input
                         value={newAuctionName}
                         onChange={(event) => setNewAuctionName(event.target.value)}
-                        placeholder="Ej: Remate Abril #2"
-                        className="ui-focus w-full rounded-md border border-indigo-200 bg-white px-3 py-2 text-sm"
+                        placeholder="Nombre del remate"
+                        className="ui-focus rounded-md border border-indigo-200 bg-white px-3 py-2 text-sm"
                       />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-semibold text-indigo-800">Fecha</label>
                       <input
                         type="date"
                         value={newAuctionDate}
                         onChange={(event) => setNewAuctionDate(event.target.value)}
                         className="ui-focus rounded-md border border-indigo-200 bg-white px-3 py-2 text-sm"
                       />
+                      <button
+                        type="button"
+                        onClick={createUpcomingAuction}
+                        className="ui-focus rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500"
+                      >
+                        Crear remate
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={createUpcomingAuction}
-                      className="ui-focus rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500"
-                    >
-                      Crear remate
-                    </button>
+                    <div className="mt-2 space-y-1.5 rounded-lg border border-indigo-100 bg-white p-2">
+                      {sortedUpcomingAuctions.length === 0 ? (
+                        <p className="text-xs text-slate-500">No hay remates creados.</p>
+                      ) : (
+                        sortedUpcomingAuctions.map((auction) => {
+                          const count = Object.values(config.vehicleUpcomingAuctionIds).filter(
+                            (id) => id === auction.id,
+                          ).length;
+                          return (
+                            <article
+                              key={auction.id}
+                              className="grid grid-cols-1 items-center gap-1 rounded-md border border-slate-200 px-2 py-1.5 text-xs md:grid-cols-[1fr_auto_auto]"
+                            >
+                              <p className="font-semibold text-indigo-900">
+                                {auction.name} · {formatAuctionDateLabel(auction.date)} ({count} asignados)
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAuctionFilterId(auction.id);
+                                  setAdminTab("vehiculos");
+                                }}
+                                className="ui-focus rounded border border-cyan-200 bg-cyan-50 px-2 py-1 text-cyan-700"
+                              >
+                                Ver vehículos
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeUpcomingAuction(auction.id)}
+                                className="ui-focus rounded border border-rose-200 bg-rose-50 px-2 py-1 text-rose-700"
+                              >
+                                Quitar
+                              </button>
+                            </article>
+                          );
+                        })
+                      )}
+                    </div>
                   </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {sortedUpcomingAuctions.length === 0 ? (
-                      <p className="text-xs text-slate-500">Aún no hay remates creados.</p>
-                    ) : (
-                      sortedUpcomingAuctions.map((auction) => {
-                        const count = Object.values(config.vehicleUpcomingAuctionIds).filter(
-                          (id) => id === auction.id,
-                        ).length;
-                        return (
-                          <div key={auction.id} className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-white px-3 py-1 text-xs">
-                            <span className="font-semibold text-indigo-800">{auction.name}</span>
-                            <span className="text-slate-500">{formatAuctionDateLabel(auction.date)}</span>
-                            <span className="text-slate-500">({count} asignados)</span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setAuctionFilterId(auction.id);
-                                setAdminTab("vehiculos");
-                              }}
-                              className="ui-focus rounded bg-cyan-50 px-2 py-0.5 text-cyan-700"
-                            >
-                              Ver vehículos
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => removeUpcomingAuction(auction.id)}
-                              className="ui-focus rounded bg-rose-50 px-2 py-0.5 text-rose-700 transition hover:bg-rose-100"
-                            >
-                              Quitar
-                            </button>
-                          </div>
-                        );
-                      })
-                    )}
+
+                  <div className="rounded-xl border border-cyan-100 bg-cyan-50/40 p-3">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-cyan-800">
+                      Crear categoría nueva
+                    </p>
+                    <div className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
+                      <input
+                        value={newCategoryName}
+                        onChange={(event) => setNewCategoryName(event.target.value)}
+                        placeholder="Nombre categoría"
+                        className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
+                      />
+                      <input
+                        value={newCategoryDescription}
+                        onChange={(event) => setNewCategoryDescription(event.target.value)}
+                        placeholder="Descripción categoría"
+                        className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={createManagedCategory}
+                        className="ui-focus rounded-md bg-cyan-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500"
+                      >
+                        Agregar categoría nueva
+                      </button>
+                    </div>
                   </div>
                 </div>
-                <div className="rounded-xl border border-cyan-100 bg-cyan-50/50 p-3">
-                  <div className="mb-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-cyan-800">
-                      Categorías personalizadas
-                    </p>
-                    <p className="text-xs text-slate-600">
-                      Crea categorías, agrega descripción y asigna múltiples vehículos desde inventario.
-                    </p>
+
+                <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-2">
+                  <div className="grid grid-cols-[1.2fr_1.6fr_auto_auto_auto] gap-2 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                    <span>Categoría</span>
+                    <span>Descripción</span>
+                    <span className="text-center">Unidades</span>
+                    <span className="text-center">Visible</span>
+                    <span className="text-right">Acciones</span>
                   </div>
-                  <div className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
-                    <input
-                      value={newCategoryName}
-                      onChange={(event) => setNewCategoryName(event.target.value)}
-                      placeholder="Nombre categoría (Ej: Camionetas Operativas)"
-                      className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
-                    />
-                    <input
-                      value={newCategoryDescription}
-                      onChange={(event) => setNewCategoryDescription(event.target.value)}
-                      placeholder="Descripción categoría"
-                      className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
-                    />
-                    <button
-                      type="button"
-                      onClick={createManagedCategory}
-                      className="ui-focus rounded-md bg-cyan-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500"
-                    >
-                      Agregar categoría nueva
-                    </button>
-                  </div>
-                </div>
-                {(config.managedCategories ?? []).length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500">
-                    Aún no hay categorías personalizadas. Crea la primera para organizar nuevas vitrinas.
-                  </div>
-                ) : (
-                  <div className="grid gap-3">
-                    {(config.managedCategories ?? []).map((category) => (
-                      <div key={category.id} className="rounded-xl border border-slate-200 bg-white p-3">
-                        <div className="flex flex-wrap items-start justify-between gap-2">
-                          <div className="min-w-0 flex-1">
-                            <input
-                              value={category.name}
-                              onChange={(event) =>
-                                updateManagedCategory(category.id, { name: event.target.value })
-                              }
-                              className="ui-focus w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-900"
-                            />
-                            <textarea
-                              value={category.description}
-                              onChange={(event) =>
-                                updateManagedCategory(category.id, {
-                                  description: event.target.value,
-                                })
-                              }
-                              className="ui-focus mt-2 min-h-16 w-full rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-700"
-                            />
-                          </div>
-                          <div className="flex flex-col items-end gap-2">
-                            <label className="inline-flex items-center gap-2 text-xs text-slate-700">
-                              <input
-                                type="checkbox"
-                                checked={category.visible !== false}
-                                onChange={(event) =>
-                                  updateManagedCategory(category.id, {
-                                    visible: event.target.checked,
-                                  })
-                                }
-                              />
-                              Visible
-                            </label>
-                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                              {category.vehicleIds.length} asignados
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setAssignCategoryId(category.id);
-                                setAssignSearchTerm("");
-                              }}
-                              className="ui-focus rounded-md border border-cyan-300 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-cyan-700 transition hover:bg-cyan-100"
-                            >
-                              Asignar vehículos
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => deleteManagedCategory(category.id)}
-                              className="ui-focus rounded-md border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
-                            >
-                              Eliminar categoría
-                            </button>
-                          </div>
+                  {(config.managedCategories ?? []).length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3 text-sm text-slate-500">
+                      No hay categorías personalizadas aún.
+                    </div>
+                  ) : (
+                    (config.managedCategories ?? []).map((category) => (
+                      <article
+                        key={category.id}
+                        className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-slate-50/30 px-2.5 py-2 md:grid-cols-[1.2fr_1.6fr_auto_auto_auto]"
+                      >
+                        <input
+                          value={category.name}
+                          onChange={(event) =>
+                            updateManagedCategory(category.id, { name: event.target.value })
+                          }
+                          className="ui-focus rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm font-semibold"
+                        />
+                        <input
+                          value={category.description}
+                          onChange={(event) =>
+                            updateManagedCategory(category.id, {
+                              description: event.target.value,
+                            })
+                          }
+                          className="ui-focus rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm"
+                        />
+                        <div className="flex items-center justify-center text-xs font-semibold text-slate-700">
+                          {category.vehicleIds.length}
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <div className="grid gap-3 md:grid-cols-2">
-                  {(["proximos-remates", "ventas-directas", "novedades", "catalogo"] as SectionId[]).map((sectionId) => (
-                    <div key={sectionId} className="rounded-xl border border-slate-200 bg-white p-3">
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{SECTION_LABELS[sectionId]}</p>
-                      <input
-                        value={config.sectionTexts[sectionId]?.title ?? ""}
-                        onChange={(event) => setSectionText(sectionId, "title", event.target.value)}
-                        placeholder="Título sección"
-                        className="ui-focus mb-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
-                      />
-                      <input
-                        value={config.sectionTexts[sectionId]?.subtitle ?? ""}
-                        onChange={(event) => setSectionText(sectionId, "subtitle", event.target.value)}
-                        placeholder="Subtítulo sección"
-                        className="ui-focus w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
-                      />
-                    </div>
-                  ))}
+                        <label className="inline-flex items-center justify-center">
+                          <input
+                            type="checkbox"
+                            checked={category.visible !== false}
+                            onChange={(event) =>
+                              updateManagedCategory(category.id, {
+                                visible: event.target.checked,
+                              })
+                            }
+                          />
+                        </label>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAssignCategoryId(category.id);
+                              setAssignSearchTerm("");
+                            }}
+                            className="ui-focus rounded border border-cyan-300 bg-cyan-50 px-2 py-1 text-xs font-semibold text-cyan-700"
+                          >
+                            Asignar vehículos
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => deleteManagedCategory(category.id)}
+                            className="ui-focus rounded border border-rose-300 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      </article>
+                    ))
+                  )}
+                </div>
+
+                <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-2">
+                  <p className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                    Secciones base del home
+                  </p>
+                  {(["proximos-remates", "ventas-directas", "novedades", "catalogo"] as SectionId[]).map(
+                    (sectionId) => (
+                      <article
+                        key={sectionId}
+                        className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-slate-50/30 px-2.5 py-2 md:grid-cols-[0.9fr_1fr_2fr]"
+                      >
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                          {SECTION_LABELS[sectionId]}
+                        </p>
+                        <input
+                          value={config.sectionTexts[sectionId]?.title ?? ""}
+                          onChange={(event) => setSectionText(sectionId, "title", event.target.value)}
+                          placeholder="Título"
+                          className="ui-focus rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm"
+                        />
+                        <input
+                          value={config.sectionTexts[sectionId]?.subtitle ?? ""}
+                          onChange={(event) => setSectionText(sectionId, "subtitle", event.target.value)}
+                          placeholder="Descripción"
+                          className="ui-focus rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm"
+                        />
+                      </article>
+                    ),
+                  )}
                 </div>
               </div>
             ) : null}

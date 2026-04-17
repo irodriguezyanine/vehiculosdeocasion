@@ -8,6 +8,7 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent,
+  type WheelEvent as ReactWheelEvent,
 } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -1206,7 +1207,8 @@ export function CatalogHomeClient({ feed }: Props) {
   const [loginError, setLoginError] = useState("");
   const [selectedVehicle, setSelectedVehicle] = useState<CatalogItem | null>(null);
   const [selectedVehicleImageIndex, setSelectedVehicleImageIndex] = useState(0);
-  const [selectedVehicleLightboxImage, setSelectedVehicleLightboxImage] = useState<string | null>(null);
+  const [selectedVehicleLightboxIndex, setSelectedVehicleLightboxIndex] = useState<number | null>(null);
+  const [selectedVehicleLightboxZoom, setSelectedVehicleLightboxZoom] = useState(1);
   const [detailEditorTab, setDetailEditorTab] = useState<DetailEditorTabId>("general");
   const [selectedVehicleTab, setSelectedVehicleTab] = useState<VehicleDetailTabId>("general");
   const [revalidating, setRevalidating] = useState(false);
@@ -1716,6 +1718,17 @@ export function CatalogHomeClient({ feed }: Props) {
     return selectedVehicleGalleryImages[idx] ?? "/placeholder-car.svg";
   }, [selectedVehicleGalleryImages, selectedVehicleImageIndex]);
 
+  const selectedVehicleLightboxImage = useMemo(() => {
+    if (
+      selectedVehicleLightboxIndex === null ||
+      selectedVehicleLightboxIndex < 0 ||
+      selectedVehicleLightboxIndex >= selectedVehicleGalleryImages.length
+    ) {
+      return null;
+    }
+    return selectedVehicleGalleryImages[selectedVehicleLightboxIndex] ?? null;
+  }, [selectedVehicleGalleryImages, selectedVehicleLightboxIndex]);
+
   const selectedVehicleExpandedDescription = useMemo(() => {
     if (!selectedVehicle) return null;
     const overrideText =
@@ -1752,12 +1765,85 @@ export function CatalogHomeClient({ feed }: Props) {
     [selectedVehicleGalleryImages.length],
   );
 
+  const closeSelectedVehicleLightbox = useCallback(() => {
+    setSelectedVehicleLightboxIndex(null);
+    setSelectedVehicleLightboxZoom(1);
+  }, []);
+
+  const openSelectedVehicleLightboxAt = useCallback(
+    (index: number) => {
+      if (selectedVehicleGalleryImages.length === 0) return;
+      const boundedIndex = Math.max(0, Math.min(index, selectedVehicleGalleryImages.length - 1));
+      setSelectedVehicleLightboxIndex(boundedIndex);
+      setSelectedVehicleImageIndex(boundedIndex);
+      setSelectedVehicleLightboxZoom(1);
+    },
+    [selectedVehicleGalleryImages.length],
+  );
+
+  const moveSelectedVehicleLightbox = useCallback(
+    (direction: "prev" | "next") => {
+      if (selectedVehicleGalleryImages.length <= 1) return;
+      setSelectedVehicleLightboxIndex((prev) => {
+        const current = prev ?? 0;
+        const delta = direction === "next" ? 1 : -1;
+        const next =
+          (current + delta + selectedVehicleGalleryImages.length) %
+          selectedVehicleGalleryImages.length;
+        setSelectedVehicleImageIndex(next);
+        return next;
+      });
+      setSelectedVehicleLightboxZoom(1);
+    },
+    [selectedVehicleGalleryImages.length],
+  );
+
+  const zoomSelectedVehicleLightbox = useCallback((direction: "in" | "out" | "reset") => {
+    setSelectedVehicleLightboxZoom((prev) => {
+      if (direction === "reset") return 1;
+      const next = direction === "in" ? prev + 0.2 : prev - 0.2;
+      return Math.max(1, Math.min(next, 3));
+    });
+  }, []);
+
+  const onSelectedVehicleLightboxWheel = useCallback(
+    (event: ReactWheelEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      if (event.deltaY < 0) {
+        zoomSelectedVehicleLightbox("in");
+      } else {
+        zoomSelectedVehicleLightbox("out");
+      }
+    },
+    [zoomSelectedVehicleLightbox],
+  );
+
   useEffect(() => {
     if (selectedVehicle) {
       setSelectedVehicleTab("general");
-      setSelectedVehicleLightboxImage(null);
+      setSelectedVehicleLightboxIndex(null);
+      setSelectedVehicleLightboxZoom(1);
     }
   }, [selectedVehicle]);
+
+  useEffect(() => {
+    if (selectedVehicleLightboxIndex === null) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeSelectedVehicleLightbox();
+      else if (event.key === "ArrowLeft") moveSelectedVehicleLightbox("prev");
+      else if (event.key === "ArrowRight") moveSelectedVehicleLightbox("next");
+      else if (event.key === "+" || event.key === "=") zoomSelectedVehicleLightbox("in");
+      else if (event.key === "-" || event.key === "_") zoomSelectedVehicleLightbox("out");
+      else if (event.key.toLowerCase() === "0") zoomSelectedVehicleLightbox("reset");
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [
+    selectedVehicleLightboxIndex,
+    closeSelectedVehicleLightbox,
+    moveSelectedVehicleLightbox,
+    zoomSelectedVehicleLightbox,
+  ]);
 
   const selectedVehicleFieldsByTab = useMemo(() => {
     if (!selectedVehicle) {
@@ -2725,7 +2811,7 @@ export function CatalogHomeClient({ feed }: Props) {
   const managingItem = managingVehicleKey ? itemsByKey.get(managingVehicleKey) ?? null : null;
 
   return (
-    <main className="premium-bg min-h-screen text-slate-900">
+    <main className="premium-bg min-h-screen overflow-x-hidden text-slate-900">
       <div className="premium-glow premium-glow-cyan" />
       <div className="premium-glow premium-glow-gold" />
       <script
@@ -3644,8 +3730,8 @@ export function CatalogHomeClient({ feed }: Props) {
           </div>
         </section>
       ) : null}
-      <section className="sticky top-[72px] z-20 mx-auto max-w-7xl px-4 pt-4 sm:px-6 md:static lg:px-8">
-        <div className="glass-soft rounded-xl p-3 md:p-4">
+      <section className="sticky top-[68px] z-40 mx-auto w-full max-w-7xl px-3 pt-3 sm:top-[72px] sm:px-6 md:static lg:px-8">
+        <div className="glass-soft rounded-xl border border-cyan-100/80 p-3 shadow-sm md:p-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <input
               value={homeSearchTerm}
@@ -3654,10 +3740,10 @@ export function CatalogHomeClient({ feed }: Props) {
                 trackEvent("home_search_change", { query: event.target.value });
               }}
               placeholder="Buscar por patente, marca, modelo o categoría..."
-              className="ui-focus w-full rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm sm:max-w-xl"
+              className="ui-focus w-full rounded-md border border-cyan-200 bg-white px-3 py-2.5 text-base sm:max-w-xl sm:py-2 sm:text-sm"
               aria-label="Buscar vehículos por patente, marca, modelo o categoría"
             />
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:w-auto sm:justify-end">
               <span className="text-xs font-semibold text-slate-600">
                 {homeVisibleItems.length} resultado(s)
               </span>
@@ -3680,7 +3766,7 @@ export function CatalogHomeClient({ feed }: Props) {
                 <button
                   type="button"
                   onClick={() => setCardDensity("compact")}
-                  className={`ui-focus px-2 py-1 text-xs font-semibold ${
+                  className={`ui-focus min-h-9 px-3 py-1 text-xs font-semibold ${
                     cardDensity === "compact"
                       ? "bg-cyan-600 text-white"
                       : "text-slate-600 hover:bg-slate-50"
@@ -3692,7 +3778,7 @@ export function CatalogHomeClient({ feed }: Props) {
                 <button
                   type="button"
                   onClick={() => setCardDensity("detailed")}
-                  className={`ui-focus px-2 py-1 text-xs font-semibold ${
+                  className={`ui-focus min-h-9 px-3 py-1 text-xs font-semibold ${
                     cardDensity === "detailed"
                       ? "bg-cyan-600 text-white"
                       : "text-slate-600 hover:bg-slate-50"
@@ -3704,13 +3790,13 @@ export function CatalogHomeClient({ feed }: Props) {
               </div>
             </div>
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1 whitespace-nowrap md:flex-wrap md:overflow-visible md:whitespace-normal">
             {Object.entries(QUICK_FILTER_LABELS).map(([id, label]) => (
               <button
                 key={id}
                 type="button"
                 onClick={() => toggleQuickFilter(id as QuickFilterId)}
-                className={`ui-focus rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                className={`ui-focus shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                   quickFilters.includes(id as QuickFilterId)
                     ? "border-cyan-500 bg-cyan-600 text-white"
                     : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
@@ -3725,7 +3811,7 @@ export function CatalogHomeClient({ feed }: Props) {
                 setHomeSort(event.target.value as SortOption);
                 trackEvent("home_sort_change", { sort: event.target.value });
               }}
-              className="ui-focus ml-auto rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700"
+              className="ui-focus shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 md:ml-auto"
               aria-label="Ordenar resultados del catálogo"
             >
               <option value="recomendado">Orden: Recomendado</option>
@@ -3737,7 +3823,7 @@ export function CatalogHomeClient({ feed }: Props) {
             </select>
           </div>
           {quickFilters.length > 0 ? (
-            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-cyan-100 pt-3">
+            <div className="mt-3 flex items-center gap-2 overflow-x-auto border-t border-cyan-100 pt-3 whitespace-nowrap">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Filtros activos
               </p>
@@ -3746,7 +3832,7 @@ export function CatalogHomeClient({ feed }: Props) {
                   key={`active-${filterId}`}
                   type="button"
                   onClick={() => toggleQuickFilter(filterId)}
-                  className="ui-focus rounded-full border border-cyan-300 bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-800"
+                  className="ui-focus shrink-0 rounded-full border border-cyan-300 bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-800"
                 >
                   {QUICK_FILTER_LABELS[filterId]} ×
                 </button>
@@ -4401,7 +4487,7 @@ export function CatalogHomeClient({ feed }: Props) {
                     <div className="space-y-2">
                       <button
                         type="button"
-                        onClick={() => setSelectedVehicleLightboxImage(selectedVehicleMainImage)}
+                        onClick={() => openSelectedVehicleLightboxAt(selectedVehicleImageIndex)}
                         className="ui-focus block w-full overflow-hidden rounded-lg border border-slate-200 bg-white"
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -4418,7 +4504,7 @@ export function CatalogHomeClient({ feed }: Props) {
                             type="button"
                             onClick={() => {
                               setSelectedVehicleImageIndex(index);
-                              setSelectedVehicleLightboxImage(imageUrl);
+                              openSelectedVehicleLightboxAt(index);
                             }}
                             className={`ui-focus overflow-hidden rounded-md border ${
                               selectedVehicleImageIndex === index
@@ -4476,23 +4562,103 @@ export function CatalogHomeClient({ feed }: Props) {
             {selectedVehicleLightboxImage ? (
               <div
                 className="fixed inset-0 z-[85] flex items-center justify-center bg-slate-950/80 p-4"
-                onClick={() => setSelectedVehicleLightboxImage(null)}
+                onClick={closeSelectedVehicleLightbox}
               >
                 <div className="relative max-h-[92vh] w-full max-w-5xl">
+                  <div className="absolute left-3 top-3 z-10 inline-flex items-center gap-1 rounded-full bg-black/45 px-2 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+                    <span>{(selectedVehicleLightboxIndex ?? 0) + 1}</span>
+                    <span>/</span>
+                    <span>{selectedVehicleGalleryImages.length}</span>
+                  </div>
+                  <div className="absolute right-3 top-3 z-10 inline-flex items-center gap-1 rounded-full bg-black/45 p-1 backdrop-blur-sm">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        zoomSelectedVehicleLightbox("out");
+                      }}
+                      className="ui-focus rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-slate-700"
+                      title="Alejar"
+                      aria-label="Alejar foto"
+                    >
+                      −
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        zoomSelectedVehicleLightbox("in");
+                      }}
+                      className="ui-focus rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-slate-700"
+                      title="Acercar"
+                      aria-label="Acercar foto"
+                    >
+                      +
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        zoomSelectedVehicleLightbox("reset");
+                      }}
+                      className="ui-focus rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-slate-700"
+                      title="Zoom 100%"
+                      aria-label="Restablecer zoom"
+                    >
+                      100%
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        closeSelectedVehicleLightbox();
+                      }}
+                      className="ui-focus rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-slate-700"
+                    >
+                      Cerrar
+                    </button>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => setSelectedVehicleLightboxImage(null)}
-                    className="ui-focus absolute right-2 top-2 z-10 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-slate-700"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      moveSelectedVehicleLightbox("prev");
+                    }}
+                    className="ui-focus absolute left-2 top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-black/35 text-white backdrop-blur-sm hover:bg-black/50 md:inline-flex"
+                    aria-label="Foto anterior"
+                    title="Anterior"
                   >
-                    Cerrar
+                    <svg viewBox="0 0 20 20" className="h-5 w-5" fill="currentColor" aria-hidden="true">
+                      <path fillRule="evenodd" d="M12.78 4.22a.75.75 0 0 1 0 1.06L8.06 10l4.72 4.72a.75.75 0 1 1-1.06 1.06l-5.25-5.25a.75.75 0 0 1 0-1.06l5.25-5.25a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
+                    </svg>
                   </button>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={selectedVehicleLightboxImage}
-                    alt={`Foto ampliada ${selectedVehicle.title}`}
-                    className="max-h-[92vh] w-full rounded-xl object-contain"
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      moveSelectedVehicleLightbox("next");
+                    }}
+                    className="ui-focus absolute right-2 top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-black/35 text-white backdrop-blur-sm hover:bg-black/50 md:inline-flex"
+                    aria-label="Foto siguiente"
+                    title="Siguiente"
+                  >
+                    <svg viewBox="0 0 20 20" className="h-5 w-5" fill="currentColor" aria-hidden="true">
+                      <path fillRule="evenodd" d="M7.22 15.78a.75.75 0 0 1 0-1.06L11.94 10 7.22 5.28a.75.75 0 1 1 1.06-1.06l5.25 5.25a.75.75 0 0 1 0 1.06l-5.25 5.25a.75.75 0 0 1-1.06 0Z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                  <div
+                    className="flex max-h-[92vh] items-center justify-center overflow-auto rounded-xl"
+                    onWheel={onSelectedVehicleLightboxWheel}
                     onClick={(event) => event.stopPropagation()}
-                  />
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={selectedVehicleLightboxImage}
+                      alt={`Foto ampliada ${selectedVehicle.title}`}
+                      className="max-h-[92vh] w-full rounded-xl object-contain transition-transform duration-200"
+                      style={{ transform: `scale(${selectedVehicleLightboxZoom})` }}
+                    />
+                  </div>
                 </div>
               </div>
             ) : null}

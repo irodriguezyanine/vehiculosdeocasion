@@ -270,17 +270,20 @@ body {
 }
 
 .catalog-rail {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 100%);
-  gap: 1rem;
+  display: flex;
+  gap: 0.85rem;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
   padding: 0.2rem 0 0.35rem;
 }
 
 .catalog-rail-item {
+  flex: 0 0 100%;
+  min-width: 100%;
   scroll-snap-align: start;
+  scroll-snap-stop: always;
 }
 
 .catalog-rail-shell::before,
@@ -306,7 +309,21 @@ body {
 
 @media (min-width: 1024px) {
   .catalog-rail {
-    grid-auto-columns: minmax(250px, calc((100% - 5rem) / 6));
+    gap: 1rem;
+  }
+
+  .catalog-rail-item {
+    flex: 0 0 calc((100% - 5rem) / 6);
+    min-width: 250px;
+  }
+}
+
+@media (max-width: 767px) {
+  .catalog-rail-shell::before,
+  .catalog-rail-shell::after,
+  .featured-strip-shell::before,
+  .featured-strip-shell::after {
+    display: none;
   }
 }
 

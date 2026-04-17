@@ -1292,15 +1292,6 @@ export function CatalogHomeClient({ feed }: Props) {
     return "Quiero más información de esta unidad";
   }, [selectedVehicleConditionLabel]);
 
-  const selectedVehicleProgressSteps = useMemo(
-    () => [
-      { id: "revisar", label: "Revisa ficha y fotos", done: true },
-      { id: "contactar", label: "Solicita asesoría", done: false },
-      { id: "ofertar", label: "Coordina oferta o compra", done: false },
-    ],
-    [],
-  );
-
   const selectedVehicleGalleryImages = useMemo(() => {
     if (!selectedVehicle) return [] as string[];
     const list = [selectedVehicle.thumbnail, ...selectedVehicle.images].filter(
@@ -3247,27 +3238,8 @@ export function CatalogHomeClient({ feed }: Props) {
                   </div>
                 ) : null}
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 shadow-sm">
+              <div className="h-[420px] overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50/80 p-4 shadow-sm">
                 <h4 className="mb-3 text-base font-semibold text-slate-900">Resumen del vehículo</h4>
-                <div className="mb-3 rounded-md border border-slate-200 bg-white p-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                    Progreso sugerido
-                  </p>
-                  <ol className="mt-2 flex flex-wrap gap-2" aria-label="Pasos recomendados para comprar">
-                    {selectedVehicleProgressSteps.map((step, index) => (
-                      <li
-                        key={step.id}
-                        className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${
-                          index === 0
-                            ? "border-cyan-300 bg-cyan-50 text-cyan-800"
-                            : "border-slate-200 bg-slate-50 text-slate-600"
-                        }`}
-                      >
-                        {index + 1}. {step.label}
-                      </li>
-                    ))}
-                  </ol>
-                </div>
                 <div className="mb-3 flex flex-wrap gap-2">
                   {selectedVehicleTabs.map((tab) => (
                     <button

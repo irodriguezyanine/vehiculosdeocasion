@@ -46,6 +46,9 @@ function normalizeConfig(config?: Partial<EditorConfig> | null): EditorConfig {
       heroDescription: config?.homeLayout?.heroDescription ?? defaults.homeLayout.heroDescription,
       showFeaturedStrip:
         config?.homeLayout?.showFeaturedStrip ?? defaults.homeLayout.showFeaturedStrip,
+      showRecentPublications:
+        config?.homeLayout?.showRecentPublications ??
+        defaults.homeLayout.showRecentPublications,
       showCommercialPanel:
         config?.homeLayout?.showCommercialPanel ?? defaults.homeLayout.showCommercialPanel,
       sectionOrder: config?.homeLayout?.sectionOrder ?? defaults.homeLayout.sectionOrder,

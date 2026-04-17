@@ -26,6 +26,7 @@ export type HomeLayoutConfig = {
   heroTitle: string;
   heroDescription: string;
   showFeaturedStrip: boolean;
+  showRecentPublications: boolean;
   showCommercialPanel: boolean;
   sectionOrder: SectionId[];
 };
@@ -130,6 +131,7 @@ export const DEFAULT_EDITOR_CONFIG: EditorConfig = {
     heroDescription:
       "Plataforma oficial de ofertas online en vedisaremates.cl. Revisa cada unidad con información clara, fotos y trazabilidad comercial para tomar decisiones con confianza.",
     showFeaturedStrip: true,
+    showRecentPublications: false,
     showCommercialPanel: true,
     sectionOrder: ["proximos-remates", "ventas-directas", "novedades", "catalogo"],
   },

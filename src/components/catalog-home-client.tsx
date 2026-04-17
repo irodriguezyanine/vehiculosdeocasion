@@ -135,6 +135,9 @@ function normalizeEditorConfigClient(
         value?.homeLayout?.heroDescription ?? defaults.homeLayout.heroDescription,
       showFeaturedStrip:
         value?.homeLayout?.showFeaturedStrip ?? defaults.homeLayout.showFeaturedStrip,
+      showRecentPublications:
+        value?.homeLayout?.showRecentPublications ??
+        defaults.homeLayout.showRecentPublications,
       showCommercialPanel:
         value?.homeLayout?.showCommercialPanel ?? defaults.homeLayout.showCommercialPanel,
       sectionOrder: value?.homeLayout?.sectionOrder ?? defaults.homeLayout.sectionOrder,
@@ -976,6 +979,7 @@ export function CatalogHomeClient({ feed }: Props) {
   const [activeTypeTab, setActiveTypeTab] = useState<VehicleTypeId>("livianos");
   const [homeSearchTerm, setHomeSearchTerm] = useState("");
   const [homeSort, setHomeSort] = useState<SortOption>("recomendado");
+  const [topSectionFilter, setTopSectionFilter] = useState<"all" | SectionId>("all");
   const [quickFilters, setQuickFilters] = useState<QuickFilterId[]>(() => {
     if (typeof window === "undefined") return [];
     try {
@@ -1253,8 +1257,18 @@ export function CatalogHomeClient({ feed }: Props) {
   }, [visibleItems, homeSearchTerm]);
 
   const homeQuickFilteredItems = useMemo(() => {
-    if (quickFilters.length === 0) return homeFilteredItems;
-    return homeFilteredItems.filter((item) => {
+    const byTopSection =
+      topSectionFilter === "all"
+        ? homeFilteredItems
+        : homeFilteredItems.filter((item) => {
+            const key = getVehicleKey(item);
+            if (topSectionFilter === "proximos-remates") {
+              return Boolean(config.vehicleUpcomingAuctionIds[key]);
+            }
+            return (config.sectionVehicleIds[topSectionFilter] ?? []).includes(key);
+          });
+    if (quickFilters.length === 0) return byTopSection;
+    return byTopSection.filter((item) => {
       const key = getVehicleKey(item);
       const vehicleType = inferVehicleType(item);
       const isManual = String((item.raw as Record<string, unknown>).source ?? "") === "manual";
@@ -1268,7 +1282,14 @@ export function CatalogHomeClient({ feed }: Props) {
       }
       return true;
     });
-  }, [homeFilteredItems, quickFilters, config.vehiclePrices]);
+  }, [
+    homeFilteredItems,
+    topSectionFilter,
+    quickFilters,
+    config.vehiclePrices,
+    config.vehicleUpcomingAuctionIds,
+    config.sectionVehicleIds,
+  ]);
 
   const homeVisibleItems = useMemo(() => {
     const sorted = [...homeQuickFilteredItems];
@@ -2520,10 +2541,25 @@ export function CatalogHomeClient({ feed }: Props) {
     trackEvent("admin_logout");
   };
 
+  const topSectionTabs: Array<{ id: SectionId; label: string }> = [
+    { id: "proximos-remates", label: "Proximos remates" },
+    { id: "ventas-directas", label: "Ventas directas" },
+    { id: "novedades", label: "Novedades" },
+    { id: "catalogo", label: "Catalogo" },
+  ];
+
+  const handleTopSectionTabClick = (sectionId: SectionId) => {
+    setTopSectionFilter((prev) => (prev === sectionId ? "all" : sectionId));
+    if (typeof document === "undefined") return;
+    const target = document.getElementById(sectionId);
+    if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   const showAdminEditor = isAdmin && adminView === "editor";
   const showPublicHome = !isAdmin || adminView === "home";
   const hasActiveSearch = homeSearchTerm.trim().length > 0;
-  const hasActiveSearchOrQuickFilters = hasActiveSearch || quickFilters.length > 0;
+  const hasActiveSearchOrQuickFilters =
+    hasActiveSearch || quickFilters.length > 0 || topSectionFilter !== "all";
 
   const editingItem = editingVehicleKey ? itemsByKey.get(editingVehicleKey) ?? null : null;
   const managingItem = managingVehicleKey ? itemsByKey.get(managingVehicleKey) ?? null : null;
@@ -2554,6 +2590,7 @@ export function CatalogHomeClient({ feed }: Props) {
                   event.preventDefault();
                   setAdminView("home");
                 }
+                setTopSectionFilter("all");
                 setMobileMenuOpen(false);
               }}
             >
@@ -2578,18 +2615,18 @@ export function CatalogHomeClient({ feed }: Props) {
             </button>
             <div className="hidden items-center gap-2 md:flex">
               <nav className="flex flex-wrap gap-2 text-sm">
-                <a href="#proximos-remates" className="premium-link-pill ui-focus">
-                  Proximos remates
-                </a>
-                <a href="#ventas-directas" className="premium-link-pill ui-focus">
-                  Ventas directas
-                </a>
-                <a href="#novedades" className="premium-link-pill ui-focus">
-                  Novedades
-                </a>
-                <a href="#catalogo" className="premium-link-pill ui-focus">
-                  Catalogo
-                </a>
+                {topSectionTabs.map((tab) => (
+                  <button
+                    key={`top-tab-desktop-${tab.id}`}
+                    type="button"
+                    onClick={() => handleTopSectionTabClick(tab.id)}
+                    className={`premium-link-pill ui-focus ${
+                      topSectionFilter === tab.id ? "border-cyan-400 bg-cyan-600 text-white" : ""
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
               </nav>
               {isAdmin ? (
                 <>
@@ -2622,18 +2659,21 @@ export function CatalogHomeClient({ feed }: Props) {
           {mobileMenuOpen ? (
             <div id="mobile-main-menu" className="rounded-lg border border-slate-200 bg-white p-3 md:hidden">
               <nav className="flex flex-col gap-2 text-sm">
-                <a href="#proximos-remates" className="premium-link-pill ui-focus text-center" onClick={() => setMobileMenuOpen(false)}>
-                  Proximos remates
-                </a>
-                <a href="#ventas-directas" className="premium-link-pill ui-focus text-center" onClick={() => setMobileMenuOpen(false)}>
-                  Ventas directas
-                </a>
-                <a href="#novedades" className="premium-link-pill ui-focus text-center" onClick={() => setMobileMenuOpen(false)}>
-                  Novedades
-                </a>
-                <a href="#catalogo" className="premium-link-pill ui-focus text-center" onClick={() => setMobileMenuOpen(false)}>
-                  Catalogo
-                </a>
+                {topSectionTabs.map((tab) => (
+                  <button
+                    key={`top-tab-mobile-${tab.id}`}
+                    type="button"
+                    onClick={() => {
+                      handleTopSectionTabClick(tab.id);
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`premium-link-pill ui-focus text-center ${
+                      topSectionFilter === tab.id ? "border-cyan-400 bg-cyan-600 text-white" : ""
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
               </nav>
               <div className="mt-3 flex flex-wrap gap-2">
                 {isAdmin ? (
@@ -3081,6 +3121,27 @@ export function CatalogHomeClient({ feed }: Props) {
                     )}
                   </div>
                 ) : null}
+
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                      Recién publicados
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Sección opcional del home para destacar últimas unidades.
+                    </p>
+                  </div>
+                  <label className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={config.homeLayout.showRecentPublications}
+                      onChange={(event) =>
+                        setHomeLayout("showRecentPublications", event.target.checked)
+                      }
+                    />
+                    {config.homeLayout.showRecentPublications ? "Activado" : "Desactivado"}
+                  </label>
+                </div>
 
                 <div className="mt-3 space-y-2">
                   <div className="grid grid-cols-[1.2fr_1.6fr_auto_auto] gap-2 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
@@ -3747,7 +3808,7 @@ export function CatalogHomeClient({ feed }: Props) {
             </div>
           </section>
         ) : null}
-        {latestItems.length > 0 ? (
+        {config.homeLayout.showRecentPublications && latestItems.length > 0 ? (
           <section className="section-shell">
             <header className="mb-4">
               <p className="premium-kicker">Nuevas publicaciones</p>

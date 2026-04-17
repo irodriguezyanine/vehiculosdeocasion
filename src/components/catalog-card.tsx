@@ -109,13 +109,6 @@ export function CatalogCard({
   const coverCandidate = item.thumbnail ?? item.images[0];
   const cover = isLikelyImageUrl(coverCandidate) ? (coverCandidate as string) : "/placeholder-car.svg";
   const [coverSrc, setCoverSrc] = useState(cover);
-  const thumbs = useMemo(
-    () =>
-      item.images
-        .filter((url) => isLikelyImageUrl(url) && url !== coverSrc)
-        .slice(0, 8),
-    [item.images, coverSrc],
-  );
   const formattedDate = formatDate(item.auctionDate);
   const patent = getPatent(item);
   const brandModel = getBrandModel(item);
@@ -206,25 +199,6 @@ export function CatalogCard({
               </span>
             ) : null}
           </div>
-
-          {!isCompact && thumbs.length > 1 ? (
-            <div className="grid grid-cols-6 gap-1">
-              {thumbs.map((thumb) => (
-                <div key={thumb} className="h-10 overflow-hidden rounded bg-slate-100">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={thumb}
-                    alt={`${item.title} miniatura`}
-                    className="h-full w-full object-cover"
-                    loading="lazy"
-                    onError={(event) => {
-                      event.currentTarget.style.display = "none";
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
-          ) : null}
 
           <div className="flex items-center justify-between border-t border-slate-200 pt-3">
             <div className="flex flex-col">

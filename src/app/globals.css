@@ -272,7 +272,7 @@ body {
 .catalog-rail {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: minmax(280px, 90vw);
+  grid-auto-columns: minmax(0, 100%);
   gap: 1rem;
   overflow-x: auto;
   scroll-snap-type: x mandatory;

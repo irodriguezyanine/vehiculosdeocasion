@@ -45,7 +45,7 @@ type ClientLeadForm = {
   phone: string;
   interest: string;
 };
-type VehicleDetailTabId = "general" | "tecnica";
+type VehicleDetailTabId = "general" | "tecnica" | "fotos";
 type SystemNotice = {
   id: number;
   tone: "success" | "error" | "info";
@@ -1206,6 +1206,7 @@ export function CatalogHomeClient({ feed }: Props) {
   const [loginError, setLoginError] = useState("");
   const [selectedVehicle, setSelectedVehicle] = useState<CatalogItem | null>(null);
   const [selectedVehicleImageIndex, setSelectedVehicleImageIndex] = useState(0);
+  const [selectedVehicleLightboxImage, setSelectedVehicleLightboxImage] = useState<string | null>(null);
   const [detailEditorTab, setDetailEditorTab] = useState<DetailEditorTabId>("general");
   const [selectedVehicleTab, setSelectedVehicleTab] = useState<VehicleDetailTabId>("general");
   const [revalidating, setRevalidating] = useState(false);
@@ -1738,16 +1739,24 @@ export function CatalogHomeClient({ feed }: Props) {
   }, [selectedVehicle, selectedVehicleLookup, selectedVehicleOverride]);
 
   const selectedVehicleTabs = useMemo(
-    () =>
-      [
+    () => {
+      const tabs: Array<{ id: VehicleDetailTabId; label: string }> = [
         { id: "general", label: "Información del vehículo" },
         { id: "tecnica", label: "Detalles técnicos" },
-      ] as Array<{ id: VehicleDetailTabId; label: string }>,
-    [],
+      ];
+      if (selectedVehicleGalleryImages.length > 0) {
+        tabs.push({ id: "fotos", label: "Fotos" });
+      }
+      return tabs;
+    },
+    [selectedVehicleGalleryImages.length],
   );
 
   useEffect(() => {
-    if (selectedVehicle) setSelectedVehicleTab("general");
+    if (selectedVehicle) {
+      setSelectedVehicleTab("general");
+      setSelectedVehicleLightboxImage(null);
+    }
   }, [selectedVehicle]);
 
   const selectedVehicleFieldsByTab = useMemo(() => {
@@ -4383,7 +4392,52 @@ export function CatalogHomeClient({ feed }: Props) {
                     </button>
                   ))}
                 </div>
-                {selectedVehicleFieldsByTab[selectedVehicleTab].length === 0 ? (
+                {selectedVehicleTab === "fotos" ? (
+                  selectedVehicleGalleryImages.length === 0 ? (
+                    <p className="rounded-md border border-dashed border-slate-300 bg-white p-3 text-sm text-slate-500">
+                      Este vehículo no tiene fotos disponibles.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedVehicleLightboxImage(selectedVehicleMainImage)}
+                        className="ui-focus block w-full overflow-hidden rounded-lg border border-slate-200 bg-white"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={selectedVehicleMainImage}
+                          alt={`Foto principal de ${selectedVehicle.title}`}
+                          className="h-52 w-full object-cover"
+                        />
+                      </button>
+                      <div className="grid grid-cols-3 gap-2">
+                        {selectedVehicleGalleryImages.map((imageUrl, index) => (
+                          <button
+                            key={`modal-photo-${imageUrl}-${index}`}
+                            type="button"
+                            onClick={() => {
+                              setSelectedVehicleImageIndex(index);
+                              setSelectedVehicleLightboxImage(imageUrl);
+                            }}
+                            className={`ui-focus overflow-hidden rounded-md border ${
+                              selectedVehicleImageIndex === index
+                                ? "border-cyan-500 ring-2 ring-cyan-200"
+                                : "border-slate-200"
+                            }`}
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={imageUrl}
+                              alt={`${selectedVehicle.title} foto ${index + 1}`}
+                              className="h-20 w-full object-cover"
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                ) : selectedVehicleFieldsByTab[selectedVehicleTab].length === 0 ? (
                   <p className="rounded-md border border-dashed border-slate-300 bg-white p-3 text-sm text-slate-500">
                     No hay datos disponibles para esta pestaña.
                   </p>
@@ -4419,6 +4473,29 @@ export function CatalogHomeClient({ feed }: Props) {
                 ) : null}
               </div>
             </div>
+            {selectedVehicleLightboxImage ? (
+              <div
+                className="fixed inset-0 z-[85] flex items-center justify-center bg-slate-950/80 p-4"
+                onClick={() => setSelectedVehicleLightboxImage(null)}
+              >
+                <div className="relative max-h-[92vh] w-full max-w-5xl">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedVehicleLightboxImage(null)}
+                    className="ui-focus absolute right-2 top-2 z-10 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-slate-700"
+                  >
+                    Cerrar
+                  </button>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={selectedVehicleLightboxImage}
+                    alt={`Foto ampliada ${selectedVehicle.title}`}
+                    className="max-h-[92vh] w-full rounded-xl object-contain"
+                    onClick={(event) => event.stopPropagation()}
+                  />
+                </div>
+              </div>
+            ) : null}
             <div className="sticky bottom-0 z-20 mt-3 flex items-center gap-2 rounded-xl border border-slate-200 bg-white/95 p-2 shadow md:hidden">
               <a
                 href={selectedVehicleWhatsappUrl}

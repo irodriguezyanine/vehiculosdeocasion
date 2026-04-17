@@ -1405,6 +1405,14 @@ export function CatalogHomeClient({ feed }: Props) {
             "kms",
             "odometro",
             "odómetro",
+            "mileage",
+            "odometer",
+            "cav_campos.kilometraje",
+            "cav_campos.km",
+            "autored.kilometraje",
+            "autored.km",
+            "autored.odometro",
+            "autored.odometer",
           ]),
         },
         {
@@ -1413,6 +1421,10 @@ export function CatalogHomeClient({ feed }: Props) {
             "color",
             "color_exterior",
             "color_vehiculo",
+            "cav_campos.color",
+            "autored.color",
+            "autored.color_exterior",
+            "autored.exterior_color",
           ]),
         },
         {
@@ -1421,6 +1433,12 @@ export function CatalogHomeClient({ feed }: Props) {
             "combustible",
             "tipo_combustible",
             "fuel",
+            "fuel_type",
+            "cav_campos.combustible",
+            "autored.combustible",
+            "autored.tipo_combustible",
+            "autored.fuel",
+            "autored.fuel_type",
           ]),
         },
         {
@@ -1430,6 +1448,14 @@ export function CatalogHomeClient({ feed }: Props) {
             "transmisión",
             "caja",
             "tipo_caja",
+            "transmission",
+            "gearbox",
+            "cav_campos.transmision",
+            "cav_campos.caja",
+            "autored.transmision",
+            "autored.transmission",
+            "autored.caja",
+            "autored.tipo_caja",
           ]),
         },
         {
@@ -1438,10 +1464,43 @@ export function CatalogHomeClient({ feed }: Props) {
             "traccion",
             "tracción",
             "tipo_traccion",
+            "drivetrain",
+            "traction",
+            "cav_campos.traccion",
+            "autored.traccion",
+            "autored.tipo_traccion",
+            "autored.drivetrain",
           ]),
         },
-        { label: "Aro", value: getLookupValue(selectedVehicleLookup, ["aro", "aro_llanta", "rin", "rines"]) },
-        { label: "Cilindrada", value: getLookupValue(selectedVehicleLookup, ["cilindrada", "cc", "motor_cc"]) },
+        {
+          label: "Aro",
+          value: getLookupValue(selectedVehicleLookup, [
+            "aro",
+            "aro_llanta",
+            "rin",
+            "rines",
+            "wheel_size",
+            "cav_campos.aro",
+            "autored.aro",
+            "autored.rin",
+            "autored.rines",
+            "autored.wheel_size",
+          ]),
+        },
+        {
+          label: "Cilindrada",
+          value: getLookupValue(selectedVehicleLookup, [
+            "cilindrada",
+            "cc",
+            "motor_cc",
+            "engine_cc",
+            "cav_campos.cilindrada",
+            "autored.cilindrada",
+            "autored.cc",
+            "autored.motor_cc",
+            "autored.engine_cc",
+          ]),
+        },
       ]),
     };
   }, [selectedVehicle, selectedVehicleLookup, selectedVehicleOverride]);
@@ -3197,12 +3256,6 @@ export function CatalogHomeClient({ feed }: Props) {
                     ))}
                   </dl>
                 )}
-                <dl className="mt-2 grid grid-cols-2 gap-2 text-sm">
-                  <div className="rounded-md bg-white p-2">
-                    <dt className="text-xs uppercase text-slate-500">Fotos</dt>
-                    <dd className="font-medium text-slate-800">{selectedVehicle.images.length}</dd>
-                  </div>
-                </dl>
                 {selectedVehicleTab === "general" ? (
                   <>
                     <div className="mt-2 rounded-md border border-cyan-100 bg-cyan-50/60 p-3">
@@ -3222,21 +3275,6 @@ export function CatalogHomeClient({ feed }: Props) {
                       </p>
                     </div>
                   </>
-                ) : null}
-                {selectedVehicleTab === "tecnica" ? (
-                  <div className="mt-2 rounded-md border border-slate-200 bg-white p-3">
-                    <p className="text-xs uppercase tracking-wide text-slate-500">
-                      Documentación y datos técnicos
-                    </p>
-                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                      {selectedVehicleFieldsByTab.tecnica.slice(0, 4).map(([label, value]) => (
-                        <div key={`tech-${label}`} className="rounded-md bg-slate-50 px-2 py-1.5 text-xs text-slate-700">
-                          <p className="font-semibold text-slate-600">{label}</p>
-                          <p>{value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
                 ) : null}
               </div>
             </div>

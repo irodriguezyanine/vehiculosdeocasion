@@ -23,6 +23,9 @@ const HOME_CARD_DENSITY_STORAGE_KEY = "vedisa_home_card_density";
 const EDITOR_PAGE_SIZE = 20;
 type AdminTabId = "vehiculos" | "categorias" | "layout";
 type EditorGroupFilter = "all" | SectionId;
+type BatchAssignTarget =
+  | { type: "section"; sectionId: "ventas-directas" | "novedades" | "catalogo" }
+  | { type: "auction"; auctionId: string };
 type SortOption = "recomendado" | "relevancia" | "fecha-remate" | "precio-asc" | "precio-desc" | "titulo";
 type QuickFilterId = "livianos" | "pesados" | "con3d" | "conPrecio" | "recientes" | "manuales";
 type CardDensity = "compact" | "detailed";
@@ -846,8 +849,12 @@ export function CatalogHomeClient({ feed }: Props) {
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryDescription, setNewCategoryDescription] = useState("");
   const [showCreateCategoryForm, setShowCreateCategoryForm] = useState(false);
+  const [createGroupKind, setCreateGroupKind] = useState<"categoria" | "remate">("categoria");
   const [assignCategoryId, setAssignCategoryId] = useState<string | null>(null);
   const [assignSearchTerm, setAssignSearchTerm] = useState("");
+  const [batchAssignTarget, setBatchAssignTarget] = useState<BatchAssignTarget | null>(null);
+  const [batchAssignSearchTerm, setBatchAssignSearchTerm] = useState("");
+  const [batchAssignSelectedKeys, setBatchAssignSelectedKeys] = useState<string[]>([]);
   const [manualDraft, setManualDraft] = useState<ManualPublicationDraft>(
     EMPTY_MANUAL_PUBLICATION_DRAFT,
   );
@@ -1706,6 +1713,37 @@ export function CatalogHomeClient({ feed }: Props) {
     return source.slice(0, 120);
   }, [activeManagedCategory, assignSearchTerm, items]);
 
+  const batchAssignCandidates = useMemo(() => {
+    if (!batchAssignTarget) return [] as CatalogItem[];
+    const query = normalizeText(batchAssignSearchTerm);
+    const patentTokens = extractPatentTokens(batchAssignSearchTerm);
+    const source = items.filter((item) => {
+      const key = getVehicleKey(item);
+      const patent = getPatent(item);
+      if (patentTokens.length > 0) {
+        return (
+          patentTokens.includes(normalizePatentToken(patent)) ||
+          patentTokens.includes(normalizePatentToken(key))
+        );
+      }
+      if (!query) return true;
+      const sample = normalizeText(`${patent} ${getModel(item)} ${item.title} ${item.subtitle ?? ""}`);
+      return sample.includes(query);
+    });
+    return source.slice(0, 220);
+  }, [batchAssignSearchTerm, batchAssignTarget, items]);
+
+  const batchAssignTargetLabel = useMemo(() => {
+    if (!batchAssignTarget) return "";
+    if (batchAssignTarget.type === "auction") {
+      const auction = sortedUpcomingAuctions.find((entry) => entry.id === batchAssignTarget.auctionId);
+      return auction
+        ? `${auction.name} (${formatAuctionDateLabel(auction.date)})`
+        : "Remate seleccionado";
+    }
+    return SECTION_LABELS[batchAssignTarget.sectionId];
+  }, [batchAssignTarget, sortedUpcomingAuctions]);
+
   const sectionVehicleCounts = useMemo(
     () =>
       ({
@@ -1897,6 +1935,60 @@ export function CatalogHomeClient({ feed }: Props) {
         return { ...category, vehicleIds: Array.from(set) };
       }),
     }));
+  };
+
+  const toggleBatchAssignVehicle = (vehicleKey: string) => {
+    setBatchAssignSelectedKeys((prev) => {
+      if (prev.includes(vehicleKey)) return prev.filter((key) => key !== vehicleKey);
+      return [...prev, vehicleKey];
+    });
+  };
+
+  const openBatchAssignModal = (target: BatchAssignTarget) => {
+    setBatchAssignTarget(target);
+    setBatchAssignSearchTerm("");
+    setBatchAssignSelectedKeys([]);
+  };
+
+  const closeBatchAssignModal = () => {
+    setBatchAssignTarget(null);
+    setBatchAssignSearchTerm("");
+    setBatchAssignSelectedKeys([]);
+  };
+
+  const addBatchVehiclesToTarget = () => {
+    if (!batchAssignTarget) return;
+    if (batchAssignSelectedKeys.length === 0) {
+      showSystemNotice("info", "Sin selección", "Selecciona al menos un vehículo para agregar.");
+      return;
+    }
+    if (batchAssignTarget.type === "auction") {
+      setConfig((prev) => {
+        const nextAuctionMap = { ...prev.vehicleUpcomingAuctionIds };
+        for (const vehicleKey of batchAssignSelectedKeys) {
+          nextAuctionMap[vehicleKey] = batchAssignTarget.auctionId;
+        }
+        return { ...prev, vehicleUpcomingAuctionIds: nextAuctionMap };
+      });
+    } else {
+      setConfig((prev) => {
+        const current = new Set(prev.sectionVehicleIds[batchAssignTarget.sectionId] ?? []);
+        for (const vehicleKey of batchAssignSelectedKeys) current.add(vehicleKey);
+        return {
+          ...prev,
+          sectionVehicleIds: {
+            ...prev.sectionVehicleIds,
+            [batchAssignTarget.sectionId]: Array.from(current),
+          },
+        };
+      });
+    }
+    showSystemNotice(
+      "success",
+      "Unidades agregadas",
+      `${batchAssignSelectedKeys.length} vehículos agregados en ${batchAssignTargetLabel}.`,
+    );
+    closeBatchAssignModal();
   };
 
   const toggleManualDraftSection = (sectionId: SectionId) => {
@@ -2493,11 +2585,33 @@ export function CatalogHomeClient({ feed }: Props) {
                   </select>
                   <button
                     type="button"
-                    onClick={() => setShowManualCreateModal(true)}
+                    onClick={() => {
+                      if (editorGroupFilter === "ventas-directas" || editorGroupFilter === "novedades" || editorGroupFilter === "catalogo") {
+                        openBatchAssignModal({ type: "section", sectionId: editorGroupFilter });
+                        return;
+                      }
+                      if (editorGroupFilter === "proximos-remates") {
+                        if (!auctionFilterId) {
+                          showSystemNotice(
+                            "info",
+                            "Selecciona un remate",
+                            "Para agregar en próximos remates, elige un remate específico primero.",
+                          );
+                          return;
+                        }
+                        openBatchAssignModal({ type: "auction", auctionId: auctionFilterId });
+                        return;
+                      }
+                      showSystemNotice(
+                        "info",
+                        "Elige un grupo",
+                        "Selecciona una categoría o remate para agregar unidades del inventario.",
+                      );
+                    }}
                     className="ui-focus inline-flex items-center justify-center gap-2 rounded-md border border-cyan-300 bg-cyan-50 px-3 py-2 text-sm font-semibold text-cyan-700 transition hover:bg-cyan-100"
                   >
                     <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-cyan-600 text-xs text-white">+</span>
-                    Agregar nueva unidad
+                    Agregar unidades del inventario
                   </button>
                 </div>
                 <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-2">
@@ -2596,97 +2710,79 @@ export function CatalogHomeClient({ feed }: Props) {
             ) : null}
 
             {adminTab === "categorias" ? (
-              <div className="space-y-4">
-                <div className="grid gap-4 xl:grid-cols-2">
-                  <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-3">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-indigo-800">
-                      Gestión de remates
+              <div className="rounded-xl border border-slate-200 bg-white p-3">
+                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Secciones base del home
                     </p>
-                    <div className="grid gap-2 md:grid-cols-[1fr_auto_auto]">
-                      <input
-                        value={newAuctionName}
-                        onChange={(event) => setNewAuctionName(event.target.value)}
-                        placeholder="Nombre del remate"
-                        className="ui-focus rounded-md border border-indigo-200 bg-white px-3 py-2 text-sm"
-                      />
-                      <input
-                        type="date"
-                        value={newAuctionDate}
-                        onChange={(event) => setNewAuctionDate(event.target.value)}
-                        className="ui-focus rounded-md border border-indigo-200 bg-white px-3 py-2 text-sm"
-                      />
-                      <button
-                        type="button"
-                        onClick={createUpcomingAuction}
-                        className="ui-focus rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500"
-                      >
-                        Crear remate
-                      </button>
-                    </div>
-                    <div className="mt-2 space-y-1.5 rounded-lg border border-indigo-100 bg-white p-2">
-                      {sortedUpcomingAuctions.length === 0 ? (
-                        <p className="text-xs text-slate-500">No hay remates creados.</p>
-                      ) : (
-                        sortedUpcomingAuctions.map((auction) => {
-                          const count = Object.values(config.vehicleUpcomingAuctionIds).filter(
-                            (id) => id === auction.id,
-                          ).length;
-                          return (
-                            <article
-                              key={auction.id}
-                              className="grid grid-cols-1 items-center gap-1 rounded-md border border-slate-200 px-2 py-1.5 text-xs md:grid-cols-[1fr_auto_auto]"
-                            >
-                              <p className="font-semibold text-indigo-900">
-                                {auction.name} · {formatAuctionDateLabel(auction.date)} ({count} asignados)
-                              </p>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setAuctionFilterId(auction.id);
-                                  setEditorGroupFilter("proximos-remates");
-                                  setEditorPage(1);
-                                  setAdminTab("vehiculos");
-                                }}
-                                className="ui-focus rounded border border-cyan-200 bg-cyan-50 px-2 py-1 text-cyan-700"
-                              >
-                                Ver vehículos
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => removeUpcomingAuction(auction.id)}
-                                className="ui-focus rounded border border-rose-200 bg-rose-50 px-2 py-1 text-rose-700"
-                              >
-                                Quitar
-                              </button>
-                            </article>
-                          );
-                        })
-                      )}
-                    </div>
+                    <p className="text-sm text-slate-600">
+                      Gestiona todos los grupos desde este panel: base, remates y categorías personalizadas.
+                    </p>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateCategoryForm((prev) => !prev)}
+                    className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded-full bg-cyan-600 text-lg font-bold leading-none text-white transition hover:bg-cyan-500"
+                    aria-label={showCreateCategoryForm ? "Cerrar creación de grupo" : "Abrir creación de grupo"}
+                    title={showCreateCategoryForm ? "Cerrar" : "Crear grupo"}
+                  >
+                    {showCreateCategoryForm ? "−" : "+"}
+                  </button>
+                </div>
 
-                  <div className="rounded-xl border border-cyan-100 bg-cyan-50/40 p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-cyan-800">
-                          Crear categoría nueva
-                        </p>
-                        <p className="text-xs text-cyan-700/80">
-                          Crea la categoría y luego asigna unidades en el mismo flujo.
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setShowCreateCategoryForm((prev) => !prev)}
-                        className="ui-focus inline-flex h-9 w-9 items-center justify-center rounded-full border border-cyan-300 bg-cyan-600 text-xl font-bold leading-none text-white transition hover:bg-cyan-500"
-                        aria-label={showCreateCategoryForm ? "Cerrar formulario categoría" : "Abrir formulario categoría"}
-                        title={showCreateCategoryForm ? "Cerrar" : "Nueva categoría"}
-                      >
-                        {showCreateCategoryForm ? "−" : "+"}
-                      </button>
-                    </div>
-                    {showCreateCategoryForm ? (
-                      <div className="mt-3 grid gap-2 md:grid-cols-[1fr_1fr_auto_auto]">
+                {showCreateCategoryForm ? (
+                  <div className="mt-3 grid gap-2 rounded-lg border border-cyan-100 bg-cyan-50/40 p-2 md:grid-cols-[auto_1fr_1fr_auto_auto]">
+                    <select
+                      value={createGroupKind}
+                      onChange={(event) => setCreateGroupKind(event.target.value as "categoria" | "remate")}
+                      className="ui-focus rounded-md border border-cyan-200 bg-white px-2.5 py-2 text-sm"
+                    >
+                      <option value="categoria">Categoría</option>
+                      <option value="remate">Remate</option>
+                    </select>
+                    {createGroupKind === "remate" ? (
+                      <>
+                        <input
+                          value={newAuctionName}
+                          onChange={(event) => setNewAuctionName(event.target.value)}
+                          placeholder="Nombre del remate"
+                          className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
+                        />
+                        <input
+                          type="date"
+                          value={newAuctionDate}
+                          onChange={(event) => setNewAuctionDate(event.target.value)}
+                          className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={createUpcomingAuction}
+                          className="ui-focus rounded-md border border-cyan-300 bg-white px-3 py-2 text-sm font-semibold text-cyan-700 transition hover:bg-cyan-50"
+                        >
+                          Crear remate
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!newAuctionName.trim() || !newAuctionDate.trim()) {
+                              showSystemNotice(
+                                "error",
+                                "Remate incompleto",
+                                "Ingresa nombre y fecha para crear el remate.",
+                              );
+                              return;
+                            }
+                            createUpcomingAuction();
+                            setShowCreateCategoryForm(false);
+                          }}
+                          className="ui-focus rounded-md bg-cyan-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500"
+                        >
+                          Crear y cerrar
+                        </button>
+                      </>
+                    ) : (
+                      <>
                         <input
                           value={newCategoryName}
                           onChange={(event) => setNewCategoryName(event.target.value)}
@@ -2713,19 +2809,141 @@ export function CatalogHomeClient({ feed }: Props) {
                         >
                           Agregar unidades
                         </button>
-                      </div>
-                    ) : null}
+                      </>
+                    )}
                   </div>
-                </div>
+                ) : null}
 
-                <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-2">
-                  <div className="grid grid-cols-[1.2fr_1.6fr_auto_auto_auto] gap-2 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                    <span>Categoría</span>
-                    <span>Descripción</span>
+                <div className="mt-3 space-y-2">
+                  <div className="grid grid-cols-[1.2fr_1.6fr_auto_auto] gap-2 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                    <span>Grupo</span>
+                    <span>Descripción / textos</span>
                     <span className="text-center">Unidades</span>
-                    <span className="text-center">Visible</span>
                     <span className="text-right">Acciones</span>
                   </div>
+
+                  <p className="px-2 text-[11px] font-semibold uppercase tracking-wide text-indigo-600">
+                    Secciones base
+                  </p>
+                  {(["proximos-remates", "ventas-directas", "novedades", "catalogo"] as SectionId[]).map(
+                    (sectionId) => (
+                      <article
+                        key={sectionId}
+                        className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-slate-50/30 px-2.5 py-2 md:grid-cols-[1.2fr_1.6fr_auto_auto]"
+                      >
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                            {SECTION_LABELS[sectionId]}
+                          </p>
+                        </div>
+                        <div className="grid gap-1 md:grid-cols-2">
+                          <input
+                            value={config.sectionTexts[sectionId]?.title ?? ""}
+                            onChange={(event) => setSectionText(sectionId, "title", event.target.value)}
+                            placeholder="Título"
+                            className="ui-focus rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm"
+                          />
+                          <input
+                            value={config.sectionTexts[sectionId]?.subtitle ?? ""}
+                            onChange={(event) => setSectionText(sectionId, "subtitle", event.target.value)}
+                            placeholder="Descripción"
+                            className="ui-focus rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm"
+                          />
+                        </div>
+                        <div className="flex items-center justify-center rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
+                          {sectionVehicleCounts[sectionId]}
+                        </div>
+                        <div className="flex flex-wrap items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditorGroupFilter(sectionId);
+                              if (sectionId !== "proximos-remates") setAuctionFilterId("");
+                              setEditorPage(1);
+                              setAdminTab("vehiculos");
+                            }}
+                            className="ui-focus rounded border border-cyan-300 bg-cyan-50 px-2 py-1 text-xs font-semibold text-cyan-700"
+                          >
+                            Ver y gestionar
+                          </button>
+                          {sectionId !== "proximos-remates" ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                openBatchAssignModal({ type: "section", sectionId: sectionId as "ventas-directas" | "novedades" | "catalogo" })
+                              }
+                              className="ui-focus rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700"
+                            >
+                              Agregar unidades
+                            </button>
+                          ) : null}
+                        </div>
+                      </article>
+                    ),
+                  )}
+
+                  <p className="px-2 pt-2 text-[11px] font-semibold uppercase tracking-wide text-indigo-600">
+                    Remates creados
+                  </p>
+                  {sortedUpcomingAuctions.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3 text-sm text-slate-500">
+                      No hay remates creados.
+                    </div>
+                  ) : (
+                    sortedUpcomingAuctions.map((auction) => {
+                      const count = Object.values(config.vehicleUpcomingAuctionIds).filter(
+                        (id) => id === auction.id,
+                      ).length;
+                      return (
+                        <article
+                          key={auction.id}
+                          className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-slate-50/30 px-2.5 py-2 md:grid-cols-[1.2fr_1.6fr_auto_auto]"
+                        >
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                            {auction.name}
+                          </p>
+                          <p className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-600">
+                            Remate programado para {formatAuctionDateLabel(auction.date)}
+                          </p>
+                          <div className="flex items-center justify-center rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
+                            {count}
+                          </div>
+                          <div className="flex flex-wrap items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAuctionFilterId(auction.id);
+                                setEditorGroupFilter("proximos-remates");
+                                setEditorPage(1);
+                                setAdminTab("vehiculos");
+                              }}
+                              className="ui-focus rounded border border-cyan-300 bg-cyan-50 px-2 py-1 text-xs font-semibold text-cyan-700"
+                            >
+                              Ver y gestionar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openBatchAssignModal({ type: "auction", auctionId: auction.id })}
+                              className="ui-focus rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700"
+                            >
+                              Agregar unidades
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeUpcomingAuction(auction.id)}
+                              className="ui-focus rounded border border-rose-300 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700"
+                            >
+                              Quitar
+                            </button>
+                          </div>
+                        </article>
+                      );
+                    })
+                  )}
+
+                  <p className="px-2 pt-2 text-[11px] font-semibold uppercase tracking-wide text-indigo-600">
+                    Categorías personalizadas
+                  </p>
                   {(config.managedCategories ?? []).length === 0 ? (
                     <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3 text-sm text-slate-500">
                       No hay categorías personalizadas aún.
@@ -2734,7 +2952,7 @@ export function CatalogHomeClient({ feed }: Props) {
                     (config.managedCategories ?? []).map((category) => (
                       <article
                         key={category.id}
-                        className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-slate-50/30 px-2.5 py-2 md:grid-cols-[1.2fr_1.6fr_auto_auto_auto]"
+                        className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-slate-50/30 px-2.5 py-2 md:grid-cols-[1.2fr_1.6fr_auto_auto]"
                       >
                         <input
                           value={category.name}
@@ -2746,27 +2964,24 @@ export function CatalogHomeClient({ feed }: Props) {
                         <input
                           value={category.description}
                           onChange={(event) =>
-                            updateManagedCategory(category.id, {
-                              description: event.target.value,
-                            })
+                            updateManagedCategory(category.id, { description: event.target.value })
                           }
                           className="ui-focus rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm"
                         />
-                        <div className="flex items-center justify-center text-xs font-semibold text-slate-700">
+                        <div className="flex items-center justify-center rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
                           {category.vehicleIds.length}
                         </div>
-                        <label className="inline-flex items-center justify-center">
-                          <input
-                            type="checkbox"
-                            checked={category.visible !== false}
-                            onChange={(event) =>
-                              updateManagedCategory(category.id, {
-                                visible: event.target.checked,
-                              })
-                            }
-                          />
-                        </label>
-                        <div className="flex items-center justify-end gap-1.5">
+                        <div className="flex flex-wrap items-center justify-end gap-1.5">
+                          <label className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={category.visible !== false}
+                              onChange={(event) =>
+                                updateManagedCategory(category.id, { visible: event.target.checked })
+                              }
+                            />
+                            Visible
+                          </label>
                           <button
                             type="button"
                             onClick={() => {
@@ -2787,51 +3002,6 @@ export function CatalogHomeClient({ feed }: Props) {
                         </div>
                       </article>
                     ))
-                  )}
-                </div>
-
-                <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-2">
-                  <p className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                    Secciones base del home
-                  </p>
-                  {(["proximos-remates", "ventas-directas", "novedades", "catalogo"] as SectionId[]).map(
-                    (sectionId) => (
-                      <article
-                        key={sectionId}
-                        className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-slate-50/30 px-2.5 py-2 md:grid-cols-[0.9fr_1fr_2fr_auto_auto]"
-                      >
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                          {SECTION_LABELS[sectionId]}
-                        </p>
-                        <input
-                          value={config.sectionTexts[sectionId]?.title ?? ""}
-                          onChange={(event) => setSectionText(sectionId, "title", event.target.value)}
-                          placeholder="Título"
-                          className="ui-focus rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm"
-                        />
-                        <input
-                          value={config.sectionTexts[sectionId]?.subtitle ?? ""}
-                          onChange={(event) => setSectionText(sectionId, "subtitle", event.target.value)}
-                          placeholder="Descripción"
-                          className="ui-focus rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm"
-                        />
-                        <div className="flex items-center justify-center rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
-                          {sectionVehicleCounts[sectionId]} unidades
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditorGroupFilter(sectionId);
-                            if (sectionId !== "proximos-remates") setAuctionFilterId("");
-                            setEditorPage(1);
-                            setAdminTab("vehiculos");
-                          }}
-                          className="ui-focus rounded border border-cyan-300 bg-cyan-50 px-2.5 py-1.5 text-xs font-semibold text-cyan-700 transition hover:bg-cyan-100"
-                        >
-                          Ver y gestionar
-                        </button>
-                      </article>
-                    ),
                   )}
                 </div>
               </div>
@@ -4108,6 +4278,120 @@ export function CatalogHomeClient({ feed }: Props) {
                   Crear publicación manual
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isAdmin && batchAssignTarget ? (
+        <div
+          className="fixed inset-0 z-[72] flex items-center justify-center bg-slate-900/70 p-4"
+          onClick={closeBatchAssignModal}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Agregar unidades desde inventario"
+            className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-2xl bg-white p-5 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-cyan-700">
+                  Agregar desde inventario
+                </p>
+                <h3 className="text-lg font-bold text-slate-900">{batchAssignTargetLabel}</h3>
+                <p className="text-xs text-slate-500">
+                  Busca por patente, puedes ingresar varias separadas por espacio: LRBR11 SWBC56 THXX63
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeBatchAssignModal}
+                className="ui-focus rounded border border-slate-300 px-3 py-1 text-xs text-slate-600 transition hover:bg-slate-50"
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <input
+              value={batchAssignSearchTerm}
+              onChange={(event) => setBatchAssignSearchTerm(event.target.value)}
+              placeholder="Buscar por patente, modelo o título..."
+              className="ui-focus mb-3 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+            />
+
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-slate-600">
+                {batchAssignCandidates.length} resultados · {batchAssignSelectedKeys.length} seleccionados
+              </p>
+              <button
+                type="button"
+                onClick={() =>
+                  setBatchAssignSelectedKeys((prev) => {
+                    const set = new Set(prev);
+                    for (const item of batchAssignCandidates) set.add(getVehicleKey(item));
+                    return Array.from(set);
+                  })
+                }
+                className="ui-focus rounded border border-cyan-300 bg-cyan-50 px-2.5 py-1 text-xs font-semibold text-cyan-700"
+              >
+                Seleccionar resultados
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {batchAssignCandidates.map((item) => {
+                const key = getVehicleKey(item);
+                const checked = batchAssignSelectedKeys.includes(key);
+                const alreadyInTarget =
+                  batchAssignTarget.type === "auction"
+                    ? (config.vehicleUpcomingAuctionIds[key] ?? "") === batchAssignTarget.auctionId
+                    : (config.sectionVehicleIds[batchAssignTarget.sectionId] ?? []).includes(key);
+                return (
+                  <label
+                    key={`assign-batch-${key}`}
+                    className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm ${
+                      checked ? "border-cyan-300 bg-cyan-50" : "border-slate-200 bg-white"
+                    }`}
+                  >
+                    <div>
+                      <p className="font-semibold text-slate-900">{getModel(item)}</p>
+                      <p className="text-xs text-slate-500">
+                        {getPatent(item)} {alreadyInTarget ? "· ya agregado" : ""}
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleBatchAssignVehicle(key)}
+                      className="ui-focus h-4 w-4"
+                    />
+                  </label>
+                );
+              })}
+              {batchAssignCandidates.length === 0 ? (
+                <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-sm text-slate-500">
+                  Sin resultados. Intenta con otra patente o modelo.
+                </p>
+              ) : null}
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeBatchAssignModal}
+                className="ui-focus rounded border border-slate-300 px-4 py-2 text-sm text-slate-700 transition hover:bg-slate-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={addBatchVehiclesToTarget}
+                className="ui-focus rounded-md bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500"
+              >
+                Agregar seleccionados
+              </button>
             </div>
           </div>
         </div>

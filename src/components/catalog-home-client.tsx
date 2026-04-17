@@ -3303,22 +3303,26 @@ export function CatalogHomeClient({ feed }: Props) {
                     <dd className="font-medium text-slate-800">{selectedVehicle.images.length}</dd>
                   </div>
                 </dl>
-                <div className="mt-2 rounded-md border border-cyan-100 bg-cyan-50/60 p-3">
-                  <p className="text-xs uppercase tracking-wide text-cyan-700">Precio referencial</p>
-                  <p className="mt-1 text-lg font-bold text-slate-900">
-                    {selectedVehiclePriceLabel ?? "No informado"}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-600">
-                    Valor + gastos de impuesto y transferencia.
-                  </p>
-                </div>
-                <div className="mt-2 rounded-md border border-slate-200 bg-white p-3">
-                  <p className="text-xs uppercase tracking-wide text-slate-500">Descripción ampliada</p>
-                  <p className="mt-1 whitespace-pre-line text-sm text-slate-700">
-                    {selectedVehicleExpandedDescription ??
-                      "Sin descripción adicional para este vehículo."}
-                  </p>
-                </div>
+                {selectedVehicleTab === "general" ? (
+                  <>
+                    <div className="mt-2 rounded-md border border-cyan-100 bg-cyan-50/60 p-3">
+                      <p className="text-xs uppercase tracking-wide text-cyan-700">Precio referencial</p>
+                      <p className="mt-1 text-lg font-bold text-slate-900">
+                        {selectedVehiclePriceLabel ?? "No informado"}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-600">
+                        Valor + gastos de impuesto y transferencia.
+                      </p>
+                    </div>
+                    <div className="mt-2 rounded-md border border-slate-200 bg-white p-3">
+                      <p className="text-xs uppercase tracking-wide text-slate-500">Descripción ampliada</p>
+                      <p className="mt-1 whitespace-pre-line text-sm text-slate-700">
+                        {selectedVehicleExpandedDescription ??
+                          "Sin descripción adicional para este vehículo."}
+                      </p>
+                    </div>
+                  </>
+                ) : null}
                 <div className="mt-2 rounded-md border border-slate-200 bg-white p-3">
                   <p className="text-xs uppercase tracking-wide text-slate-500">
                     Documentación y datos técnicos
@@ -3376,10 +3380,28 @@ export function CatalogHomeClient({ feed }: Props) {
                       key={`similar-${item.id}`}
                       type="button"
                       onClick={() => openVehicleDetail(item)}
-                      className="ui-focus rounded-lg border border-slate-200 bg-white p-3 text-left transition hover:border-cyan-300 hover:bg-cyan-50/30"
+                      className="ui-focus rounded-lg border border-slate-200 bg-white p-2.5 text-left transition hover:border-cyan-300 hover:bg-cyan-50/30"
                     >
-                      <p className="line-clamp-1 text-sm font-semibold text-slate-900">{item.title}</p>
-                      <p className="line-clamp-1 text-xs text-slate-600">{item.subtitle ?? "Vehículo relacionado"}</p>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="line-clamp-1 text-sm font-semibold text-slate-900">{item.title}</p>
+                          <p className="line-clamp-1 text-xs text-slate-600">
+                            {item.subtitle ?? "Vehículo relacionado"}
+                          </p>
+                        </div>
+                        <div className="h-12 w-16 shrink-0 overflow-hidden rounded-md border border-slate-200 bg-slate-100">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={item.thumbnail ?? item.images[0] ?? "/placeholder-car.svg"}
+                            alt={`Miniatura ${item.title}`}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                            onError={(event) => {
+                              event.currentTarget.src = "/placeholder-car.svg";
+                            }}
+                          />
+                        </div>
+                      </div>
                     </button>
                   ))}
               </div>

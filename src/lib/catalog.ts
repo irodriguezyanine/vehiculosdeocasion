@@ -8,7 +8,7 @@ const DEFAULT_SELECT = process.env.CATALOG_SUPABASE_SELECT ?? "*";
 const DEFAULT_LIMIT = Number(process.env.CATALOG_LIMIT ?? "60");
 const DEFAULT_ORDER_BY = process.env.CATALOG_SUPABASE_ORDER_BY ?? "created_at";
 const AUTORED_API_URL = process.env.CATALOG_SOURCE_AUTORED_API_URL;
-const AUTORED_MAX_LOOKUPS = Number(process.env.CATALOG_AUTORED_MAX_LOOKUPS ?? "120");
+const AUTORED_MAX_LOOKUPS = Number(process.env.CATALOG_AUTORED_MAX_LOOKUPS ?? "1000");
 const GLO3D_INVENTORY_POST_URL =
   "https://us-central1-glo3d-c338b.cloudfunctions.net/outbound/api/v1/inventory";
 const GLO3D_MAX_PAGES = Number(process.env.GLO3D_MAX_PAGES ?? "8");
@@ -567,8 +567,125 @@ function getItemStock(item: CatalogItem): string | undefined {
 
 function isMeaningfulValue(value: unknown): boolean {
   if (value === null || value === undefined) return false;
-  if (typeof value === "string") return value.trim().length > 0;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) return false;
+    if (
+      [
+        "-",
+        "--",
+        "—",
+        "n/a",
+        "na",
+        "s/i",
+        "sin info",
+        "sin información",
+        "sin informacion",
+        "no informado",
+        "no informa",
+      ].includes(normalized)
+    ) {
+      return false;
+    }
+    return true;
+  }
   return true;
+}
+
+function normalizeAutoredTechnicalFields(
+  autoredRaw: Record<string, unknown>,
+): Record<string, unknown> {
+  const flat = flattenObject(autoredRaw);
+  const merged = { ...autoredRaw, ...flat };
+  const result: Record<string, unknown> = {};
+
+  const vin = pickString(merged, [
+    "vin",
+    "numero_chasis",
+    "nro_chasis",
+    "chasis",
+    "vehicle_vin",
+  ]);
+  const kilometraje = pickString(merged, [
+    "kilometraje",
+    "km",
+    "kms",
+    "odometro",
+    "odómetro",
+    "mileage",
+    "odometer",
+  ]);
+  const color = pickString(merged, [
+    "color",
+    "color_exterior",
+    "color_vehiculo",
+    "exterior_color",
+  ]);
+  const combustible = pickString(merged, [
+    "combustible",
+    "tipo_combustible",
+    "fuel",
+    "fuel_type",
+  ]);
+  const transmision = pickString(merged, [
+    "transmision",
+    "transmisión",
+    "caja",
+    "tipo_caja",
+    "transmission",
+    "gearbox",
+  ]);
+  const traccion = pickString(merged, [
+    "traccion",
+    "tracción",
+    "tipo_traccion",
+    "drivetrain",
+    "traction",
+  ]);
+  const aro = pickString(merged, [
+    "aro",
+    "aro_llanta",
+    "rin",
+    "rines",
+    "wheel_size",
+  ]);
+  const cilindrada = pickString(merged, [
+    "cilindrada",
+    "cc",
+    "motor_cc",
+    "engine_cc",
+  ]);
+
+  if (vin) result.vin = vin;
+  if (kilometraje) {
+    result.kilometraje = kilometraje;
+    result.km = kilometraje;
+  }
+  if (color) result.color = color;
+  if (combustible) {
+    result.combustible = combustible;
+    result.tipo_combustible = combustible;
+  }
+  if (transmision) {
+    result.transmision = transmision;
+    result.caja = transmision;
+    result.tipo_caja = transmision;
+  }
+  if (traccion) {
+    result.traccion = traccion;
+    result.tipo_traccion = traccion;
+  }
+  if (aro) {
+    result.aro = aro;
+    result.rin = aro;
+  }
+  if (cilindrada) {
+    result.cilindrada = cilindrada;
+    result.cc = cilindrada;
+    result.motor_cc = cilindrada;
+  }
+
+  return result;
 }
 
 function mergeRawPreferPrimary(
@@ -637,16 +754,17 @@ async function enrichWithAutoredFallback(
     .filter(
       (entry): entry is { item: CatalogItem; stock: string } =>
         !!entry.stock && itemNeedsTechnicalFallback(entry.item),
-    )
-    .slice(0, AUTORED_MAX_LOOKUPS);
+    );
+  const limitedCandidates =
+    AUTORED_MAX_LOOKUPS > 0 ? candidates.slice(0, AUTORED_MAX_LOOKUPS) : candidates;
 
-  if (candidates.length === 0) return items;
+  if (limitedCandidates.length === 0) return items;
 
   const byStock = new Map<string, Record<string, unknown>>();
-  for (const entry of candidates) {
+  for (const entry of limitedCandidates) {
     try {
       const autored = await fetchAutoredByPatent(entry.stock);
-      if (autored) byStock.set(entry.stock, autored);
+      if (autored) byStock.set(entry.stock, normalizeAutoredTechnicalFields(autored));
     } catch {
       // noop: no bloquea catálogo si Autored falla
     }

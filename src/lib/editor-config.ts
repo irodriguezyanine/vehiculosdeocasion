@@ -51,6 +51,7 @@ function normalizeConfig(config?: Partial<EditorConfig> | null): EditorConfig {
       sectionOrder: config?.homeLayout?.sectionOrder ?? defaults.homeLayout.sectionOrder,
     },
     manualPublications: config?.manualPublications ?? defaults.manualPublications,
+    managedCategories: config?.managedCategories ?? defaults.managedCategories,
   };
 }
 

@@ -9,6 +9,7 @@ import {
   DEFAULT_EDITOR_CONFIG,
   type EditorConfig,
   type EditorVehicleDetails,
+  type ManagedCategory,
   type ManualPublication,
   type UpcomingAuction,
   type SectionId,
@@ -119,6 +120,7 @@ function normalizeEditorConfigClient(
       sectionOrder: value?.homeLayout?.sectionOrder ?? defaults.homeLayout.sectionOrder,
     },
     manualPublications: value?.manualPublications ?? defaults.manualPublications,
+    managedCategories: value?.managedCategories ?? defaults.managedCategories,
   };
 }
 
@@ -607,7 +609,7 @@ function FeaturedStrip({ items, onOpenVehicle }: FeaturedStripProps) {
 }
 
 type SectionProps = {
-  id: SectionId;
+  id: string;
   title: string;
   subtitle: string;
   items: CatalogItem[];
@@ -813,6 +815,10 @@ export function CatalogHomeClient({ feed }: Props) {
   const [editingDetails, setEditingDetails] = useState<EditorVehicleDetails | null>(null);
   const [newAuctionName, setNewAuctionName] = useState("");
   const [newAuctionDate, setNewAuctionDate] = useState("");
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryDescription, setNewCategoryDescription] = useState("");
+  const [assignCategoryId, setAssignCategoryId] = useState<string | null>(null);
+  const [assignSearchTerm, setAssignSearchTerm] = useState("");
   const [manualDraft, setManualDraft] = useState<ManualPublicationDraft>(
     EMPTY_MANUAL_PUBLICATION_DRAFT,
   );
@@ -1150,6 +1156,20 @@ export function CatalogHomeClient({ feed }: Props) {
   const novedades = getSectionItems("novedades");
   const catalogoItems = getSectionItems("catalogo");
   const filteredCatalogItems = catalogoItems.filter((item) => inferVehicleType(item) === activeTypeTab);
+  const managedCategorySections = useMemo(
+    () =>
+      (config.managedCategories ?? [])
+        .filter((category) => category.visible !== false)
+        .map((category) => ({
+          ...category,
+          items: (category.vehicleIds ?? [])
+            .map((vehicleId) => itemsByKey.get(vehicleId))
+            .filter((item): item is CatalogItem => !!item)
+            .filter((item) => homeVisibleKeys.has(getVehicleKey(item))),
+        }))
+        .filter((category) => category.items.length > 0),
+    [config.managedCategories, itemsByKey, homeVisibleKeys],
+  );
 
   const featuredItems = useMemo(() => proximosRemates.slice(0, 8), [proximosRemates]);
 
@@ -1613,6 +1633,27 @@ export function CatalogHomeClient({ feed }: Props) {
     return filteredEditorItems.slice(start, start + EDITOR_PAGE_SIZE);
   }, [filteredEditorItems, currentEditorPage]);
 
+  const activeManagedCategory = useMemo(
+    () =>
+      assignCategoryId
+        ? (config.managedCategories ?? []).find((category) => category.id === assignCategoryId) ?? null
+        : null,
+    [assignCategoryId, config.managedCategories],
+  );
+
+  const managedCategoryAssignCandidates = useMemo(() => {
+    if (!activeManagedCategory) return [] as CatalogItem[];
+    const query = normalizeText(assignSearchTerm);
+    const source = items.filter((item) => {
+      if (!query) return true;
+      const sample = normalizeText(
+        `${getPatent(item)} ${getModel(item)} ${item.title} ${item.subtitle ?? ""}`,
+      );
+      return sample.includes(query);
+    });
+    return source.slice(0, 120);
+  }, [activeManagedCategory, assignSearchTerm, items]);
+
   const toggleItemInSection = (sectionId: SectionId, itemKey: string) => {
     setConfig((prev) => {
       const current = new Set(prev.sectionVehicleIds[sectionId] ?? []);
@@ -1704,6 +1745,70 @@ export function CatalogHomeClient({ feed }: Props) {
     }));
     setNewAuctionName("");
     setNewAuctionDate("");
+  };
+
+  const createManagedCategory = () => {
+    const name = newCategoryName.trim();
+    const description = newCategoryDescription.trim();
+    if (!name) {
+      showSystemNotice("error", "Categoría", "Ingresa un nombre para la nueva categoría.");
+      return;
+    }
+    const normalizedName = normalizeText(name);
+    const exists = (config.managedCategories ?? []).some(
+      (category) => normalizeText(category.name) === normalizedName,
+    );
+    if (exists) {
+      showSystemNotice("error", "Categoría duplicada", "Ya existe una categoría con ese nombre.");
+      return;
+    }
+    const next: ManagedCategory = {
+      id: `cat-${crypto.randomUUID()}`,
+      name,
+      description: description || "Categoría personalizada",
+      vehicleIds: [],
+      visible: true,
+    };
+    setConfig((prev) => ({
+      ...prev,
+      managedCategories: [...(prev.managedCategories ?? []), next],
+    }));
+    setNewCategoryName("");
+    setNewCategoryDescription("");
+    showSystemNotice("success", "Categoría creada", "Ahora puedes asignar vehículos.");
+  };
+
+  const updateManagedCategory = (
+    categoryId: string,
+    patch: Partial<Pick<ManagedCategory, "name" | "description" | "visible">>,
+  ) => {
+    setConfig((prev) => ({
+      ...prev,
+      managedCategories: (prev.managedCategories ?? []).map((category) =>
+        category.id === categoryId ? { ...category, ...patch } : category,
+      ),
+    }));
+  };
+
+  const deleteManagedCategory = (categoryId: string) => {
+    setConfig((prev) => ({
+      ...prev,
+      managedCategories: (prev.managedCategories ?? []).filter((category) => category.id !== categoryId),
+    }));
+    if (assignCategoryId === categoryId) setAssignCategoryId(null);
+  };
+
+  const toggleVehicleInManagedCategory = (categoryId: string, vehicleKey: string) => {
+    setConfig((prev) => ({
+      ...prev,
+      managedCategories: (prev.managedCategories ?? []).map((category) => {
+        if (category.id !== categoryId) return category;
+        const set = new Set(category.vehicleIds ?? []);
+        if (set.has(vehicleKey)) set.delete(vehicleKey);
+        else set.add(vehicleKey);
+        return { ...category, vehicleIds: Array.from(set) };
+      }),
+    }));
   };
 
   const toggleManualDraftSection = (sectionId: SectionId) => {
@@ -2265,7 +2370,7 @@ export function CatalogHomeClient({ feed }: Props) {
                     return (
                       <article
                         key={`editor-${key}`}
-                        className="grid grid-cols-1 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/30 px-2.5 py-1.5 sm:grid-cols-[1.6fr_1fr_auto]"
+                        className="grid grid-cols-1 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/30 px-2.5 py-1.5 sm:grid-cols-[1.5fr_auto_1fr_auto]"
                       >
                         <div className="min-w-0">
                           <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
@@ -2292,6 +2397,18 @@ export function CatalogHomeClient({ feed }: Props) {
                               .filter(Boolean)
                               .join(" · ") || "Sin canal asignado"}
                           </p>
+                        </div>
+                        <div className="mx-auto h-12 w-20 overflow-hidden rounded-md border border-slate-200 bg-slate-100">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={item.thumbnail ?? item.images[0] ?? "/placeholder-car.svg"}
+                            alt={`Miniatura ${getModel(item)}`}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                            onError={(event) => {
+                              event.currentTarget.src = "/placeholder-car.svg";
+                            }}
+                          />
                         </div>
                         <div className="min-w-0 text-xs text-slate-600 sm:text-right">
                           <p className="line-clamp-1 font-semibold text-slate-700">{auctionLabel}</p>
@@ -2403,6 +2520,103 @@ export function CatalogHomeClient({ feed }: Props) {
                     )}
                   </div>
                 </div>
+                <div className="rounded-xl border border-cyan-100 bg-cyan-50/50 p-3">
+                  <div className="mb-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-cyan-800">
+                      Categorías personalizadas
+                    </p>
+                    <p className="text-xs text-slate-600">
+                      Crea categorías, agrega descripción y asigna múltiples vehículos desde inventario.
+                    </p>
+                  </div>
+                  <div className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
+                    <input
+                      value={newCategoryName}
+                      onChange={(event) => setNewCategoryName(event.target.value)}
+                      placeholder="Nombre categoría (Ej: Camionetas Operativas)"
+                      className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
+                    />
+                    <input
+                      value={newCategoryDescription}
+                      onChange={(event) => setNewCategoryDescription(event.target.value)}
+                      placeholder="Descripción categoría"
+                      className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={createManagedCategory}
+                      className="ui-focus rounded-md bg-cyan-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500"
+                    >
+                      Agregar categoría nueva
+                    </button>
+                  </div>
+                </div>
+                {(config.managedCategories ?? []).length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500">
+                    Aún no hay categorías personalizadas. Crea la primera para organizar nuevas vitrinas.
+                  </div>
+                ) : (
+                  <div className="grid gap-3">
+                    {(config.managedCategories ?? []).map((category) => (
+                      <div key={category.id} className="rounded-xl border border-slate-200 bg-white p-3">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <input
+                              value={category.name}
+                              onChange={(event) =>
+                                updateManagedCategory(category.id, { name: event.target.value })
+                              }
+                              className="ui-focus w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-900"
+                            />
+                            <textarea
+                              value={category.description}
+                              onChange={(event) =>
+                                updateManagedCategory(category.id, {
+                                  description: event.target.value,
+                                })
+                              }
+                              className="ui-focus mt-2 min-h-16 w-full rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-700"
+                            />
+                          </div>
+                          <div className="flex flex-col items-end gap-2">
+                            <label className="inline-flex items-center gap-2 text-xs text-slate-700">
+                              <input
+                                type="checkbox"
+                                checked={category.visible !== false}
+                                onChange={(event) =>
+                                  updateManagedCategory(category.id, {
+                                    visible: event.target.checked,
+                                  })
+                                }
+                              />
+                              Visible
+                            </label>
+                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                              {category.vehicleIds.length} asignados
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAssignCategoryId(category.id);
+                                setAssignSearchTerm("");
+                              }}
+                              className="ui-focus rounded-md border border-cyan-300 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-cyan-700 transition hover:bg-cyan-100"
+                            >
+                              Asignar vehículos
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteManagedCategory(category.id)}
+                              className="ui-focus rounded-md border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
+                            >
+                              Eliminar categoría
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="grid gap-3 md:grid-cols-2">
                   {(["proximos-remates", "ventas-directas", "novedades", "catalogo"] as SectionId[]).map((sectionId) => (
                     <div key={sectionId} className="rounded-xl border border-slate-200 bg-white p-3">
@@ -3002,6 +3216,23 @@ export function CatalogHomeClient({ feed }: Props) {
             </section>
           );
         })}
+        {managedCategorySections.map((category) => (
+          <Section
+            key={`managed-${category.id}`}
+            id={`categoria-${category.id}`}
+            title={category.name}
+            subtitle={category.description}
+            items={category.items}
+            priceMap={config.vehiclePrices}
+            upcomingAuctionByVehicleKey={upcomingAuctionByVehicleKey}
+            favoriteKeys={favoriteKeys}
+            onToggleFavorite={toggleFavorite}
+            compareKeys={compareKeys}
+            onToggleCompare={toggleCompare}
+            onOpenVehicle={openVehicleDetail}
+            cardDensity={cardDensity}
+          />
+        ))}
       </div>
       <section className="relative z-10 mx-auto mb-14 grid max-w-7xl gap-6 px-4 sm:px-6 lg:grid-cols-2 lg:px-8">
         <div className="section-shell">
@@ -3679,6 +3910,81 @@ export function CatalogHomeClient({ feed }: Props) {
                   Crear publicación manual
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isAdmin && activeManagedCategory ? (
+        <div
+          className="fixed inset-0 z-[72] flex items-center justify-center bg-slate-900/70 p-4"
+          onClick={() => setAssignCategoryId(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Asignar vehículos a categoría"
+            className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-2xl bg-white p-5 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-cyan-700">
+                  Asignar vehículos
+                </p>
+                <h3 className="text-lg font-bold text-slate-900">{activeManagedCategory.name}</h3>
+                <p className="text-xs text-slate-500">{activeManagedCategory.vehicleIds.length} unidades seleccionadas</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAssignCategoryId(null)}
+                className="ui-focus rounded border border-slate-300 px-3 py-1 text-xs text-slate-600 transition hover:bg-slate-50"
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <input
+              value={assignSearchTerm}
+              onChange={(event) => setAssignSearchTerm(event.target.value)}
+              placeholder="Buscar por patente, modelo o título..."
+              className="ui-focus mb-3 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+            />
+
+            <div className="space-y-2">
+              {managedCategoryAssignCandidates.map((item) => {
+                const key = getVehicleKey(item);
+                const checked = activeManagedCategory.vehicleIds.includes(key);
+                return (
+                  <label
+                    key={`assign-${activeManagedCategory.id}-${key}`}
+                    className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm ${
+                      checked ? "border-cyan-300 bg-cyan-50" : "border-slate-200 bg-white"
+                    }`}
+                  >
+                    <div>
+                      <p className="font-semibold text-slate-900">{getModel(item)}</p>
+                      <p className="text-xs text-slate-500">{getPatent(item)}</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleVehicleInManagedCategory(activeManagedCategory.id, key)}
+                      className="ui-focus h-4 w-4"
+                    />
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setAssignCategoryId(null)}
+                className="ui-focus rounded-md bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500"
+              >
+                Listo
+              </button>
             </div>
           </div>
         </div>

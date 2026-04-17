@@ -13,6 +13,14 @@ export type SectionTextConfig = {
   subtitle: string;
 };
 
+export type ManagedCategory = {
+  id: string;
+  name: string;
+  description: string;
+  vehicleIds: string[];
+  visible: boolean;
+};
+
 export type HomeLayoutConfig = {
   heroKicker: string;
   heroTitle: string;
@@ -83,6 +91,7 @@ export type EditorConfig = {
   sectionTexts: Record<SectionId, SectionTextConfig>;
   homeLayout: HomeLayoutConfig;
   manualPublications: ManualPublication[];
+  managedCategories: ManagedCategory[];
 };
 
 export const DEFAULT_EDITOR_CONFIG: EditorConfig = {
@@ -125,4 +134,5 @@ export const DEFAULT_EDITOR_CONFIG: EditorConfig = {
     sectionOrder: ["proximos-remates", "ventas-directas", "novedades", "catalogo"],
   },
   manualPublications: [],
+  managedCategories: [],
 };

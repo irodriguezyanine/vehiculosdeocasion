@@ -2206,44 +2206,42 @@ export function CatalogHomeClient({ feed }: Props) {
                     return (
                       <article
                         key={`editor-${key}`}
-                        className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50/40 px-3 py-2"
+                        className="grid grid-cols-1 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/30 px-2.5 py-1.5 sm:grid-cols-[1.6fr_1fr_auto]"
                       >
                         <div className="min-w-0">
-                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                             {getPatent(item)}
-                          </p>
-                          <p className="line-clamp-1 text-sm font-semibold text-slate-900">
-                            {getModel(item)}
-                          </p>
-                          <div className="mt-1 flex flex-wrap gap-1.5">
-                            <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${hidden ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700"}`}>
+                            <span
+                              className={`inline-flex h-1.5 w-1.5 rounded-full ${
+                                hidden ? "bg-rose-500" : "bg-emerald-500"
+                              }`}
+                              aria-hidden="true"
+                            />
+                            <span className="normal-case tracking-normal text-[11px] text-slate-500">
                               {hidden ? "Oculto" : "Visible"}
                             </span>
-                            {isDirect ? (
-                              <span className="rounded-full bg-cyan-100 px-2 py-0.5 text-[11px] font-semibold text-cyan-700">
-                                Venta directa
-                              </span>
-                            ) : null}
-                            {isNovelty ? (
-                              <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">
-                                Novedad
-                              </span>
-                            ) : null}
-                            {isCatalog ? (
-                              <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
-                                Catálogo
-                              </span>
-                            ) : null}
-                          </div>
+                          </p>
+                          <p className="line-clamp-1 text-sm font-semibold leading-tight text-slate-900">
+                            {getModel(item)}
+                          </p>
+                          <p className="mt-0.5 line-clamp-1 text-[11px] text-slate-500">
+                            {[
+                              isDirect ? "Venta directa" : null,
+                              isNovelty ? "Novedad" : null,
+                              isCatalog ? "Catálogo" : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ") || "Sin canal asignado"}
+                          </p>
                         </div>
-                        <div className="flex flex-col items-start gap-1 text-xs text-slate-600 sm:items-end">
-                          <p className="font-semibold text-slate-700">{auctionLabel}</p>
-                          <p>{formatPrice(config.vehiclePrices[key]) ?? "Precio no definido"}</p>
+                        <div className="min-w-0 text-xs text-slate-600 sm:text-right">
+                          <p className="line-clamp-1 font-semibold text-slate-700">{auctionLabel}</p>
+                          <p className="line-clamp-1">{formatPrice(config.vehiclePrices[key]) ?? "Precio no definido"}</p>
                         </div>
                         <button
                           type="button"
                           onClick={() => setManagingVehicleKey(key)}
-                          className="ui-focus rounded-md border border-cyan-300 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-cyan-700 transition hover:bg-cyan-100"
+                          className="ui-focus rounded-md border border-cyan-300 bg-cyan-50 px-2.5 py-1 text-xs font-semibold text-cyan-700 transition hover:bg-cyan-100"
                         >
                           Gestionar unidad
                         </button>

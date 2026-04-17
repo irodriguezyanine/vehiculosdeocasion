@@ -2013,6 +2013,7 @@ export function CatalogHomeClient({ feed }: Props) {
   const showAdminEditor = isAdmin && adminView === "editor";
   const showPublicHome = !isAdmin || adminView === "home";
   const hasActiveSearch = homeSearchTerm.trim().length > 0;
+  const hasActiveSearchOrQuickFilters = hasActiveSearch || quickFilters.length > 0;
 
   const editingItem = editingVehicleKey ? itemsByKey.get(editingVehicleKey) ?? null : null;
 
@@ -2649,7 +2650,7 @@ export function CatalogHomeClient({ feed }: Props) {
       </section>
       <div
         className={`transition-all duration-500 ease-out ${
-          hasActiveSearch
+          hasActiveSearchOrQuickFilters
             ? "pointer-events-none max-h-0 -translate-y-2 overflow-hidden opacity-0"
             : "max-h-[1200px] translate-y-0 opacity-100"
         }`}
@@ -2710,7 +2711,7 @@ export function CatalogHomeClient({ feed }: Props) {
       <div className="relative z-10 mx-auto flex max-w-7xl flex-col gap-14 px-4 pb-14 sm:px-6 lg:px-8">
         <section
           className={`section-shell transition-all duration-500 ease-out ${
-            hasActiveSearch
+            hasActiveSearchOrQuickFilters
               ? "pointer-events-none max-h-0 -translate-y-2 overflow-hidden opacity-0"
               : "max-h-[1400px] translate-y-0 opacity-100"
           }`}

@@ -19,7 +19,6 @@ const EDITOR_STORAGE_KEY = "vedisa_editor_config_local";
 const FAVORITES_STORAGE_KEY = "vedisa_client_favorites";
 const HOME_QUICK_FILTERS_STORAGE_KEY = "vedisa_home_quick_filters";
 const HOME_CARD_DENSITY_STORAGE_KEY = "vedisa_home_card_density";
-const EDITOR_CATEGORY_SECTIONS: SectionId[] = ["ventas-directas", "novedades", "catalogo"];
 const EDITOR_PAGE_SIZE = 20;
 type AdminTabId = "vehiculos" | "categorias" | "layout";
 type SortOption = "recomendado" | "relevancia" | "fecha-remate" | "precio-asc" | "precio-desc" | "titulo";
@@ -810,6 +809,7 @@ export function CatalogHomeClient({ feed }: Props) {
   const [auctionFilterId, setAuctionFilterId] = useState("");
   const [editorPage, setEditorPage] = useState(1);
   const [editingVehicleKey, setEditingVehicleKey] = useState<string | null>(null);
+  const [managingVehicleKey, setManagingVehicleKey] = useState<string | null>(null);
   const [editingDetails, setEditingDetails] = useState<EditorVehicleDetails | null>(null);
   const [newAuctionName, setNewAuctionName] = useState("");
   const [newAuctionDate, setNewAuctionDate] = useState("");
@@ -1554,15 +1554,6 @@ export function CatalogHomeClient({ feed }: Props) {
     return filteredEditorItems.slice(start, start + EDITOR_PAGE_SIZE);
   }, [filteredEditorItems, currentEditorPage]);
 
-  const allVisibleChecked =
-    filteredEditorItems.length > 0 &&
-    filteredEditorItems.every((item) => !mergedHiddenVehicleIds.has(getVehicleKey(item)));
-  const allSectionChecked = (sectionId: SectionId) =>
-    filteredEditorItems.length > 0 &&
-    filteredEditorItems.every((item) =>
-      (config.sectionVehicleIds[sectionId] ?? []).includes(getVehicleKey(item)),
-    );
-
   const toggleItemInSection = (sectionId: SectionId, itemKey: string) => {
     setConfig((prev) => {
       const current = new Set(prev.sectionVehicleIds[sectionId] ?? []);
@@ -1585,47 +1576,6 @@ export function CatalogHomeClient({ feed }: Props) {
         return { ...entry, visible: set.has(itemKey) ? false : true };
       });
       return { ...prev, hiddenVehicleIds: Array.from(set), manualPublications };
-    });
-  };
-
-  const toggleAllVisibleInFiltered = () => {
-    setConfig((prev) => {
-      const hiddenSet = new Set(prev.hiddenVehicleIds);
-      const keys = filteredEditorItems.map((item) => getVehicleKey(item));
-      const shouldEnableAll = keys.some((key) => hiddenSet.has(key));
-      for (const key of keys) {
-        if (shouldEnableAll) hiddenSet.delete(key);
-        else hiddenSet.add(key);
-      }
-      const manualPublications = (prev.manualPublications ?? []).map((entry) => {
-        const key = `manual-${entry.id}`;
-        if (!keys.includes(key)) return entry;
-        return { ...entry, visible: shouldEnableAll };
-      });
-      return {
-        ...prev,
-        hiddenVehicleIds: Array.from(hiddenSet),
-        manualPublications,
-      };
-    });
-  };
-
-  const toggleAllSectionInFiltered = (sectionId: SectionId) => {
-    setConfig((prev) => {
-      const current = new Set(prev.sectionVehicleIds[sectionId] ?? []);
-      const keys = filteredEditorItems.map((item) => getVehicleKey(item));
-      const shouldEnableAll = keys.some((key) => !current.has(key));
-      for (const key of keys) {
-        if (shouldEnableAll) current.add(key);
-        else current.delete(key);
-      }
-      return {
-        ...prev,
-        sectionVehicleIds: {
-          ...prev.sectionVehicleIds,
-          [sectionId]: Array.from(current),
-        },
-      };
     });
   };
 
@@ -2013,6 +1963,7 @@ export function CatalogHomeClient({ feed }: Props) {
   const hasActiveSearchOrQuickFilters = hasActiveSearch || quickFilters.length > 0;
 
   const editingItem = editingVehicleKey ? itemsByKey.get(editingVehicleKey) ?? null : null;
+  const managingItem = managingVehicleKey ? itemsByKey.get(managingVehicleKey) ?? null : null;
 
   return (
     <main className="premium-bg min-h-screen text-slate-900">
@@ -2169,7 +2120,7 @@ export function CatalogHomeClient({ feed }: Props) {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-lg font-semibold text-slate-900">Modo editor administrador</h3>
-                <p className="text-xs text-slate-500">Gestion de visibilidad, categorias, precios y detalles manuales por publicacion.</p>
+                <p className="text-xs text-slate-500">Lista limpia de unidades con gestión individual de remates, categorías, visibilidad y precio.</p>
               </div>
               <div className="flex gap-2">
                 <button
@@ -2244,83 +2195,59 @@ export function CatalogHomeClient({ feed }: Props) {
                     Agregar nueva unidad
                   </button>
                 </div>
-                <div className="max-h-[70vh] overflow-auto rounded-lg border border-slate-200">
-                  <div className="sticky top-0 z-10 grid grid-cols-14 items-center gap-2 border-b border-slate-200 bg-slate-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
-                    <div className="col-span-2">Patente</div>
-                    <div className="col-span-3">Modelo vehículo</div>
-                    <button type="button" onClick={toggleAllVisibleInFiltered} className="col-span-1 text-center text-cyan-700 hover:underline">
-                      Visible {allVisibleChecked ? "✓" : ""}
-                    </button>
-                    <button type="button" onClick={() => toggleAllSectionInFiltered("ventas-directas")} className="col-span-1 text-center text-cyan-700 hover:underline">
-                      V. Directa {allSectionChecked("ventas-directas") ? "✓" : ""}
-                    </button>
-                    <button type="button" onClick={() => toggleAllSectionInFiltered("novedades")} className="col-span-1 text-center text-cyan-700 hover:underline">
-                      Novedad {allSectionChecked("novedades") ? "✓" : ""}
-                    </button>
-                    <button type="button" onClick={() => toggleAllSectionInFiltered("catalogo")} className="col-span-1 text-center text-cyan-700 hover:underline">
-                      Catálogo {allSectionChecked("catalogo") ? "✓" : ""}
-                    </button>
-                    <div className="col-span-3">Remate asignado</div>
-                    <div className="col-span-1">Precio</div>
-                    <div className="col-span-1 text-center">Detalle</div>
-                  </div>
+                <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-2">
                   {paginatedEditorItems.map((item) => {
                     const key = getVehicleKey(item);
-                      const hidden = mergedHiddenVehicleIds.has(key);
+                    const hidden = mergedHiddenVehicleIds.has(key);
+                    const isDirect = (config.sectionVehicleIds["ventas-directas"] ?? []).includes(key);
+                    const isNovelty = (config.sectionVehicleIds.novedades ?? []).includes(key);
+                    const isCatalog = (config.sectionVehicleIds.catalogo ?? []).includes(key);
+                    const auctionLabel = upcomingAuctionByVehicleKey[key] ?? "Sin remate asignado";
                     return (
-                      <div key={`editor-${key}`} className="grid grid-cols-14 items-center gap-2 border-b border-slate-100 px-3 py-2 text-xs transition odd:bg-white even:bg-slate-50/35 hover:bg-cyan-50/60">
-                        <div className="col-span-2 font-semibold text-slate-700">{getPatent(item)}</div>
-                        <div className="col-span-3 text-slate-700">{getModel(item)}</div>
-                        <label className="col-span-1 flex items-center justify-center">
-                          <input className="ui-focus" type="checkbox" checked={!hidden} onChange={() => toggleHidden(key)} />
-                        </label>
-                        {EDITOR_CATEGORY_SECTIONS.map((section) => {
-                          const selected = (config.sectionVehicleIds[section] ?? []).includes(key);
-                          return (
-                            <label key={`${key}-${section}`} className="col-span-1 flex items-center justify-center">
-                              <input className="ui-focus" type="checkbox" checked={selected} onChange={() => toggleItemInSection(section, key)} />
-                            </label>
-                          );
-                        })}
-                        <select
-                          className="ui-focus col-span-3 rounded border border-slate-200 px-2 py-1"
-                          value={config.vehicleUpcomingAuctionIds[key] ?? ""}
-                          onChange={(event) => assignVehicleToUpcomingAuction(key, event.target.value)}
-                        >
-                          <option value="">Sin remate</option>
-                          {sortedUpcomingAuctions.map((auction) => (
-                            <option key={auction.id} value={auction.id}>
-                              {auction.name} ({formatAuctionDateLabel(auction.date)})
-                            </option>
-                          ))}
-                        </select>
-                        <input
-                          className="ui-focus col-span-1 rounded border border-slate-200 px-2 py-1"
-                          placeholder="Precio"
-                          value={config.vehiclePrices[key] ?? ""}
-                          onChange={(event) => setPrice(key, event.target.value)}
-                        />
-                        <div className="col-span-1 flex justify-center">
-                          <div className="flex gap-1">
-                            <button
-                              type="button"
-                              onClick={() => openDetailsEditor(item)}
-                              className="ui-focus rounded border border-cyan-300 bg-cyan-50 px-2 py-1 text-[11px] font-semibold text-cyan-700 transition hover:bg-cyan-100"
-                            >
-                              Editar
-                            </button>
-                            {key.startsWith("manual-") ? (
-                              <button
-                                type="button"
-                                onClick={() => deleteManualPublication(key.replace("manual-", ""))}
-                                className="ui-focus rounded border border-rose-300 bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700 transition hover:bg-rose-100"
-                              >
-                                Borrar
-                              </button>
+                      <article
+                        key={`editor-${key}`}
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50/40 px-3 py-2"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            {getPatent(item)}
+                          </p>
+                          <p className="line-clamp-1 text-sm font-semibold text-slate-900">
+                            {getModel(item)}
+                          </p>
+                          <div className="mt-1 flex flex-wrap gap-1.5">
+                            <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${hidden ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700"}`}>
+                              {hidden ? "Oculto" : "Visible"}
+                            </span>
+                            {isDirect ? (
+                              <span className="rounded-full bg-cyan-100 px-2 py-0.5 text-[11px] font-semibold text-cyan-700">
+                                Venta directa
+                              </span>
+                            ) : null}
+                            {isNovelty ? (
+                              <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">
+                                Novedad
+                              </span>
+                            ) : null}
+                            {isCatalog ? (
+                              <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
+                                Catálogo
+                              </span>
                             ) : null}
                           </div>
                         </div>
-                      </div>
+                        <div className="flex flex-col items-start gap-1 text-xs text-slate-600 sm:items-end">
+                          <p className="font-semibold text-slate-700">{auctionLabel}</p>
+                          <p>{formatPrice(config.vehiclePrices[key]) ?? "Precio no definido"}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setManagingVehicleKey(key)}
+                          className="ui-focus rounded-md border border-cyan-300 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-cyan-700 transition hover:bg-cyan-100"
+                        >
+                          Gestionar unidad
+                        </button>
+                      </article>
                     );
                   })}
                 </div>
@@ -3778,6 +3705,146 @@ export function CatalogHomeClient({ feed }: Props) {
               >
                 Cerrar
               </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isAdmin && managingVehicleKey && managingItem ? (
+        <div
+          className="fixed inset-0 z-[62] flex items-center justify-center bg-slate-900/70 p-4"
+          onClick={() => setManagingVehicleKey(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Gestionar unidad"
+            className="max-h-[92vh] w-full max-w-2xl overflow-auto rounded-2xl bg-white p-5 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-cyan-700">
+                  Gestionar unidad
+                </p>
+                <h3 className="text-lg font-bold text-slate-900">{getModel(managingItem)}</h3>
+                <p className="text-xs text-slate-500">Patente {getPatent(managingItem)}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setManagingVehicleKey(null)}
+                className="ui-focus rounded border border-slate-300 px-3 py-1 text-xs text-slate-600 transition hover:bg-slate-50"
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Estado y precio
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={!mergedHiddenVehicleIds.has(managingVehicleKey)}
+                      onChange={() => toggleHidden(managingVehicleKey)}
+                    />
+                    Visible en el sitio
+                  </label>
+                  <input
+                    className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                    placeholder="Precio CLP"
+                    value={config.vehiclePrices[managingVehicleKey] ?? ""}
+                    onChange={(event) => setPrice(managingVehicleKey, event.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Asignación de remate
+                </p>
+                <select
+                  className="ui-focus w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                  value={config.vehicleUpcomingAuctionIds[managingVehicleKey] ?? ""}
+                  onChange={(event) =>
+                    assignVehicleToUpcomingAuction(managingVehicleKey, event.target.value)
+                  }
+                >
+                  <option value="">Sin remate</option>
+                  {sortedUpcomingAuctions.map((auction) => (
+                    <option key={auction.id} value={auction.id}>
+                      {auction.name} ({formatAuctionDateLabel(auction.date)})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Canales de publicación
+                </p>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {(["ventas-directas", "novedades", "catalogo"] as SectionId[]).map((sectionId) => {
+                    const selected = (config.sectionVehicleIds[sectionId] ?? []).includes(
+                      managingVehicleKey,
+                    );
+                    return (
+                      <label
+                        key={`manage-${managingVehicleKey}-${sectionId}`}
+                        className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm ${
+                          selected
+                            ? "border-cyan-300 bg-cyan-50 text-cyan-800"
+                            : "border-slate-200 bg-white text-slate-700"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => toggleItemInSection(sectionId, managingVehicleKey)}
+                        />
+                        {SECTION_LABELS[sectionId]}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap justify-between gap-2 border-t border-slate-200 pt-3">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setManagingVehicleKey(null);
+                      openDetailsEditor(managingItem);
+                    }}
+                    className="ui-focus rounded-md border border-cyan-300 bg-cyan-50 px-3 py-2 text-sm font-semibold text-cyan-700 transition hover:bg-cyan-100"
+                  >
+                    Editar ficha completa
+                  </button>
+                  {managingVehicleKey.startsWith("manual-") ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        deleteManualPublication(managingVehicleKey.replace("manual-", ""));
+                        setManagingVehicleKey(null);
+                      }}
+                      className="ui-focus rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
+                    >
+                      Borrar unidad manual
+                    </button>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setManagingVehicleKey(null)}
+                  className="ui-focus rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+                >
+                  Listo
+                </button>
+              </div>
             </div>
           </div>
         </div>

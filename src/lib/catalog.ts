@@ -831,7 +831,9 @@ function filterEnBodega(items: CatalogItem[]): CatalogItem[] {
   const hasEstadoRetiro = items.some((item) => item.enBodega !== undefined);
   if (!hasEstadoRetiro) return items;
 
-  return items.filter((item) => item.enBodega === true);
+  // Mantiene inventario sin estado explícito (ej. AWS/Rainworks) y excluye solo
+  // los registros marcados como fuera de bodega.
+  return items.filter((item) => item.enBodega !== false);
 }
 
 export async function getCatalogFeed(): Promise<CatalogFeed> {

@@ -23,6 +23,7 @@ const HOME_CARD_DENSITY_STORAGE_KEY = "vedisa_home_card_density";
 const EDITOR_PAGE_SIZE = 20;
 type AdminTabId = "vehiculos" | "categorias" | "layout";
 type EditorGroupFilter = "all" | SectionId;
+type EditorVisibilityFilter = "all" | "visible" | "hidden";
 type BatchAssignTarget =
   | { type: "section"; sectionId: "ventas-directas" | "novedades" | "catalogo" }
   | { type: "auction"; auctionId: string };
@@ -840,6 +841,9 @@ export function CatalogHomeClient({ feed }: Props) {
   const [adminTab, setAdminTab] = useState<AdminTabId>("vehiculos");
   const [auctionFilterId, setAuctionFilterId] = useState("");
   const [editorGroupFilter, setEditorGroupFilter] = useState<EditorGroupFilter>("all");
+  const [editorVisibilityFilter, setEditorVisibilityFilter] =
+    useState<EditorVisibilityFilter>("all");
+  const [showEditorFiltersMenu, setShowEditorFiltersMenu] = useState(false);
   const [editorPage, setEditorPage] = useState(1);
   const [editingVehicleKey, setEditingVehicleKey] = useState<string | null>(null);
   const [managingVehicleKey, setManagingVehicleKey] = useState<string | null>(null);
@@ -1671,8 +1675,15 @@ export function CatalogHomeClient({ feed }: Props) {
           : source.filter((item) =>
               (config.sectionVehicleIds[editorGroupFilter] ?? []).includes(getVehicleKey(item)),
             );
-    if (!auctionFilterId) return byGroup;
-    return byGroup.filter(
+    const byVisibility =
+      editorVisibilityFilter === "all"
+        ? byGroup
+        : byGroup.filter((item) => {
+            const isHidden = mergedHiddenVehicleIds.has(getVehicleKey(item));
+            return editorVisibilityFilter === "hidden" ? isHidden : !isHidden;
+          });
+    if (!auctionFilterId) return byVisibility;
+    return byVisibility.filter(
       (item) =>
         (config.vehicleUpcomingAuctionIds[getVehicleKey(item)] ?? "") === auctionFilterId,
     );
@@ -1681,6 +1692,8 @@ export function CatalogHomeClient({ feed }: Props) {
     searchTerm,
     auctionFilterId,
     editorGroupFilter,
+    editorVisibilityFilter,
+    mergedHiddenVehicleIds,
     config.vehicleUpcomingAuctionIds,
     config.sectionVehicleIds,
   ]);
@@ -2541,7 +2554,7 @@ export function CatalogHomeClient({ feed }: Props) {
 
             {adminTab === "vehiculos" ? (
               <>
-                <div className="grid gap-2 sm:grid-cols-4">
+                <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
                   <input
                     value={searchTerm}
                     onChange={(event) => {
@@ -2551,38 +2564,88 @@ export function CatalogHomeClient({ feed }: Props) {
                     placeholder="Buscar vehículo para editar..."
                     className="ui-focus w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
                   />
-                  <select
-                    value={auctionFilterId}
-                    onChange={(event) => {
-                      setAuctionFilterId(event.target.value);
-                      if (event.target.value) setEditorGroupFilter("proximos-remates");
-                      setEditorPage(1);
-                    }}
-                    className="ui-focus rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
-                  >
-                    <option value="">Todos los remates</option>
-                    {sortedUpcomingAuctions.map((auction) => (
-                      <option key={auction.id} value={auction.id}>
-                        {auction.name} ({formatAuctionDateLabel(auction.date)})
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={editorGroupFilter}
-                    onChange={(event) => {
-                      const next = event.target.value as EditorGroupFilter;
-                      setEditorGroupFilter(next);
-                      if (next !== "proximos-remates") setAuctionFilterId("");
-                      setEditorPage(1);
-                    }}
-                    className="ui-focus rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
-                  >
-                    <option value="all">Todos los grupos</option>
-                    <option value="proximos-remates">Próximos remates</option>
-                    <option value="ventas-directas">Ventas directas</option>
-                    <option value="novedades">Novedades</option>
-                    <option value="catalogo">Catálogo</option>
-                  </select>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowEditorFiltersMenu((prev) => !prev)}
+                      className="ui-focus inline-flex h-full min-h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-slate-700 transition hover:bg-slate-50"
+                      aria-label="Abrir filtros del inventario"
+                      title="Filtros"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="h-5 w-5"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        aria-hidden="true"
+                      >
+                        <path d="M3 5h18M6 12h12M10 19h4" strokeLinecap="round" />
+                      </svg>
+                    </button>
+                    {showEditorFiltersMenu ? (
+                      <div className="absolute right-0 z-20 mt-2 w-72 rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Filtros
+                        </p>
+                        <div className="space-y-2">
+                          <select
+                            value={editorVisibilityFilter}
+                            onChange={(event) => {
+                              setEditorVisibilityFilter(
+                                event.target.value as EditorVisibilityFilter,
+                              );
+                              setEditorPage(1);
+                            }}
+                            className="ui-focus w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
+                          >
+                            <option value="all">Visibles y ocultos</option>
+                            <option value="visible">Solo visibles</option>
+                            <option value="hidden">Solo ocultos</option>
+                          </select>
+                          <select
+                            value={auctionFilterId}
+                            onChange={(event) => {
+                              setAuctionFilterId(event.target.value);
+                              if (event.target.value) setEditorGroupFilter("proximos-remates");
+                              setEditorPage(1);
+                            }}
+                            className="ui-focus w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
+                          >
+                            <option value="">Todos los remates</option>
+                            {sortedUpcomingAuctions.map((auction) => (
+                              <option key={auction.id} value={auction.id}>
+                                {auction.name} ({formatAuctionDateLabel(auction.date)})
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            value={editorGroupFilter}
+                            onChange={(event) => {
+                              const next = event.target.value as EditorGroupFilter;
+                              setEditorGroupFilter(next);
+                              if (next !== "proximos-remates") setAuctionFilterId("");
+                              setEditorPage(1);
+                            }}
+                            className="ui-focus w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
+                          >
+                            <option value="all">Todos los grupos</option>
+                            <option value="proximos-remates">Próximos remates</option>
+                            <option value="ventas-directas">Ventas directas</option>
+                            <option value="novedades">Novedades</option>
+                            <option value="catalogo">Catálogo</option>
+                          </select>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowEditorFiltersMenu(false)}
+                          className="ui-focus mt-3 w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                        >
+                          Cerrar
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
                   <button
                     type="button"
                     onClick={() => {
@@ -2608,10 +2671,13 @@ export function CatalogHomeClient({ feed }: Props) {
                         "Selecciona una categoría o remate para agregar unidades del inventario.",
                       );
                     }}
-                    className="ui-focus inline-flex items-center justify-center gap-2 rounded-md border border-cyan-300 bg-cyan-50 px-3 py-2 text-sm font-semibold text-cyan-700 transition hover:bg-cyan-100"
+                    className="ui-focus inline-flex h-full min-h-10 items-center justify-center rounded-md border border-cyan-300 bg-cyan-50 px-3 text-cyan-700 transition hover:bg-cyan-100"
+                    aria-label="Agregar unidades del inventario"
+                    title="Agregar unidades"
                   >
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-cyan-600 text-xs text-white">+</span>
-                    Agregar unidades del inventario
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-cyan-600 text-xs text-white">
+                      +
+                    </span>
                   </button>
                 </div>
                 <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-2">

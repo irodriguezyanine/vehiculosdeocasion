@@ -38,10 +38,10 @@ export const metadata: Metadata = {
       "Revisa nuestro stock de autos en Catálogo Vedisa y dinos qué unidades te interesan para asesorarte en tu compra.",
     images: [
       {
-        url: "/vedisa-logo.png",
-        width: 1200,
-        height: 630,
-        alt: "Catálogo Oficial VEDISA REMATES",
+        url: "/favicon.png",
+        width: 128,
+        height: 128,
+        alt: "Catálogo Vedisa",
       },
     ],
   },
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
     title: "Catálogo Oficial VEDISA REMATES",
     description:
       "Revisa nuestro stock de autos y dinos cuáles te interesan en Catálogo Vedisa.",
-    images: ["/vedisa-logo.png"],
+    images: ["/favicon.png"],
   },
 };
 

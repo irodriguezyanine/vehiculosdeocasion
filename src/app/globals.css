@@ -269,6 +269,47 @@ body {
   padding: 0.22rem 0.58rem;
 }
 
+.catalog-rail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(280px, 90vw);
+  gap: 1rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding: 0.2rem 0 0.35rem;
+}
+
+.catalog-rail-item {
+  scroll-snap-align: start;
+}
+
+.catalog-rail-shell::before,
+.catalog-rail-shell::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0.35rem;
+  width: 42px;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.catalog-rail-shell::before {
+  left: 0;
+  background: linear-gradient(90deg, rgba(243, 251, 255, 0.92) 10%, rgba(243, 251, 255, 0));
+}
+
+.catalog-rail-shell::after {
+  right: 0;
+  background: linear-gradient(270deg, rgba(243, 251, 255, 0.92) 10%, rgba(243, 251, 255, 0));
+}
+
+@media (min-width: 1024px) {
+  .catalog-rail {
+    grid-auto-columns: minmax(250px, calc((100% - 5rem) / 6));
+  }
+}
+
 @keyframes floatGlow {
   0%,
   100% {

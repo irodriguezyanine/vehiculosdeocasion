@@ -830,6 +830,178 @@ type SectionProps = {
   cardDensity: CardDensity;
 };
 
+type HorizontalCardsRailProps = {
+  sectionKey: string;
+  items: CatalogItem[];
+  priceMap: Record<string, string>;
+  upcomingAuctionByVehicleKey?: Record<string, string>;
+  favoriteKeys: string[];
+  onToggleFavorite: (itemKey: string) => void;
+  compareKeys: string[];
+  onToggleCompare: (itemKey: string) => void;
+  onOpenVehicle: (item: CatalogItem) => void;
+  cardDensity: CardDensity;
+};
+
+function HorizontalCardsRail({
+  sectionKey,
+  items,
+  priceMap,
+  upcomingAuctionByVehicleKey,
+  favoriteKeys,
+  onToggleFavorite,
+  compareKeys,
+  onToggleCompare,
+  onOpenVehicle,
+  cardDensity,
+}: HorizontalCardsRailProps) {
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const dragStartXRef = useRef(0);
+  const dragStartScrollLeftRef = useRef(0);
+  const draggedRef = useRef(false);
+
+  const updateScrollArrows = useCallback(() => {
+    const node = scrollRef.current;
+    if (!node) return;
+    const maxScrollLeft = Math.max(0, node.scrollWidth - node.clientWidth);
+    const hasOverflow = maxScrollLeft > 4;
+    setCanScrollLeft(hasOverflow && node.scrollLeft > 4);
+    setCanScrollRight(hasOverflow && node.scrollLeft < maxScrollLeft - 4);
+  }, []);
+
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (!node) return;
+    updateScrollArrows();
+    const onScroll = () => updateScrollArrows();
+    const onResize = () => updateScrollArrows();
+    node.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onResize);
+    return () => {
+      node.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [items.length, updateScrollArrows]);
+
+  const scrollByAmount = (direction: "left" | "right") => {
+    const node = scrollRef.current;
+    if (!node) return;
+    const firstCard = node.firstElementChild as HTMLElement | null;
+    const cardWidth = firstCard?.getBoundingClientRect().width ?? 300;
+    const cardsPerStep = typeof window !== "undefined" && window.innerWidth >= 1200 ? 6 : 1;
+    const gap = 16;
+    const amount = Math.max(cardWidth + gap, Math.round((cardWidth + gap) * cardsPerStep));
+    const offset = direction === "left" ? -amount : amount;
+    node.scrollBy({ left: offset, behavior: "smooth" });
+    window.setTimeout(() => updateScrollArrows(), 320);
+  };
+
+  const onMouseDown = (event: MouseEvent<HTMLDivElement>) => {
+    const node = scrollRef.current;
+    if (!node) return;
+    setIsDragging(true);
+    draggedRef.current = false;
+    dragStartXRef.current = event.clientX;
+    dragStartScrollLeftRef.current = node.scrollLeft;
+  };
+
+  const onMouseMove = (event: MouseEvent<HTMLDivElement>) => {
+    const node = scrollRef.current;
+    if (!node || !isDragging) return;
+    const delta = event.clientX - dragStartXRef.current;
+    if (Math.abs(delta) > 6) draggedRef.current = true;
+    node.scrollLeft = dragStartScrollLeftRef.current - delta;
+  };
+
+  const endDrag = () => {
+    setIsDragging(false);
+    window.setTimeout(() => {
+      draggedRef.current = false;
+    }, 20);
+  };
+
+  const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      scrollByAmount("left");
+    } else if (event.key === "ArrowRight") {
+      event.preventDefault();
+      scrollByAmount("right");
+    }
+  };
+
+  return (
+    <div className="catalog-rail-shell relative">
+      <button
+        type="button"
+        onClick={() => scrollByAmount("left")}
+        className={`ui-focus absolute left-2 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-slate-900/25 text-white backdrop-blur-sm transition hover:bg-slate-900/45 md:inline-flex ${
+          canScrollLeft ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
+        aria-label="Desplazar tarjetas hacia la izquierda"
+        title="Anterior"
+      >
+        <svg viewBox="0 0 20 20" className="h-5 w-5" fill="currentColor" aria-hidden="true">
+          <path fillRule="evenodd" d="M12.78 4.22a.75.75 0 0 1 0 1.06L8.06 10l4.72 4.72a.75.75 0 1 1-1.06 1.06l-5.25-5.25a.75.75 0 0 1 0-1.06l5.25-5.25a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        onClick={() => scrollByAmount("right")}
+        className={`ui-focus absolute right-2 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-slate-900/25 text-white backdrop-blur-sm transition hover:bg-slate-900/45 md:inline-flex ${
+          canScrollRight ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
+        aria-label="Desplazar tarjetas hacia la derecha"
+        title="Siguiente"
+      >
+        <svg viewBox="0 0 20 20" className="h-5 w-5" fill="currentColor" aria-hidden="true">
+          <path fillRule="evenodd" d="M7.22 15.78a.75.75 0 0 1 0-1.06L11.94 10 7.22 5.28a.75.75 0 1 1 1.06-1.06l5.25 5.25a.75.75 0 0 1 0 1.06l-5.25 5.25a.75.75 0 0 1-1.06 0Z" clipRule="evenodd" />
+        </svg>
+      </button>
+      <div
+        ref={scrollRef}
+        className={`catalog-rail select-none ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
+        tabIndex={0}
+        role="region"
+        aria-label={`Carrusel ${sectionKey}: usa flechas izquierda y derecha`}
+        onMouseDown={onMouseDown}
+        onMouseMove={onMouseMove}
+        onMouseUp={endDrag}
+        onMouseLeave={endDrag}
+        onKeyDown={onKeyDown}
+      >
+        {items.map((item) => (
+          <div key={`${sectionKey}-${item.id}`} className="catalog-rail-item">
+            <CatalogCard
+              item={item}
+              priceLabel={formatPrice(priceMap[getVehicleKey(item)])}
+              upcomingAuctionLabel={upcomingAuctionByVehicleKey?.[getVehicleKey(item)]}
+              density={cardDensity}
+              onOpen={() => {
+                if (draggedRef.current) return;
+                onOpenVehicle(item);
+              }}
+              isFavorite={favoriteKeys.includes(getVehicleKey(item))}
+              onToggleFavorite={() => onToggleFavorite(getVehicleKey(item))}
+              isCompared={compareKeys.includes(getVehicleKey(item))}
+              onToggleCompare={() => onToggleCompare(getVehicleKey(item))}
+              onWhatsappClick={() =>
+                trackEvent("whatsapp_click_card", {
+                  section: sectionKey,
+                  itemKey: getVehicleKey(item),
+                })
+              }
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Section({
   id,
   title,
@@ -862,28 +1034,18 @@ function Section({
           No encontramos unidades en esta sección. Prueba limpiar filtros o cambiar el tipo de vehículo.
         </div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {items.map((item) => (
-            <CatalogCard
-              key={`${id}-${item.id}`}
-              item={item}
-              priceLabel={formatPrice(priceMap[getVehicleKey(item)])}
-              upcomingAuctionLabel={upcomingAuctionByVehicleKey?.[getVehicleKey(item)]}
-              density={cardDensity}
-              onOpen={() => onOpenVehicle(item)}
-              isFavorite={favoriteKeys.includes(getVehicleKey(item))}
-              onToggleFavorite={() => onToggleFavorite(getVehicleKey(item))}
-              isCompared={compareKeys.includes(getVehicleKey(item))}
-              onToggleCompare={() => onToggleCompare(getVehicleKey(item))}
-              onWhatsappClick={() =>
-                trackEvent("whatsapp_click_card", {
-                  section: id,
-                  itemKey: getVehicleKey(item),
-                })
-              }
-            />
-          ))}
-        </div>
+        <HorizontalCardsRail
+          sectionKey={id}
+          items={items}
+          priceMap={priceMap}
+          upcomingAuctionByVehicleKey={upcomingAuctionByVehicleKey}
+          favoriteKeys={favoriteKeys}
+          onToggleFavorite={onToggleFavorite}
+          compareKeys={compareKeys}
+          onToggleCompare={onToggleCompare}
+          onOpenVehicle={onOpenVehicle}
+          cardDensity={cardDensity}
+        />
       )}
     </section>
   );
@@ -933,29 +1095,18 @@ function UpcomingAuctionsSection({
                 {formatAuctionDateLabel(auction.date)} · {items.length} vehículos
               </span>
             </div>
-            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-              {items.map((item) => (
-                <CatalogCard
-                  key={`${auction.id}-${item.id}`}
-                  item={item}
-                  priceLabel={formatPrice(priceMap[getVehicleKey(item)])}
-                  upcomingAuctionLabel={upcomingAuctionByVehicleKey[getVehicleKey(item)]}
-                  density={cardDensity}
-                  onOpen={() => onOpenVehicle(item)}
-                  isFavorite={favoriteKeys.includes(getVehicleKey(item))}
-                  onToggleFavorite={() => onToggleFavorite(getVehicleKey(item))}
-                  isCompared={compareKeys.includes(getVehicleKey(item))}
-                  onToggleCompare={() => onToggleCompare(getVehicleKey(item))}
-                  onWhatsappClick={() =>
-                    trackEvent("whatsapp_click_card", {
-                      section: "proximos-remates",
-                      auctionId: auction.id,
-                      itemKey: getVehicleKey(item),
-                    })
-                  }
-                />
-              ))}
-            </div>
+            <HorizontalCardsRail
+              sectionKey={`proximos-remates-${auction.id}`}
+              items={items}
+              priceMap={priceMap}
+              upcomingAuctionByVehicleKey={upcomingAuctionByVehicleKey}
+              favoriteKeys={favoriteKeys}
+              onToggleFavorite={onToggleFavorite}
+              compareKeys={compareKeys}
+              onToggleCompare={onToggleCompare}
+              onOpenVehicle={onOpenVehicle}
+              cardDensity={cardDensity}
+            />
           </div>
         ))}
       </div>

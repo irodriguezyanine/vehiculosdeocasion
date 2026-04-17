@@ -2885,7 +2885,7 @@ export function CatalogHomeClient({ feed }: Props) {
               />
             );
           }
-          if (catalogoItems.length === 0) return null;
+          if (filteredCatalogItems.length === 0) return null;
           return (
             <section key="public-catalogo" id="catalogo" className="section-shell scroll-mt-24">
               <header className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">

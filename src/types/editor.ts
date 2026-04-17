@@ -50,11 +50,13 @@ export type EditorVehicleDetails = {
   subtitle?: string;
   patente?: string;
   vin?: string;
+  vehicleCondition?: string;
   status?: string;
   location?: string;
   lot?: string;
   auctionDate?: string;
   description?: string;
+  extendedDescription?: string;
   brand?: string;
   model?: string;
   year?: string;

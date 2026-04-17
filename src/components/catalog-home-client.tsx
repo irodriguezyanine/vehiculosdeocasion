@@ -45,6 +45,14 @@ const QUICK_FILTER_LABELS: Record<QuickFilterId, string> = {
   manuales: "Manuales",
 };
 
+const VEHICLE_CONDITION_OPTIONS = [
+  "Vehículo 100% operativo",
+  "No arranca",
+  "Con problemas",
+  "Desarme",
+  "Recuperado por robo sin registrar en la Cia de seguros",
+] as const;
+
 const WHATSAPP_CTA_URL =
   "https://api.whatsapp.com/send/?phone=56989323397&text=Hola%2C+quiero+asesor%C3%ADa+para+ofertar+en+VEDISA&type=phone_number&app_absent=0";
 const MAX_COMPARE_ITEMS = 4;
@@ -375,11 +383,24 @@ function buildDetailsDraft(item: CatalogItem, override?: EditorVehicleDetails): 
     subtitle: override?.subtitle ?? (item.subtitle ?? ""),
     patente: override?.patente ?? String(raw.patente ?? raw.PPU ?? ""),
     vin: override?.vin ?? String(raw.vin ?? cav.vin ?? cav.numero_chasis ?? ""),
+    vehicleCondition:
+      override?.vehicleCondition ??
+      String(
+        raw.condicion ??
+          raw.condición ??
+          raw.condicion_vehiculo ??
+          raw.estado_vehiculo ??
+          item.status ??
+          "",
+      ),
     status: override?.status ?? (item.status ?? ""),
     location: override?.location ?? (item.location ?? ""),
     lot: override?.lot ?? (item.lot ?? ""),
     auctionDate: override?.auctionDate ?? (item.auctionDate ?? ""),
     description: override?.description ?? String(raw.descripcion ?? raw.description ?? ""),
+    extendedDescription:
+      override?.extendedDescription ??
+      String(raw.descripcion_ampliada ?? raw.observaciones ?? raw.detalle ?? ""),
     brand: override?.brand ?? String(raw.marca ?? raw.brand ?? ""),
     model: override?.model ?? String(raw.modelo ?? raw.model ?? ""),
     year: override?.year ?? String(raw.ano ?? raw.anio ?? raw.year ?? ""),
@@ -403,11 +424,13 @@ function sanitizeDetails(details: EditorVehicleDetails): EditorVehicleDetails | 
     subtitle: cleanOptional(details.subtitle),
     patente: cleanOptional(details.patente),
     vin: cleanOptional(details.vin),
+    vehicleCondition: cleanOptional(details.vehicleCondition),
     status: cleanOptional(details.status),
     location: cleanOptional(details.location),
     lot: cleanOptional(details.lot),
     auctionDate: cleanOptional(details.auctionDate),
     description: cleanOptional(details.description),
+    extendedDescription: cleanOptional(details.extendedDescription),
     brand: cleanOptional(details.brand),
     model: cleanOptional(details.model),
     year: cleanOptional(details.year),
@@ -446,7 +469,17 @@ function applyDetailsOverride(item: CatalogItem, override?: EditorVehicleDetails
       ...item.raw,
       ...(override.patente ? { patente: override.patente, PPU: override.patente } : {}),
       ...(override.vin ? { vin: override.vin } : {}),
+      ...(override.vehicleCondition
+        ? {
+            condicion: override.vehicleCondition,
+            condicion_vehiculo: override.vehicleCondition,
+            estado_vehiculo: override.vehicleCondition,
+          }
+        : {}),
       ...(override.description ? { descripcion: override.description, description: override.description } : {}),
+      ...(override.extendedDescription
+        ? { descripcion_ampliada: override.extendedDescription, observaciones: override.extendedDescription }
+        : {}),
       ...(override.brand ? { marca: override.brand, brand: override.brand } : {}),
       ...(override.model ? { modelo: override.model, model: override.model } : {}),
       ...(override.year ? { ano: override.year, anio: override.year, year: override.year } : {}),
@@ -1020,6 +1053,38 @@ export function CatalogHomeClient({ feed }: Props) {
     [selectedVehicle],
   );
 
+  const selectedVehicleKey = useMemo(
+    () => (selectedVehicle ? getVehicleKey(selectedVehicle) : ""),
+    [selectedVehicle],
+  );
+
+  const selectedVehicleOverride = useMemo(
+    () => (selectedVehicleKey ? config.vehicleDetails[selectedVehicleKey] : undefined),
+    [config.vehicleDetails, selectedVehicleKey],
+  );
+
+  const selectedVehiclePriceLabel = useMemo(
+    () => (selectedVehicleKey ? formatPrice(config.vehiclePrices[selectedVehicleKey]) : null),
+    [config.vehiclePrices, selectedVehicleKey],
+  );
+
+  const selectedVehicleExpandedDescription = useMemo(() => {
+    if (!selectedVehicle) return null;
+    const overrideText =
+      selectedVehicleOverride?.extendedDescription ?? selectedVehicleOverride?.description;
+    if (overrideText?.trim()) return overrideText.trim();
+    const rawText = getLookupValue(selectedVehicleLookup, [
+      "descripcion_ampliada",
+      "observaciones",
+      "detalle",
+      "descripcion",
+      "description",
+      "comentarios",
+      "notas",
+    ]);
+    return hasValue(rawText) ? String(rawText) : null;
+  }, [selectedVehicle, selectedVehicleLookup, selectedVehicleOverride]);
+
   const selectedVehicleTabs = useMemo(
     () =>
       [
@@ -1077,6 +1142,19 @@ export function CatalogHomeClient({ feed }: Props) {
             getLookupValue(selectedVehicleLookup, ["categoria", "tipo_vehiculo", "tipo"]) ??
             inferVehicleType(selectedVehicle),
         },
+        {
+          label: "Condición",
+          value:
+            selectedVehicleOverride?.vehicleCondition ??
+            getLookupValue(selectedVehicleLookup, [
+              "condicion",
+              "condición",
+              "condicion_vehiculo",
+              "estado_vehiculo",
+              "estado",
+              "status",
+            ]),
+        },
       ]),
       tecnica: toPairs([
         {
@@ -1126,7 +1204,7 @@ export function CatalogHomeClient({ feed }: Props) {
         { label: "Cilindrada", value: getLookupValue(selectedVehicleLookup, ["cilindrada", "cc", "motor_cc"]) },
       ]),
     };
-  }, [selectedVehicle, selectedVehicleLookup]);
+  }, [selectedVehicle, selectedVehicleLookup, selectedVehicleOverride]);
 
   const leadWhatsappUrl = useMemo(() => {
     const base = "https://api.whatsapp.com/send/?phone=56989323397";
@@ -2754,6 +2832,22 @@ export function CatalogHomeClient({ feed }: Props) {
                     <dd className="font-medium text-slate-800">{selectedVehicle.images.length}</dd>
                   </div>
                 </dl>
+                <div className="mt-2 rounded-md border border-cyan-100 bg-cyan-50/60 p-3">
+                  <p className="text-xs uppercase tracking-wide text-cyan-700">Precio referencial</p>
+                  <p className="mt-1 text-lg font-bold text-slate-900">
+                    {selectedVehiclePriceLabel ?? "No informado"}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-600">
+                    Valor + gastos de impuesto y transferencia.
+                  </p>
+                </div>
+                <div className="mt-2 rounded-md border border-slate-200 bg-white p-3">
+                  <p className="text-xs uppercase tracking-wide text-slate-500">Descripción ampliada</p>
+                  <p className="mt-1 whitespace-pre-line text-sm text-slate-700">
+                    {selectedVehicleExpandedDescription ??
+                      "Sin descripción adicional para este vehículo."}
+                  </p>
+                </div>
               </div>
             </div>
             <div className="mt-4">
@@ -3240,12 +3334,27 @@ export function CatalogHomeClient({ feed }: Props) {
               <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Titulo" value={editingDetails.title ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), title: event.target.value }))} />
               <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Subtitulo" value={editingDetails.subtitle ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), subtitle: event.target.value }))} />
               <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Estado" value={editingDetails.status ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), status: event.target.value }))} />
+              <select
+                className="rounded border border-slate-300 px-3 py-2 text-sm"
+                value={editingDetails.vehicleCondition ?? ""}
+                onChange={(event) =>
+                  setEditingDetails((prev) => ({ ...(prev ?? {}), vehicleCondition: event.target.value }))
+                }
+              >
+                <option value="">Condición del vehículo</option>
+                {VEHICLE_CONDITION_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
               <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Ubicacion" value={editingDetails.location ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), location: event.target.value }))} />
               <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Lote" value={editingDetails.lot ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), lot: event.target.value }))} />
               <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Fecha remate" value={editingDetails.auctionDate ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), auctionDate: event.target.value }))} />
               <input className="rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Imagen principal URL" value={editingDetails.thumbnail ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), thumbnail: event.target.value }))} />
               <input className="rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Visor 3D URL" value={editingDetails.view3dUrl ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), view3dUrl: event.target.value }))} />
               <textarea className="min-h-20 rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Descripcion" value={editingDetails.description ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), description: event.target.value }))} />
+              <textarea className="min-h-24 rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Descripción ampliada / detalles adicionales" value={editingDetails.extendedDescription ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), extendedDescription: event.target.value }))} />
               <textarea className="min-h-20 rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="URLs de galeria separadas por coma" value={editingDetails.imagesCsv ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), imagesCsv: event.target.value }))} />
             </div>
 

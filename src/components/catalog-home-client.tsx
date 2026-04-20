@@ -59,6 +59,8 @@ type AnalyticsEventPayload = Record<string, unknown> & {
   timestamp?: string;
   itemKey?: string;
   section?: string;
+  sessionId?: string;
+  visitorId?: string;
 };
 
 const QUICK_FILTER_LABELS: Record<QuickFilterId, string> = {
@@ -89,6 +91,9 @@ const WHATSAPP_CTA_URL =
 const WHATSAPP_PHONE = "56989323397";
 const MAX_COMPARE_ITEMS = 4;
 const ANALYTICS_STORAGE_KEY = "vedisa_analytics_events";
+const ANALYTICS_VISITOR_ID_KEY = "vedisa_analytics_visitor_id";
+const ANALYTICS_SESSION_ID_KEY = "vedisa_analytics_session_id";
+const ANALYTICS_SESSION_PAGEVIEW_KEY = "vedisa_analytics_pageview_home";
 
 const SECTION_LABELS: Record<SectionId, string> = {
   "proximos-remates": "Próximos remates",
@@ -560,11 +565,34 @@ function formatCompactNumber(value: number): string {
   return new Intl.NumberFormat("es-CL").format(value);
 }
 
+function getOrCreateAnalyticsIds(): { visitorId: string; sessionId: string } {
+  if (typeof window === "undefined") return { visitorId: "ssr", sessionId: "ssr" };
+  let visitorId = window.localStorage.getItem(ANALYTICS_VISITOR_ID_KEY) ?? "";
+  if (!visitorId) {
+    visitorId = crypto.randomUUID();
+    window.localStorage.setItem(ANALYTICS_VISITOR_ID_KEY, visitorId);
+  }
+  let sessionId = window.sessionStorage.getItem(ANALYTICS_SESSION_ID_KEY) ?? "";
+  if (!sessionId) {
+    sessionId = crypto.randomUUID();
+    window.sessionStorage.setItem(ANALYTICS_SESSION_ID_KEY, sessionId);
+  }
+  return { visitorId, sessionId };
+}
+
 function trackEvent(eventName: string, payload?: Record<string, unknown>) {
   if (typeof window === "undefined") return;
+  if (eventName === "page_view_home") {
+    const alreadyTracked = window.sessionStorage.getItem(ANALYTICS_SESSION_PAGEVIEW_KEY);
+    if (alreadyTracked === "1") return;
+    window.sessionStorage.setItem(ANALYTICS_SESSION_PAGEVIEW_KEY, "1");
+  }
+  const { visitorId, sessionId } = getOrCreateAnalyticsIds();
   const eventPayload = {
     event: eventName,
     timestamp: new Date().toISOString(),
+    visitorId,
+    sessionId,
     ...(payload ?? {}),
   };
   try {
@@ -589,7 +617,11 @@ function trackEvent(eventName: string, payload?: Record<string, unknown>) {
           typeof payload?.itemKey === "string" ? payload.itemKey : undefined,
         section:
           typeof payload?.section === "string" ? payload.section : undefined,
-        payload: payload ?? {},
+        payload: {
+          ...(payload ?? {}),
+          visitorId: eventPayload.visitorId,
+          sessionId: eventPayload.sessionId,
+        },
       }),
       keepalive: true,
     }).catch(() => {
@@ -1591,6 +1623,9 @@ export function CatalogHomeClient({ feed }: Props) {
   const [serverAnalyticsEvents, setServerAnalyticsEvents] = useState<AnalyticsEventPayload[]>([]);
   const [analyticsSource, setAnalyticsSource] = useState<"local" | "server">("local");
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsEventFilter, setAnalyticsEventFilter] = useState("all");
+  const [analyticsSectionFilter, setAnalyticsSectionFilter] = useState("all");
+  const [analyticsVehicleQuery, setAnalyticsVehicleQuery] = useState("");
   const autoSaveReadyRef = useRef(false);
   const lastPersistedConfigRef = useRef("");
 
@@ -3677,17 +3712,54 @@ export function CatalogHomeClient({ feed }: Props) {
     });
   }, [analyticsBaseEvents, analyticsRangeDays, analyticsSource]);
 
+  const analyticsScopedEvents = useMemo(() => {
+    const query = normalizeText(analyticsVehicleQuery);
+    return analyticsFilteredEvents.filter((event) => {
+      const eventName = typeof event.event === "string" ? event.event : "";
+      if (analyticsEventFilter !== "all" && eventName !== analyticsEventFilter) return false;
+      const section = typeof event.section === "string" ? event.section : "sin-seccion";
+      if (analyticsSectionFilter !== "all" && section !== analyticsSectionFilter) return false;
+      if (!query) return true;
+      const itemKey = typeof event.itemKey === "string" ? event.itemKey : "";
+      const item = itemKey ? itemsByKey.get(itemKey) : undefined;
+      const sample = normalizeText(
+        `${itemKey} ${item ? getPatent(item) : ""} ${item ? getModel(item) : ""}`,
+      );
+      return sample.includes(query);
+    });
+  }, [
+    analyticsFilteredEvents,
+    analyticsEventFilter,
+    analyticsSectionFilter,
+    analyticsVehicleQuery,
+    itemsByKey,
+  ]);
+
   const analyticsOverview = useMemo(() => {
-    const eventCount = analyticsFilteredEvents.length;
-    const visits = analyticsFilteredEvents.filter((event) => event.event === "page_view_home").length;
-    const detailOpens = analyticsFilteredEvents.filter((event) => event.event === "vehicle_detail_open").length;
-    const whatsappClicks = analyticsFilteredEvents.filter((event) =>
+    const eventCount = analyticsScopedEvents.length;
+    const visitSessionIds = new Set(
+      analyticsScopedEvents
+        .filter((event) => event.event === "page_view_home")
+        .map((event) => (typeof event.sessionId === "string" ? event.sessionId : ""))
+        .filter(Boolean),
+    );
+    const visits =
+      visitSessionIds.size > 0
+        ? visitSessionIds.size
+        : analyticsScopedEvents.filter((event) => event.event === "page_view_home").length;
+    const uniqueVisitors = new Set(
+      analyticsScopedEvents
+        .map((event) => (typeof event.visitorId === "string" ? event.visitorId : ""))
+        .filter(Boolean),
+    ).size;
+    const detailOpens = analyticsScopedEvents.filter((event) => event.event === "vehicle_detail_open").length;
+    const whatsappClicks = analyticsScopedEvents.filter((event) =>
       String(event.event).startsWith("whatsapp_click"),
     ).length;
-    const shares = analyticsFilteredEvents.filter((event) => event.event === "vehicle_share").length;
-    const leads = analyticsFilteredEvents.filter((event) => event.event === "lead_form_submit").length;
+    const shares = analyticsScopedEvents.filter((event) => event.event === "vehicle_share").length;
+    const leads = analyticsScopedEvents.filter((event) => event.event === "lead_form_submit").length;
     const uniqueVehicles = new Set(
-      analyticsFilteredEvents
+      analyticsScopedEvents
         .map((event) => event.itemKey)
         .filter((value): value is string => typeof value === "string" && value.trim().length > 0),
     ).size;
@@ -3700,14 +3772,15 @@ export function CatalogHomeClient({ feed }: Props) {
       shares,
       leads,
       uniqueVehicles,
+      uniqueVisitors,
       whatsappRate: detailOpens > 0 ? Math.round((whatsappClicks / detailOpens) * 100) : 0,
       leadRate: detailOpens > 0 ? Math.round((leads / detailOpens) * 100) : 0,
     };
-  }, [analyticsFilteredEvents]);
+  }, [analyticsScopedEvents]);
 
   const analyticsTopVehicles = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const event of analyticsFilteredEvents) {
+    for (const event of analyticsScopedEvents) {
       const key = typeof event.itemKey === "string" ? event.itemKey : "";
       if (!key) continue;
       counts.set(key, (counts.get(key) ?? 0) + 1);
@@ -3724,11 +3797,11 @@ export function CatalogHomeClient({ feed }: Props) {
       })
       .sort((a, b) => b.total - a.total)
       .slice(0, 10);
-  }, [analyticsFilteredEvents, itemsByKey]);
+  }, [analyticsScopedEvents, itemsByKey]);
 
   const analyticsTopEvents = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const event of analyticsFilteredEvents) {
+    for (const event of analyticsScopedEvents) {
       const name = typeof event.event === "string" ? event.event : "sin_evento";
       counts.set(name, (counts.get(name) ?? 0) + 1);
     }
@@ -3736,11 +3809,11 @@ export function CatalogHomeClient({ feed }: Props) {
       .map(([eventName, total]) => ({ eventName, total }))
       .sort((a, b) => b.total - a.total)
       .slice(0, 12);
-  }, [analyticsFilteredEvents]);
+  }, [analyticsScopedEvents]);
 
   const analyticsTopSections = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const event of analyticsFilteredEvents) {
+    for (const event of analyticsScopedEvents) {
       const section = typeof event.section === "string" ? event.section : "sin-seccion";
       counts.set(section, (counts.get(section) ?? 0) + 1);
     }
@@ -3748,11 +3821,11 @@ export function CatalogHomeClient({ feed }: Props) {
       .map(([section, total]) => ({ section, total }))
       .sort((a, b) => b.total - a.total)
       .slice(0, 8);
-  }, [analyticsFilteredEvents]);
+  }, [analyticsScopedEvents]);
 
   const analyticsTimeline = useMemo(() => {
     const buckets = new Map<string, number>();
-    for (const event of analyticsFilteredEvents) {
+    for (const event of analyticsScopedEvents) {
       const timestamp = parseAnalyticsTimestamp(event.timestamp);
       if (!timestamp) continue;
       const key = timestamp.toISOString().slice(0, 10);
@@ -3761,6 +3834,28 @@ export function CatalogHomeClient({ feed }: Props) {
     return Array.from(buckets.entries())
       .map(([date, total]) => ({ date, total }))
       .sort((a, b) => a.date.localeCompare(b.date));
+  }, [analyticsScopedEvents]);
+
+  const analyticsEventOptions = useMemo(() => {
+    const names = Array.from(
+      new Set(
+        analyticsFilteredEvents
+          .map((event) => (typeof event.event === "string" ? event.event : ""))
+          .filter(Boolean),
+      ),
+    ).sort((a, b) => a.localeCompare(b));
+    return names;
+  }, [analyticsFilteredEvents]);
+
+  const analyticsSectionOptions = useMemo(() => {
+    const names = Array.from(
+      new Set(
+        analyticsFilteredEvents
+          .map((event) => (typeof event.section === "string" ? event.section : "sin-seccion"))
+          .filter(Boolean),
+      ),
+    ).sort((a, b) => a.localeCompare(b));
+    return names;
   }, [analyticsFilteredEvents]);
 
   return (
@@ -4770,6 +4865,54 @@ export function CatalogHomeClient({ feed }: Props) {
                       </div>
                     </div>
                   </div>
+
+                  <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Vista previa ejecutiva del layout
+                    </p>
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Hero</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-900">{config.homeLayout.heroTitle || "Sin título"}</p>
+                        <p className="mt-1 text-xs text-slate-600">
+                          {config.homeLayout.heroAlignment === "center" ? "Centrado" : "Izquierda"} ·
+                          {" "}
+                          tema {config.homeLayout.heroTheme}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Controles visibles</p>
+                        <p className="mt-1 text-xs text-slate-700">
+                          {[
+                            config.homeLayout.showSearchBar ? "Búsqueda" : null,
+                            config.homeLayout.showQuickFilters ? "Quick filters" : null,
+                            config.homeLayout.showSortSelector ? "Orden" : null,
+                            config.homeLayout.showFeaturedStrip ? "Vitrina" : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ") || "Modo minimal"}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Salud de configuración</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-900">
+                          {config.homeLayout.heroTitle.trim() && config.homeLayout.heroDescription.trim() ? "Buena" : "Revisar textos"}
+                        </p>
+                        {!config.homeLayout.showHeroCtas ? (
+                          <p className="mt-1 text-[11px] text-amber-700">
+                            CTAs del hero desactivados.
+                          </p>
+                        ) : null}
+                        {config.homeLayout.showHeroCtas &&
+                        (!config.homeLayout.heroPrimaryCtaHref.trim() ||
+                          !config.homeLayout.heroSecondaryCtaHref.trim()) ? (
+                          <p className="mt-1 text-[11px] text-rose-700">
+                            Faltan enlaces en botones CTA.
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
                   <p className="mt-3 mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Orden de secciones</p>
                   <div className="space-y-2">
                     {config.homeLayout.sectionOrder.map((sectionId) => (
@@ -4819,16 +4962,66 @@ export function CatalogHomeClient({ feed }: Props) {
                     Fuente actual: {analyticsSource === "server" ? "Supabase (todos los visitantes)" : "Navegador local"}.
                     {analyticsLoading ? " Actualizando..." : ""}
                   </p>
+                  <div className="mt-3 grid gap-2 md:grid-cols-4">
+                    <select
+                      value={analyticsEventFilter}
+                      onChange={(event) => setAnalyticsEventFilter(event.target.value)}
+                      className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
+                    >
+                      <option value="all">Todos los eventos</option>
+                      {analyticsEventOptions.map((eventName) => (
+                        <option key={`event-filter-${eventName}`} value={eventName}>
+                          {eventName}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={analyticsSectionFilter}
+                      onChange={(event) => setAnalyticsSectionFilter(event.target.value)}
+                      className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
+                    >
+                      <option value="all">Todas las secciones</option>
+                      {analyticsSectionOptions.map((sectionName) => (
+                        <option key={`section-filter-${sectionName}`} value={sectionName}>
+                          {sectionName}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      value={analyticsVehicleQuery}
+                      onChange={(event) => setAnalyticsVehicleQuery(event.target.value)}
+                      placeholder="Filtrar por patente o key"
+                      className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAnalyticsEventFilter("all");
+                        setAnalyticsSectionFilter("all");
+                        setAnalyticsVehicleQuery("");
+                      }}
+                      className="ui-focus rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700"
+                    >
+                      Limpiar filtros
+                    </button>
+                  </div>
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+                <div className="grid gap-3 md:grid-cols-4 xl:grid-cols-8">
                   {[
                     ["Eventos", formatCompactNumber(analyticsOverview.eventCount)],
                     ["Visitas", formatCompactNumber(analyticsOverview.visits)],
+                    ["Visitantes únicos", formatCompactNumber(analyticsOverview.uniqueVisitors)],
                     ["Detalles abiertos", formatCompactNumber(analyticsOverview.detailOpens)],
                     ["Clicks WhatsApp", formatCompactNumber(analyticsOverview.whatsappClicks)],
                     ["Leads", formatCompactNumber(analyticsOverview.leads)],
                     ["Vehículos únicos", formatCompactNumber(analyticsOverview.uniqueVehicles)],
+                    [
+                      "Eventos por visita",
+                      analyticsOverview.visits > 0
+                        ? (analyticsOverview.eventCount / analyticsOverview.visits).toFixed(1)
+                        : "0.0",
+                    ],
                   ].map(([label, value]) => (
                     <div key={label} className="rounded-lg border border-slate-200 bg-white px-3 py-2">
                       <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
@@ -4932,6 +5125,30 @@ export function CatalogHomeClient({ feed }: Props) {
                       </div>
                     )}
                   </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-white p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Últimos eventos ({analyticsScopedEvents.length})
+                    </p>
+                  </div>
+                  {analyticsScopedEvents.length === 0 ? (
+                    <p className="text-sm text-slate-500">Sin eventos con los filtros actuales.</p>
+                  ) : (
+                    <div className="max-h-64 space-y-1 overflow-auto pr-1">
+                      {analyticsScopedEvents.slice(0, 40).map((event, index) => (
+                        <div key={`analytics-event-row-${index}`} className="grid grid-cols-[1.2fr_1fr_1fr_1fr] gap-2 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs">
+                          <span className="line-clamp-1 font-semibold text-slate-800">{event.event ?? "sin_evento"}</span>
+                          <span className="line-clamp-1 text-slate-600">{event.section ?? "sin-sección"}</span>
+                          <span className="line-clamp-1 text-slate-600">{event.itemKey ?? "—"}</span>
+                          <span className="line-clamp-1 text-slate-500">
+                            {event.timestamp ? new Date(event.timestamp).toLocaleString("es-CL") : "sin fecha"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             ) : null}

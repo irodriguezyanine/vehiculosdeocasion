@@ -757,6 +757,15 @@ function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
+function decodeBasicHtmlEntities(value: string): string {
+  return value
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, "\"")
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&");
+}
+
 function sanitizeRichHtml(value: string): string {
   let html = value;
   html = html.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "");
@@ -774,7 +783,11 @@ function formatExtendedDescriptionHtml(value?: string | null): string {
     .replace(/\/n/g, "\n")
     .trim();
   if (!normalized) return "Sin descripción adicional para este vehículo.";
-  if (/<[a-z][\s\S]*>/i.test(normalized)) return sanitizeRichHtml(normalized);
+  const maybeDecoded =
+    /&lt;[a-z][\s\S]*&gt;/i.test(normalized) && !/<[a-z][\s\S]*>/i.test(normalized)
+      ? decodeBasicHtmlEntities(normalized)
+      : normalized;
+  if (/<[a-z][\s\S]*>/i.test(maybeDecoded)) return sanitizeRichHtml(maybeDecoded);
   return escapeHtml(normalized).replace(/\n/g, "<br />");
 }
 
@@ -1777,6 +1790,19 @@ export function CatalogHomeClient({ feed }: Props) {
 
   const getEditorFieldError = (field: keyof EditorVehicleDetails): string | null =>
     editingValidationErrors[field] ?? null;
+
+  const blockingValidationErrors = useMemo(() => {
+    if (detailEditorTab === "general") {
+      const errors: Partial<Record<keyof EditorVehicleDetails, string>> = {};
+      if (editingValidationErrors.auctionDate) {
+        errors.auctionDate = editingValidationErrors.auctionDate;
+      }
+      return errors;
+    }
+    const errors = { ...editingValidationErrors };
+    delete errors.auctionDate;
+    return errors;
+  }, [detailEditorTab, editingValidationErrors]);
 
   const syncManualObservations = useCallback((html: string) => {
     const text = stripHtmlToText(html);
@@ -3282,6 +3308,30 @@ export function CatalogHomeClient({ feed }: Props) {
     }));
   };
 
+  const toggleHomeLayoutFlag = (
+    field:
+      | "showFeaturedStrip"
+      | "showCommercialPanel"
+      | "showHowToSection"
+      | "showFavoritesSection"
+      | "showRecentPublications"
+      | "showSearchBar"
+      | "showStickySearchBar"
+      | "showQuickFilters"
+      | "showSortSelector",
+    checked: boolean,
+  ) => {
+    setHomeLayout(field, checked);
+    if (field === "showSearchBar" && !checked) {
+      setHomeSearchTerm("");
+      setQuickFilters([]);
+      setTopSectionFilter("all");
+    }
+    if (field === "showQuickFilters" && !checked) {
+      setQuickFilters([]);
+    }
+  };
+
   const applyHomeLayoutPreset = (
     presetId: "balanced" | "conversion" | "minimal",
   ) => {
@@ -3696,7 +3746,7 @@ export function CatalogHomeClient({ feed }: Props) {
 
   const saveDetailsEditor = () => {
     if (!editingVehicleKey || !editingDetails) return;
-    if (Object.keys(editingValidationErrors).length > 0) {
+    if (Object.keys(blockingValidationErrors).length > 0) {
       showSystemNotice(
         "error",
         "Campos inválidos",
@@ -4999,35 +5049,104 @@ export function CatalogHomeClient({ feed }: Props) {
                     ) : null}
 
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Bloques y experiencia</p>
-                      <div className="grid gap-2">
-                        <label className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"><input type="checkbox" checked={config.homeLayout.showFeaturedStrip} onChange={(event) => setHomeLayout("showFeaturedStrip", event.target.checked)} /> Mostrar vitrina destacada</label>
-                        <label className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"><input type="checkbox" checked={config.homeLayout.showCommercialPanel} onChange={(event) => setHomeLayout("showCommercialPanel", event.target.checked)} /> Mostrar panel comercial derecho</label>
-                        <label className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"><input type="checkbox" checked={config.homeLayout.showHowToSection} onChange={(event) => setHomeLayout("showHowToSection", event.target.checked)} /> Mostrar sección ¿Cómo participar?</label>
-                        <label className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"><input type="checkbox" checked={config.homeLayout.showFavoritesSection} onChange={(event) => setHomeLayout("showFavoritesSection", event.target.checked)} /> Mostrar sección favoritos</label>
-                        <label className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"><input type="checkbox" checked={config.homeLayout.showRecentPublications} onChange={(event) => setHomeLayout("showRecentPublications", event.target.checked)} /> Mostrar recién publicados</label>
-                        <label className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"><input type="checkbox" checked={config.homeLayout.showSearchBar} onChange={(event) => { const checked = event.target.checked; setHomeLayout("showSearchBar", checked); if (!checked) { setHomeSearchTerm(""); setQuickFilters([]); setTopSectionFilter("all"); } }} /> Mostrar barra de búsqueda superior</label>
-                        <label className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"><input type="checkbox" checked={config.homeLayout.showStickySearchBar} onChange={(event) => setHomeLayout("showStickySearchBar", event.target.checked)} /> Barra búsqueda sticky en móvil</label>
-                        <label className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"><input type="checkbox" checked={config.homeLayout.showQuickFilters} onChange={(event) => { const checked = event.target.checked; setHomeLayout("showQuickFilters", checked); if (!checked) setQuickFilters([]); }} /> Mostrar quick filters</label>
-                        <label className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"><input type="checkbox" checked={config.homeLayout.showSortSelector} onChange={(event) => setHomeLayout("showSortSelector", event.target.checked)} /> Mostrar selector de orden</label>
-                        <select
-                          value={config.homeLayout.defaultCardDensity}
-                          onChange={(event) => setHomeLayout("defaultCardDensity", event.target.value)}
-                          className="ui-focus rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
-                        >
-                          <option value="detailed">Densidad por defecto: Detallada</option>
-                          <option value="compact">Densidad por defecto: Compacta</option>
-                        </select>
-                        <select
-                          value={config.homeLayout.sectionSpacing}
-                          onChange={(event) => setHomeLayout("sectionSpacing", event.target.value)}
-                          className="ui-focus rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
-                        >
-                          <option value="compact">Espaciado entre secciones: Compacto</option>
-                          <option value="normal">Espaciado entre secciones: Normal</option>
-                          <option value="airy">Espaciado entre secciones: Amplio</option>
-                        </select>
-                      </div>
+                      <details>
+                        <summary className="flex cursor-pointer list-none items-center justify-between gap-2">
+                          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            Bloques y experiencia
+                          </span>
+                          <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700">
+                            {[
+                              config.homeLayout.showFeaturedStrip,
+                              config.homeLayout.showCommercialPanel,
+                              config.homeLayout.showHowToSection,
+                              config.homeLayout.showFavoritesSection,
+                              config.homeLayout.showRecentPublications,
+                              config.homeLayout.showSearchBar,
+                              config.homeLayout.showQuickFilters,
+                              config.homeLayout.showSortSelector,
+                            ].filter(Boolean).length} activos
+                          </span>
+                        </summary>
+                        <div className="mt-3 space-y-3">
+                          <div className="grid gap-2 md:grid-cols-2">
+                            {([
+                              ["showFeaturedStrip", "Vitrina destacada"],
+                              ["showCommercialPanel", "Panel comercial derecho"],
+                              ["showHowToSection", "Sección ¿Cómo participar?"],
+                              ["showFavoritesSection", "Sección favoritos"],
+                              ["showRecentPublications", "Recién publicados"],
+                            ] as const).map(([field, label]) => (
+                              <button
+                                key={field}
+                                type="button"
+                                onClick={() => toggleHomeLayoutFlag(field, !config.homeLayout[field])}
+                                className={`ui-focus flex items-center justify-between rounded-md border px-3 py-2 text-sm ${
+                                  config.homeLayout[field]
+                                    ? "border-slate-800 bg-slate-900 text-white"
+                                    : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                                }`}
+                              >
+                                <span>{label}</span>
+                                <span className="text-xs font-semibold">
+                                  {config.homeLayout[field] ? "ON" : "OFF"}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="rounded-md border border-slate-200 bg-white p-2">
+                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                              Controles de búsqueda
+                            </p>
+                            <div className="grid gap-2 md:grid-cols-2">
+                              {([
+                                ["showSearchBar", "Barra búsqueda superior"],
+                                ["showStickySearchBar", "Búsqueda sticky en móvil"],
+                                ["showQuickFilters", "Quick filters"],
+                                ["showSortSelector", "Selector de orden"],
+                              ] as const).map(([field, label]) => (
+                                <button
+                                  key={field}
+                                  type="button"
+                                  onClick={() => toggleHomeLayoutFlag(field, !config.homeLayout[field])}
+                                  className={`ui-focus flex items-center justify-between rounded-md border px-3 py-2 text-sm ${
+                                    config.homeLayout[field]
+                                      ? "border-cyan-600 bg-cyan-600 text-white"
+                                      : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                                  }`}
+                                >
+                                  <span>{label}</span>
+                                  <span className="text-xs font-semibold">
+                                    {config.homeLayout[field] ? "ON" : "OFF"}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {layoutEditorMode === "advanced" ? (
+                            <div className="grid gap-2 md:grid-cols-2">
+                              <select
+                                value={config.homeLayout.defaultCardDensity}
+                                onChange={(event) => setHomeLayout("defaultCardDensity", event.target.value)}
+                                className="ui-focus rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
+                              >
+                                <option value="detailed">Densidad por defecto: Detallada</option>
+                                <option value="compact">Densidad por defecto: Compacta</option>
+                              </select>
+                              <select
+                                value={config.homeLayout.sectionSpacing}
+                                onChange={(event) => setHomeLayout("sectionSpacing", event.target.value)}
+                                className="ui-focus rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
+                              >
+                                <option value="compact">Espaciado entre secciones: Compacto</option>
+                                <option value="normal">Espaciado entre secciones: Normal</option>
+                                <option value="airy">Espaciado entre secciones: Amplio</option>
+                              </select>
+                            </div>
+                          ) : null}
+                        </div>
+                      </details>
                     </div>
                   </div>
 
@@ -6277,9 +6396,9 @@ export function CatalogHomeClient({ feed }: Props) {
                       </p>
                     </div>
                     <div className="mt-2 rounded-md border border-slate-200 bg-white p-3">
-                      <p className="text-xs uppercase tracking-wide text-slate-500">Descripción ampliada (admite HTML)</p>
+                      <p className="text-xs uppercase tracking-wide text-slate-500">Descripción ampliada</p>
                       <div
-                        className="mt-1 text-sm text-slate-700 [&_a]:text-cyan-700 [&_a]:underline [&_li]:ml-4 [&_p]:mb-2"
+                        className="mt-1 text-sm text-slate-700 [&_a]:text-cyan-700 [&_a]:underline [&_b]:font-bold [&_strong]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_p]:mb-2"
                         dangerouslySetInnerHTML={{
                           __html: formatExtendedDescriptionHtml(selectedVehicleExpandedDescription),
                         }}

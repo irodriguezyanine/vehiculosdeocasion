@@ -1623,6 +1623,8 @@ export function CatalogHomeClient({ feed }: Props) {
   const [serverAnalyticsEvents, setServerAnalyticsEvents] = useState<AnalyticsEventPayload[]>([]);
   const [analyticsSource, setAnalyticsSource] = useState<"local" | "server">("local");
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [layoutEditorMode, setLayoutEditorMode] = useState<"simple" | "advanced">("simple");
+  const [analyticsViewMode, setAnalyticsViewMode] = useState<"simple" | "advanced">("simple");
   const [analyticsEventFilter, setAnalyticsEventFilter] = useState("all");
   const [analyticsSectionFilter, setAnalyticsSectionFilter] = useState("all");
   const [analyticsVehicleQuery, setAnalyticsVehicleQuery] = useState("");
@@ -3836,6 +3838,11 @@ export function CatalogHomeClient({ feed }: Props) {
       .sort((a, b) => a.date.localeCompare(b.date));
   }, [analyticsScopedEvents]);
 
+  const analyticsTimelineMax = useMemo(
+    () => analyticsTimeline.reduce((max, row) => Math.max(max, row.total), 0),
+    [analyticsTimeline],
+  );
+
   const analyticsEventOptions = useMemo(() => {
     const names = Array.from(
       new Set(
@@ -4713,6 +4720,26 @@ export function CatalogHomeClient({ feed }: Props) {
                       Restaurar layout base
                     </button>
                   </div>
+                  <div className="mb-3 inline-flex rounded-full border border-slate-300 bg-white p-1">
+                    <button
+                      type="button"
+                      onClick={() => setLayoutEditorMode("simple")}
+                      className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold ${
+                        layoutEditorMode === "simple" ? "bg-cyan-600 text-white" : "text-slate-700"
+                      }`}
+                    >
+                      Vista simple
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLayoutEditorMode("advanced")}
+                      className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold ${
+                        layoutEditorMode === "advanced" ? "bg-cyan-600 text-white" : "text-slate-700"
+                      }`}
+                    >
+                      Vista avanzada
+                    </button>
+                  </div>
 
                   <div className="mb-3 grid gap-2 md:grid-cols-3">
                     {HOME_LAYOUT_PRESETS.map((preset) => (
@@ -4728,7 +4755,7 @@ export function CatalogHomeClient({ feed }: Props) {
                     ))}
                   </div>
 
-                  <div className="grid gap-4 md:grid-cols-2">
+                  <div className={`grid gap-4 ${layoutEditorMode === "advanced" ? "md:grid-cols-2" : ""}`}>
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Textos hero</p>
                       <div className="grid gap-2">
@@ -4753,6 +4780,7 @@ export function CatalogHomeClient({ feed }: Props) {
                       </div>
                     </div>
 
+                    {layoutEditorMode === "advanced" ? (
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Estilo del hero</p>
                       <div className="grid gap-2">
@@ -4800,9 +4828,11 @@ export function CatalogHomeClient({ feed }: Props) {
                         </label>
                       </div>
                     </div>
+                    ) : null}
                   </div>
 
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    {layoutEditorMode === "advanced" ? (
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Botones CTA Hero</p>
                       <div className="grid gap-2">
@@ -4832,6 +4862,7 @@ export function CatalogHomeClient({ feed }: Props) {
                         />
                       </div>
                     </div>
+                    ) : null}
 
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Bloques y experiencia</p>
@@ -4866,6 +4897,7 @@ export function CatalogHomeClient({ feed }: Props) {
                     </div>
                   </div>
 
+                  {layoutEditorMode === "advanced" ? (
                   <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3">
                     <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                       Vista previa ejecutiva del layout
@@ -4913,18 +4945,23 @@ export function CatalogHomeClient({ feed }: Props) {
                       </div>
                     </div>
                   </div>
-                  <p className="mt-3 mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Orden de secciones</p>
-                  <div className="space-y-2">
-                    {config.homeLayout.sectionOrder.map((sectionId) => (
-                      <div key={sectionId} className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2 text-sm">
-                        <span>{SECTION_LABELS[sectionId]}</span>
-                        <div className="flex gap-2">
-                          <button type="button" onClick={() => moveSectionOrder(sectionId, "up")} className="ui-focus rounded border border-slate-300 px-2 py-1 text-xs">Subir</button>
-                          <button type="button" onClick={() => moveSectionOrder(sectionId, "down")} className="ui-focus rounded border border-slate-300 px-2 py-1 text-xs">Bajar</button>
+                  ) : null}
+                  <details className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-slate-600">
+                      Orden de secciones
+                    </summary>
+                    <div className="mt-2 space-y-2">
+                      {config.homeLayout.sectionOrder.map((sectionId) => (
+                        <div key={sectionId} className="flex items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm">
+                          <span>{SECTION_LABELS[sectionId]}</span>
+                          <div className="flex gap-2">
+                            <button type="button" onClick={() => moveSectionOrder(sectionId, "up")} className="ui-focus rounded border border-slate-300 px-2 py-1 text-xs">Subir</button>
+                            <button type="button" onClick={() => moveSectionOrder(sectionId, "down")} className="ui-focus rounded border border-slate-300 px-2 py-1 text-xs">Bajar</button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  </details>
                 </div>
               </div>
             ) : null}
@@ -4958,11 +4995,34 @@ export function CatalogHomeClient({ feed }: Props) {
                       ))}
                     </div>
                   </div>
+                  <div className="mt-3 inline-flex rounded-full border border-slate-300 bg-white p-1">
+                    <button
+                      type="button"
+                      onClick={() => setAnalyticsViewMode("simple")}
+                      className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold ${
+                        analyticsViewMode === "simple" ? "bg-cyan-600 text-white" : "text-slate-700"
+                      }`}
+                    >
+                      Vista simple
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAnalyticsViewMode("advanced")}
+                      className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold ${
+                        analyticsViewMode === "advanced" ? "bg-cyan-600 text-white" : "text-slate-700"
+                      }`}
+                    >
+                      Vista avanzada
+                    </button>
+                  </div>
                   <p className="mt-2 text-xs text-slate-500">
                     Fuente actual: {analyticsSource === "server" ? "Supabase (todos los visitantes)" : "Navegador local"}.
                     {analyticsLoading ? " Actualizando..." : ""}
                   </p>
-                  <div className="mt-3 grid gap-2 md:grid-cols-4">
+                  <p className="mt-1 text-xs text-slate-500">
+                    Visitas = sesiones con evento <span className="font-semibold">page_view_home</span>. Eventos = todas las acciones registradas.
+                  </p>
+                  <div className={`mt-3 grid gap-2 ${analyticsViewMode === "advanced" ? "md:grid-cols-4" : "md:grid-cols-2"}`}>
                     <select
                       value={analyticsEventFilter}
                       onChange={(event) => setAnalyticsEventFilter(event.target.value)}
@@ -5007,54 +5067,39 @@ export function CatalogHomeClient({ feed }: Props) {
                   </div>
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-4 xl:grid-cols-8">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                   {[
-                    ["Eventos", formatCompactNumber(analyticsOverview.eventCount)],
                     ["Visitas", formatCompactNumber(analyticsOverview.visits)],
                     ["Visitantes únicos", formatCompactNumber(analyticsOverview.uniqueVisitors)],
-                    ["Detalles abiertos", formatCompactNumber(analyticsOverview.detailOpens)],
                     ["Clicks WhatsApp", formatCompactNumber(analyticsOverview.whatsappClicks)],
                     ["Leads", formatCompactNumber(analyticsOverview.leads)],
-                    ["Vehículos únicos", formatCompactNumber(analyticsOverview.uniqueVehicles)],
-                    [
-                      "Eventos por visita",
-                      analyticsOverview.visits > 0
-                        ? (analyticsOverview.eventCount / analyticsOverview.visits).toFixed(1)
-                        : "0.0",
-                    ],
                   ].map(([label, value]) => (
-                    <div key={label} className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                    <div key={label} className="rounded-lg border border-slate-200 bg-white px-3 py-3">
                       <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-                      <p className="mt-1 text-xl font-black text-slate-900">{value}</p>
+                      <p className="mt-1 text-2xl font-black text-slate-900">{value}</p>
                     </div>
                   ))}
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="rounded-lg border border-cyan-200 bg-cyan-50/40 px-3 py-2">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-cyan-800">
-                      Tasa WhatsApp / detalle
-                    </p>
-                    <p className="mt-1 text-xl font-black text-cyan-900">{analyticsOverview.whatsappRate}%</p>
-                  </div>
-                  <div className="rounded-lg border border-indigo-200 bg-indigo-50/40 px-3 py-2">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-indigo-800">
-                      Tasa lead / detalle
-                    </p>
-                    <p className="mt-1 text-xl font-black text-indigo-900">{analyticsOverview.leadRate}%</p>
+                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                  <div className="grid gap-2 text-sm text-slate-700 md:grid-cols-2 xl:grid-cols-4">
+                    <p><span className="font-semibold text-slate-900">WhatsApp / detalle:</span> {analyticsOverview.whatsappRate}%</p>
+                    <p><span className="font-semibold text-slate-900">Lead / detalle:</span> {analyticsOverview.leadRate}%</p>
+                    <p><span className="font-semibold text-slate-900">Eventos:</span> {formatCompactNumber(analyticsOverview.eventCount)}</p>
+                    <p><span className="font-semibold text-slate-900">Eventos por visita:</span> {analyticsOverview.visits > 0 ? (analyticsOverview.eventCount / analyticsOverview.visits).toFixed(1) : "0.0"}</p>
                   </div>
                 </div>
 
-                <div className="grid gap-4 xl:grid-cols-3">
-                  <div className="rounded-xl border border-slate-200 bg-white p-3 xl:col-span-2">
+                <div className={`grid gap-4 ${analyticsViewMode === "advanced" ? "xl:grid-cols-3" : "xl:grid-cols-2"}`}>
+                  <div className="rounded-xl border border-slate-200 bg-white p-3 xl:col-span-1">
                     <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Ranking vehículos más interactuados
+                      Top vehículos
                     </p>
                     {analyticsTopVehicles.length === 0 ? (
                       <p className="text-sm text-slate-500">Aún no hay datos de vehículos para este rango.</p>
                     ) : (
                       <div className="space-y-2">
-                        {analyticsTopVehicles.map((row, index) => (
+                        {analyticsTopVehicles.slice(0, analyticsViewMode === "simple" ? 5 : 10).map((row, index) => (
                           <div key={`top-vehicle-${row.itemKey}`} className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
                             <div className="min-w-0">
                               <p className="text-xs font-semibold text-slate-500">#{index + 1} · {row.patent}</p>
@@ -5069,6 +5114,33 @@ export function CatalogHomeClient({ feed }: Props) {
                     )}
                   </div>
 
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Actividad diaria
+                    </p>
+                    {analyticsTimeline.length === 0 ? (
+                      <p className="text-sm text-slate-500">Sin actividad en el rango seleccionado.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {analyticsTimeline.slice(-10).reverse().map((row) => (
+                          <div key={`timeline-lite-${row.date}`} className="space-y-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="font-semibold text-slate-700">{formatAuctionDateLabel(row.date)}</span>
+                              <span className="font-bold text-slate-900">{row.total}</span>
+                            </div>
+                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+                              <div
+                                className="h-full rounded-full bg-cyan-600"
+                                style={{ width: `${analyticsTimelineMax > 0 ? Math.max((row.total / analyticsTimelineMax) * 100, 8) : 0}%` }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {analyticsViewMode === "advanced" ? (
                   <div className="rounded-xl border border-slate-200 bg-white p-3">
                     <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                       Eventos más frecuentes
@@ -5086,58 +5158,61 @@ export function CatalogHomeClient({ feed }: Props) {
                       </div>
                     )}
                   </div>
+                  ) : null}
                 </div>
 
-                <div className="grid gap-4 xl:grid-cols-2">
-                  <div className="rounded-xl border border-slate-200 bg-white p-3">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Actividad por sección
-                    </p>
-                    {analyticsTopSections.length === 0 ? (
-                      <p className="text-sm text-slate-500">Sin datos por sección.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {analyticsTopSections.map((row) => (
-                          <div key={`top-section-${row.section}`} className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
-                            <span className="text-sm font-semibold text-slate-700">{row.section}</span>
-                            <span className="rounded-full bg-slate-900 px-2 py-0.5 text-xs font-semibold text-white">
-                              {row.total}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                {analyticsViewMode === "advanced" ? (
+                  <div className="grid gap-4 xl:grid-cols-2">
+                    <div className="rounded-xl border border-slate-200 bg-white p-3">
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Actividad por sección
+                      </p>
+                      {analyticsTopSections.length === 0 ? (
+                        <p className="text-sm text-slate-500">Sin datos por sección.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {analyticsTopSections.map((row) => (
+                            <div key={`top-section-${row.section}`} className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+                              <span className="text-sm font-semibold text-slate-700">{row.section}</span>
+                              <span className="rounded-full bg-slate-900 px-2 py-0.5 text-xs font-semibold text-white">
+                                {row.total}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-white p-3">
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Línea completa de tiempo
+                      </p>
+                      {analyticsTimeline.length === 0 ? (
+                        <p className="text-sm text-slate-500">Sin actividad en el rango seleccionado.</p>
+                      ) : (
+                        <div className="max-h-64 space-y-2 overflow-auto pr-1">
+                          {analyticsTimeline.map((row) => (
+                            <div key={`timeline-${row.date}`} className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+                              <span className="text-sm font-semibold text-slate-700">{formatAuctionDateLabel(row.date)}</span>
+                              <span className="text-sm font-bold text-slate-900">{row.total}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="rounded-xl border border-slate-200 bg-white p-3">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Línea de tiempo de eventos
-                    </p>
-                    {analyticsTimeline.length === 0 ? (
-                      <p className="text-sm text-slate-500">Sin actividad en el rango seleccionado.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {analyticsTimeline.map((row) => (
-                          <div key={`timeline-${row.date}`} className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
-                            <span className="text-sm font-semibold text-slate-700">{formatAuctionDateLabel(row.date)}</span>
-                            <span className="text-sm font-bold text-slate-900">{row.total}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                ) : null}
 
-                <div className="rounded-xl border border-slate-200 bg-white p-3">
+                <details className="rounded-xl border border-slate-200 bg-white p-3" open={analyticsViewMode === "advanced"}>
                   <div className="mb-2 flex items-center justify-between">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Últimos eventos ({analyticsScopedEvents.length})
+                      Últimos eventos ({analyticsScopedEvents.length}) {analyticsViewMode === "simple" ? "· expandible" : ""}
                     </p>
                   </div>
                   {analyticsScopedEvents.length === 0 ? (
                     <p className="text-sm text-slate-500">Sin eventos con los filtros actuales.</p>
                   ) : (
                     <div className="max-h-64 space-y-1 overflow-auto pr-1">
-                      {analyticsScopedEvents.slice(0, 40).map((event, index) => (
+                      {analyticsScopedEvents.slice(0, analyticsViewMode === "simple" ? 12 : 40).map((event, index) => (
                         <div key={`analytics-event-row-${index}`} className="grid grid-cols-[1.2fr_1fr_1fr_1fr] gap-2 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs">
                           <span className="line-clamp-1 font-semibold text-slate-800">{event.event ?? "sin_evento"}</span>
                           <span className="line-clamp-1 text-slate-600">{event.section ?? "sin-sección"}</span>
@@ -5149,7 +5224,7 @@ export function CatalogHomeClient({ feed }: Props) {
                       ))}
                     </div>
                   )}
-                </div>
+                </details>
               </div>
             ) : null}
           </div>

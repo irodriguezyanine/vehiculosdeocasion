@@ -345,6 +345,76 @@ function pickString(item: Record<string, unknown>, aliases: string[]): string | 
   return undefined;
 }
 
+function pickScalarString(value: unknown): string | undefined {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (typeof value === "number") return String(value);
+  return undefined;
+}
+
+function normalizeCustomSpecKey(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function extractCustomSpecFieldMap(raw: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  const visited = new Set<unknown>();
+
+  const visit = (node: unknown): void => {
+    if (node == null || typeof node !== "object") return;
+    if (visited.has(node)) return;
+    visited.add(node);
+
+    if (Array.isArray(node)) {
+      for (const entry of node) {
+        if (entry && typeof entry === "object" && !Array.isArray(entry)) {
+          const record = entry as Record<string, unknown>;
+          const keyRaw =
+            pickScalarString(record.abbreviation) ??
+            pickScalarString(record.abbrev) ??
+            pickScalarString(record.short_name) ??
+            pickScalarString(record.key) ??
+            pickScalarString(record.code) ??
+            pickScalarString(record.name) ??
+            pickScalarString(record.label) ??
+            pickScalarString(record.title) ??
+            pickScalarString(record.item);
+          const valueRaw =
+            pickScalarString(record.value) ??
+            pickScalarString(record.field_value) ??
+            pickScalarString(record.val) ??
+            pickScalarString(record.content) ??
+            pickScalarString(record.text) ??
+            pickScalarString(record.display_value) ??
+            (record.value && typeof record.value === "object"
+              ? pickScalarString((record.value as Record<string, unknown>).value)
+              : undefined);
+
+          if (keyRaw && valueRaw) {
+            const normalizedKey = normalizeCustomSpecKey(keyRaw);
+            const literalKey = keyRaw.trim().toLowerCase();
+            if (normalizedKey && !(normalizedKey in result)) result[normalizedKey] = valueRaw;
+            if (literalKey && !(literalKey in result)) result[literalKey] = valueRaw;
+          }
+        }
+        visit(entry);
+      }
+      return;
+    }
+
+    for (const value of Object.values(node as Record<string, unknown>)) {
+      visit(value);
+    }
+  };
+
+  visit(raw);
+  return result;
+}
+
 function mapAwsItem(item: Record<string, unknown>): AwsVehicle {
   const flat = flattenObject(item);
   const merged = { ...item, ...flat };
@@ -500,7 +570,8 @@ function normalizeGlo3dTechnicalFields(
   glo3dRaw: Record<string, unknown>,
 ): Record<string, unknown> {
   const flat = flattenObject(glo3dRaw);
-  const merged = { ...glo3dRaw, ...flat };
+  const customSpecFields = extractCustomSpecFieldMap(glo3dRaw);
+  const merged = { ...glo3dRaw, ...flat, ...customSpecFields };
   const result: Record<string, unknown> = {};
 
   const patenteVerifier = pickString(merged, [
@@ -522,7 +593,7 @@ function normalizeGlo3dTechnicalFields(
   const version = pickString(merged, ["version", "ver", "trim"]);
   const color = pickString(merged, ["color", "color_exterior", "color_vehiculo", "exterior_color"]);
   const combustible = pickString(merged, ["combustible", "tipo_combustible", "fuel", "fuel_type"]);
-  const llaves = pickString(merged, ["llaves", "keys", "has_keys", "tiene_llaves"]);
+  const llaves = pickString(merged, ["llaves", "keys", "has_keys", "tiene_llaves", "lla"]);
   const transmision = pickString(merged, [
     "transmision",
     "transmisión",
@@ -557,7 +628,7 @@ function normalizeGlo3dTechnicalFields(
     "acondicionado",
   ]);
   const ano = pickString(merged, ["ano", "anio", "year", "fields_year"]);
-  const patente = pickString(merged, ["patente", "PPU", "ppu", "plate"]);
+  const patente = pickString(merged, ["patente", "PPU", "ppu", "plate", "stock_number"]);
   const nombrePropietarioAnterior = pickString(merged, [
     "nombre_propietario_anterior",
     "previous_owner_name",
@@ -574,13 +645,22 @@ function normalizeGlo3dTechnicalFields(
     "rut_verificador",
     "verifier_rut",
     "rut_verifier",
+    "rut_verificador_dv",
   ]);
   const cilindrada = pickString(merged, ["cilindrada", "cc", "motor_cc", "engine_cc"]);
   const nMotor = pickString(merged, ["n_de_motor", "numero_motor", "motor_number", "ndm"]);
   const nSerie = pickString(merged, ["n_de_serie", "numero_serie", "serial_number", "nds"]);
   const nVin = pickString(merged, ["n_de_vin", "vin", "numero_chasis", "nro_chasis"]);
   const nChasis = pickString(merged, ["n_de_chasis", "numero_chasis", "nro_chasis"]);
-  const nSiniestro = pickString(merged, ["n_de_siniestro", "numero_siniestro", "n_s", "ns", "n°s"]);
+  const nSiniestro = pickString(merged, [
+    "n_de_siniestro",
+    "numero_siniestro",
+    "numero_de_siniestro",
+    "n_siniestro",
+    "n_s",
+    "ns",
+    "n°s",
+  ]);
   const ubicacionFisica = pickString(merged, ["ubicacion_fisica", "ubicacion", "ubi", "location"]);
   const transportista = pickString(merged, ["transportista", "tra"]);
   const taller = pickString(merged, ["taller", "tal"]);
@@ -746,6 +826,7 @@ async function fetchGlo3dByStocks(stocks: string[]): Promise<Map<string, Glo3dIn
 
     const data = payload.data ?? [];
     for (const item of data) {
+      const technicalFields = normalizeGlo3dTechnicalFields(item);
       const stock = normalizeStock(
         getStringFromKeys(item, [
           "stock_number",
@@ -754,7 +835,7 @@ async function fetchGlo3dByStocks(stocks: string[]): Promise<Map<string, Glo3dIn
           "ppu",
           "patente",
           "plate",
-        ]),
+        ]) ?? pickString(technicalFields, ["patente", "ppu", "stock_number"]),
       );
       if (!stock || !pending.has(stock)) continue;
 
@@ -764,7 +845,6 @@ async function fetchGlo3dByStocks(stocks: string[]): Promise<Map<string, Glo3dIn
         extractEmbedUrl(item.iframe_with_params) ??
         extractEmbedUrl(item.iframe);
 
-      const technicalFields = normalizeGlo3dTechnicalFields(item);
       const glo3dId = extractGlo3dId(embed);
       const fallbackView3d = pickString(item, [
         "url_3d",

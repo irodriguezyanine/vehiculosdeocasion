@@ -711,31 +711,6 @@ function isValidDateValue(value?: string): boolean {
   return false;
 }
 
-function normalizeRut(value?: string): string {
-  return (value ?? "")
-    .replace(/\./g, "")
-    .replace(/\s+/g, "")
-    .toUpperCase();
-}
-
-function isValidRut(value?: string): boolean {
-  const rut = normalizeRut(value);
-  if (!rut) return true;
-  const match = rut.match(/^(\d{7,8})-?([\dK])$/);
-  if (!match) return false;
-  const body = match[1];
-  const dv = match[2];
-  let sum = 0;
-  let multiplier = 2;
-  for (let i = body.length - 1; i >= 0; i -= 1) {
-    sum += Number(body[i]) * multiplier;
-    multiplier = multiplier === 7 ? 2 : multiplier + 1;
-  }
-  const mod = 11 - (sum % 11);
-  const expected = mod === 11 ? "0" : mod === 10 ? "K" : String(mod);
-  return dv === expected;
-}
-
 function parseImagesCsv(value?: string): string[] {
   return (value ?? "")
     .split(",")
@@ -1658,16 +1633,6 @@ export function CatalogHomeClient({ feed }: Props) {
     for (const field of dateFields) {
       if (!isValidDateValue(editingDetails[field])) {
         errors[field] = "Formato válido: YYYY-MM-DD o DD/MM/YYYY.";
-      }
-    }
-
-    const rutFields: Array<keyof EditorVehicleDetails> = [
-      "rutPropietarioAnterior",
-      "rutVerificador",
-    ];
-    for (const field of rutFields) {
-      if (!isValidRut(editingDetails[field])) {
-        errors[field] = "RUT inválido.";
       }
     }
 

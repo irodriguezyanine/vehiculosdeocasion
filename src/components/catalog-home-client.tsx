@@ -46,7 +46,7 @@ type ClientLeadForm = {
   phone: string;
   interest: string;
 };
-type VehicleDetailTabId = "general" | "tecnica" | "fotos";
+type VehicleDetailTabId = "general" | "descripcion" | "tecnica" | "fotos";
 type SystemNotice = {
   id: number;
   tone: "success" | "error" | "info";
@@ -94,6 +94,39 @@ const ANALYTICS_STORAGE_KEY = "vedisa_analytics_events";
 const ANALYTICS_VISITOR_ID_KEY = "vedisa_analytics_visitor_id";
 const ANALYTICS_SESSION_ID_KEY = "vedisa_analytics_session_id";
 const ANALYTICS_SESSION_PAGEVIEW_KEY = "vedisa_analytics_pageview_home";
+const OBSERVATIONS_TEMPLATE_STORAGE_KEY = "vedisa_observations_template_html";
+const DEFAULT_OBSERVATIONS_TEMPLATE_HTML = `<h3><strong>¿Quieres ofertar y aprovechar esta oportunidad?</strong></h3>
+<p>Sigue estos pasos:</p>
+<ol>
+  <li>
+    <p><strong>Inscríbete en nuestra web</strong> y accede con tu usuario registrado.</p>
+  </li>
+  <li>
+    <p><strong>Deposita la garantía</strong> de $300.000 por cada vehículo de interés en nuestra cuenta. Luego, envía tu usuario y el comprobante de depósito a nuestro Contact Center vía WhatsApp al <a href="https://wa.me/56989323397" target="_blank" rel="noreferrer" style="color:#1d4ed8"><strong>+56 9 8932 3397</strong></a>. Recibirás un mensaje cuando estés habilitado para ofertar.</p>
+  </li>
+  <li>
+    <p><strong>Ingresa a nuestro sitio web</strong>, busca el lote que te interesa y elige tu forma de ofertar:</p>
+    <ul>
+      <li>Haz clic en la <em>oferta mínima</em>.</li>
+      <li>Ingresa el monto que deseas ofertar; el sistema pujará automáticamente desde la oferta mínima hasta tu valor máximo indicado.</li>
+    </ul>
+  </li>
+  <li>
+    <p><strong>Si te adjudicas el vehículo</strong>, recibirás un correo con el valor total a cancelar.</p>
+    <ul>
+      <li>Dispones de 48 horas para realizar el pago total y coordinar el retiro de tu vehículo.</li>
+      <li>Una vez pagado, envía los comprobantes a nuestro Contact Center.</li>
+      <li>Todos los trámites pueden realizarse de forma 100% remota.</li>
+    </ul>
+  </li>
+  <li>
+    <p><strong>Si no te adjudicas ningún vehículo</strong>, la garantía se devuelve después de 48 horas del remate garantizado.</p>
+  </li>
+</ol>
+<ul>
+  <li>En nuestro portal te asesoramos de manera honesta y transparente, con material audiovisual e información detallada de cada vehículo, garantizando su integridad hasta que sale de nuestras dependencias.</li>
+  <li>Si deseas ver el vehículo presencialmente, puedes hacerlo en la ubicación y horarios de exhibición establecidos, una vez depositada la garantía, para tu propia seguridad.</li>
+</ul>`;
 
 const SECTION_LABELS: Record<SectionId, string> = {
   "proximos-remates": "Próximos remates",
@@ -1738,6 +1771,9 @@ export function CatalogHomeClient({ feed }: Props) {
   const [analyticsVehicleQuery, setAnalyticsVehicleQuery] = useState("");
   const [countdownNowMs, setCountdownNowMs] = useState(() => Date.now());
   const manualObservationsEditorRef = useRef<HTMLDivElement | null>(null);
+  const [observationsTemplateHtml, setObservationsTemplateHtml] = useState(
+    DEFAULT_OBSERVATIONS_TEMPLATE_HTML,
+  );
   const autoSaveReadyRef = useRef(false);
   const lastPersistedConfigRef = useRef("");
 
@@ -1822,6 +1858,13 @@ export function CatalogHomeClient({ feed }: Props) {
     syncManualObservations(editor.innerHTML);
   }, [syncManualObservations]);
 
+  const applyObservationsTemplate = useCallback((html: string) => {
+    const editor = manualObservationsEditorRef.current;
+    if (!editor) return;
+    editor.innerHTML = html;
+    syncManualObservations(html);
+  }, [syncManualObservations]);
+
   useEffect(() => {
     if (!editingDetails || detailEditorTab !== "general") return;
     const editor = manualObservationsEditorRef.current;
@@ -1834,6 +1877,14 @@ export function CatalogHomeClient({ feed }: Props) {
       editor.innerHTML = normalized;
     }
   }, [editingVehicleKey, detailEditorTab, editingDetails]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem(OBSERVATIONS_TEMPLATE_STORAGE_KEY);
+    if (saved?.trim()) {
+      setObservationsTemplateHtml(saved);
+    }
+  }, []);
 
   const rawItems = feed.items;
   const updateVehicleUrlParam = useCallback((vehicleKey?: string) => {
@@ -2471,6 +2522,7 @@ export function CatalogHomeClient({ feed }: Props) {
     () => {
       const tabs: Array<{ id: VehicleDetailTabId; label: string }> = [
         { id: "general", label: "Información del vehículo" },
+        { id: "descripcion", label: "Descripción" },
         { id: "tecnica", label: "Detalles técnicos" },
       ];
       if (selectedVehicleGalleryImages.length > 0) {
@@ -2565,6 +2617,7 @@ export function CatalogHomeClient({ feed }: Props) {
     if (!selectedVehicle) {
       return {
         general: [] as Array<[string, string]>,
+        descripcion: [] as Array<[string, string]>,
         tecnica: [] as Array<[string, string]>,
       };
     }
@@ -2669,6 +2722,7 @@ export function CatalogHomeClient({ feed }: Props) {
             ]),
         },
       ]),
+      descripcion: [] as Array<[string, string]>,
       tecnica: toPairs([
         {
           label: "Kilometraje",
@@ -6195,20 +6249,20 @@ export function CatalogHomeClient({ feed }: Props) {
                 <div>
                   <h3 className="text-xl font-bold text-slate-900">{selectedVehicle.title}</h3>
                   <p className="text-sm text-slate-500">{selectedVehicle.subtitle ?? "Vehículo en catálogo"}</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <span className="rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-800">
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span className="whitespace-nowrap rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-800">
                       Patente {getPatent(selectedVehicle)}
                     </span>
+                    {selectedVehicle.view3dUrl ? (
+                      <span className="whitespace-nowrap rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-800">
+                        Visor 3D disponible
+                      </span>
+                    ) : null}
                     {selectedVehicleConditionLabel ? (
                       <span
                         className={`rounded-full border px-3 py-1 text-xs font-semibold ${selectedVehicleConditionClasses}`}
                       >
                         {selectedVehicleConditionLabel}
-                      </span>
-                    ) : null}
-                    {selectedVehicle.view3dUrl ? (
-                      <span className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-800">
-                        Visor 3D disponible
                       </span>
                     ) : null}
                   </div>
@@ -6217,47 +6271,66 @@ export function CatalogHomeClient({ feed }: Props) {
                   <button
                     type="button"
                     onClick={() => toggleFavorite(selectedVehicleKey)}
-                    className={`ui-focus inline-flex items-center gap-1 rounded-full border px-3 py-2 text-xs font-semibold transition ${
+                    className={`ui-focus inline-flex h-9 w-9 items-center justify-center rounded-full border text-base transition ${
                       favoriteKeys.includes(selectedVehicleKey)
                         ? "border-amber-300 bg-amber-50 text-amber-700"
                         : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
                     }`}
+                    aria-label={favoriteKeys.includes(selectedVehicleKey) ? "Quitar de guardados" : "Guardar"}
+                    title={favoriteKeys.includes(selectedVehicleKey) ? "Quitar de guardados" : "Guardar"}
                   >
                     <span aria-hidden="true">{favoriteKeys.includes(selectedVehicleKey) ? "★" : "☆"}</span>
-                    {favoriteKeys.includes(selectedVehicleKey) ? "Guardado" : "Guardar"}
                   </button>
                   <button
                     type="button"
                     onClick={() => toggleCompare(selectedVehicleKey)}
-                    className={`ui-focus inline-flex items-center gap-1 rounded-full border px-3 py-2 text-xs font-semibold transition ${
+                    className={`ui-focus inline-flex h-9 w-9 items-center justify-center rounded-full border text-base font-semibold transition ${
                       compareKeys.includes(selectedVehicleKey)
                         ? "border-indigo-300 bg-indigo-50 text-indigo-700"
                         : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
                     }`}
+                    aria-label={compareKeys.includes(selectedVehicleKey) ? "Quitar de comparar" : "Comparar"}
+                    title={compareKeys.includes(selectedVehicleKey) ? "Quitar de comparar" : "Comparar"}
                   >
-                    <span aria-hidden="true">{compareKeys.includes(selectedVehicleKey) ? "✓" : "+"}</span>
-                    {compareKeys.includes(selectedVehicleKey) ? "Comparando" : "Comparar"}
+                    <span aria-hidden="true">+</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => {
                       void shareSelectedVehicle();
                     }}
-                    className="ui-focus rounded-full border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                    className="ui-focus inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-50"
+                    aria-label="Compartir"
+                    title="Compartir"
                   >
-                    Compartir
+                    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+                      <path d="M11.5 2.75H17.25V8.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M10.5 9.5L17 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M8 4.75H6.5A2.75 2.75 0 0 0 3.75 7.5v6A2.75 2.75 0 0 0 6.5 16.25h6A2.75 2.75 0 0 0 15.25 13.5V12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
                   </button>
                   <a
                     href={selectedVehicleWhatsappUrl}
                     target="_blank"
                     rel="noreferrer"
                     onClick={() => trackEvent("whatsapp_click_modal", { itemKey: selectedVehicleKey })}
-                    className="ui-focus inline-flex items-center gap-1.5 rounded-full bg-[#25D366] px-3 py-2 text-xs font-semibold text-white transition hover:brightness-95"
+                    className="ui-focus inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#25D366] text-white transition hover:brightness-95"
+                    aria-label={selectedVehiclePrimaryCtaLabel}
+                    title={selectedVehiclePrimaryCtaLabel}
                   >
-                    {selectedVehiclePrimaryCtaLabel}
+                    <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="currentColor" aria-hidden="true">
+                      <path d="M12.04 2C6.58 2 2.16 6.42 2.16 11.88c0 1.75.46 3.46 1.33 4.96L2 22l5.3-1.38a9.83 9.83 0 0 0 4.74 1.21h.01c5.45 0 9.87-4.42 9.87-9.88A9.87 9.87 0 0 0 12.04 2Zm0 18.03h-.01a8.13 8.13 0 0 1-4.14-1.14l-.3-.18-3.15.82.84-3.07-.2-.31a8.13 8.13 0 0 1-1.25-4.3c0-4.51 3.69-8.2 8.22-8.2 4.53 0 8.21 3.68 8.21 8.2 0 4.53-3.69 8.2-8.22 8.2Zm4.49-6.19c-.25-.12-1.49-.73-1.72-.81-.23-.09-.4-.12-.57.12-.17.25-.65.81-.8.97-.15.17-.29.19-.54.06-.25-.12-1.04-.38-1.99-1.22-.74-.66-1.24-1.48-1.39-1.72-.15-.25-.02-.38.11-.51.11-.11.25-.29.37-.44.12-.15.16-.25.25-.42.08-.17.04-.31-.02-.44-.06-.12-.57-1.37-.78-1.88-.21-.49-.42-.42-.57-.43h-.48c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.09 0 1.23.9 2.42 1.03 2.58.12.17 1.77 2.71 4.29 3.8.6.26 1.07.42 1.43.54.6.19 1.15.16 1.59.1.49-.07 1.49-.61 1.7-1.2.21-.59.21-1.1.15-1.2-.06-.1-.23-.16-.48-.28Z" />
+                    </svg>
                   </a>
-                  <button className="ui-focus hidden rounded-full border border-slate-300 px-4 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 md:inline-flex" onClick={closeSelectedVehicle}>
-                    Volver a resultados
+                  <button
+                    className="ui-focus hidden h-9 w-9 items-center justify-center rounded-full border border-slate-300 text-slate-600 transition hover:bg-slate-50 md:inline-flex"
+                    onClick={closeSelectedVehicle}
+                    aria-label="Volver a resultados"
+                    title="Volver a resultados"
+                  >
+                    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+                      <path d="M11.75 4.5L6.25 10l5.5 5.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
                   </button>
                 </div>
               </div>
@@ -6395,16 +6468,18 @@ export function CatalogHomeClient({ feed }: Props) {
                         Valor + gastos de impuesto y transferencia.
                       </p>
                     </div>
-                    <div className="mt-2 rounded-md border border-slate-200 bg-white p-3">
-                      <p className="text-xs uppercase tracking-wide text-slate-500">Descripción ampliada</p>
-                      <div
-                        className="mt-1 text-sm text-slate-700 [&_a]:text-cyan-700 [&_a]:underline [&_b]:font-bold [&_strong]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_p]:mb-2"
-                        dangerouslySetInnerHTML={{
-                          __html: formatExtendedDescriptionHtml(selectedVehicleExpandedDescription),
-                        }}
-                      />
-                    </div>
                   </>
+                ) : null}
+                {selectedVehicleTab === "descripcion" ? (
+                  <div className="mt-2 rounded-md border border-slate-200 bg-white p-3">
+                    <p className="text-xs uppercase tracking-wide text-slate-500">Descripción ampliada</p>
+                    <div
+                      className="mt-1 text-sm text-slate-700 [&_a]:text-cyan-700 [&_a]:underline [&_b]:font-bold [&_strong]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_p]:mb-2"
+                      dangerouslySetInnerHTML={{
+                        __html: formatExtendedDescriptionHtml(selectedVehicleExpandedDescription),
+                      }}
+                    />
+                  </div>
                 ) : null}
               </div>
             </div>
@@ -7582,6 +7657,45 @@ export function CatalogHomeClient({ feed }: Props) {
                         Link
                       </button>
                       <button type="button" onClick={() => runObservationsCommand("removeFormat")} className="ui-focus rounded border border-slate-300 px-2 py-1 text-xs text-slate-700">Limpiar estilo</button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          applyObservationsTemplate(DEFAULT_OBSERVATIONS_TEMPLATE_HTML);
+                          showSystemNotice("success", "Plantilla base aplicada", "Se cargó la plantilla de observaciones recomendada.");
+                        }}
+                        className="ui-focus rounded border border-indigo-300 bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-700"
+                      >
+                        Plantilla base
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          applyObservationsTemplate(observationsTemplateHtml || DEFAULT_OBSERVATIONS_TEMPLATE_HTML);
+                          showSystemNotice("success", "Plantilla cargada", "Se insertó la plantilla guardada en este navegador.");
+                        }}
+                        className="ui-focus rounded border border-cyan-300 bg-cyan-50 px-2 py-1 text-xs font-semibold text-cyan-700"
+                      >
+                        Usar plantilla guardada
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const editor = manualObservationsEditorRef.current;
+                          if (!editor || !editor.innerHTML.trim()) {
+                            showSystemNotice("error", "Plantilla vacía", "Escribe o pega contenido antes de guardar plantilla.");
+                            return;
+                          }
+                          const html = editor.innerHTML;
+                          setObservationsTemplateHtml(html);
+                          if (typeof window !== "undefined") {
+                            window.localStorage.setItem(OBSERVATIONS_TEMPLATE_STORAGE_KEY, html);
+                          }
+                          showSystemNotice("success", "Plantilla guardada", "La plantilla quedó guardada para próximos vehículos.");
+                        }}
+                        className="ui-focus rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700"
+                      >
+                        Guardar como plantilla
+                      </button>
                     </div>
                     <div
                       ref={manualObservationsEditorRef}
@@ -7592,7 +7706,7 @@ export function CatalogHomeClient({ feed }: Props) {
                       aria-label="Editor de observaciones con formato HTML"
                     />
                     <p className="text-xs text-slate-500">
-                      Puedes usar negritas, listas, colores, tamaño y tipo de letra. Se guarda como HTML.
+                      Puedes usar negritas, listas, colores, tamaño y tipo de letra. Se guarda como HTML y puedes reutilizar plantillas.
                     </p>
                   </div>
                 </div>

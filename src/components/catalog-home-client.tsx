@@ -550,7 +550,44 @@ function buildDetailsDraft(item: CatalogItem, override?: EditorVehicleDetails): 
     title: override?.title ?? item.title,
     subtitle: override?.subtitle ?? (item.subtitle ?? ""),
     patente: override?.patente ?? String(raw.patente ?? raw.PPU ?? ""),
-    vin: override?.vin ?? String(raw.vin ?? cav.vin ?? cav.numero_chasis ?? ""),
+    patenteVerifier:
+      override?.patenteVerifier ??
+      String(
+        getLookupValue(lookup, [
+          "patente_verifier",
+          "patente_dv",
+          "ppu_dv",
+          "dv",
+          "glo3d.patente_verifier",
+          "glo3d.ppu_dv",
+        ]) ?? "",
+      ),
+    vin:
+      override?.vin ??
+      String(getLookupValue(lookup, ["vin", "n_de_vin", "numero_chasis", "nro_chasis", "glo3d.n_de_vin"]) ?? raw.vin ?? cav.vin ?? cav.numero_chasis ?? ""),
+    nChasis:
+      override?.nChasis ??
+      String(
+        getLookupValue(lookup, ["n_de_chasis", "numero_chasis", "nro_chasis", "chasis", "glo3d.n_de_chasis"]) ?? "",
+      ),
+    nMotor:
+      override?.nMotor ??
+      String(getLookupValue(lookup, ["n_de_motor", "numero_motor", "motor_number", "ndm", "glo3d.n_de_motor", "glo3d.ndm"]) ?? ""),
+    nSerie:
+      override?.nSerie ??
+      String(getLookupValue(lookup, ["n_de_serie", "numero_serie", "serial_number", "nds", "glo3d.n_de_serie", "glo3d.nds"]) ?? ""),
+    nSiniestro:
+      override?.nSiniestro ??
+      String(getLookupValue(lookup, ["n_de_siniestro", "numero_siniestro", "n_s", "ns", "glo3d.n_de_siniestro", "glo3d.n_s"]) ?? ""),
+    version:
+      override?.version ??
+      String(getLookupValue(lookup, ["version", "ver", "trim", "glo3d.version", "glo3d.trim"]) ?? ""),
+    tipo:
+      override?.tipo ??
+      String(getLookupValue(lookup, ["tipo", "type", "tipo_unidad", "glo3d.tipo"]) ?? ""),
+    tipoVehiculo:
+      override?.tipoVehiculo ??
+      String(getLookupValue(lookup, ["tipo_de_vehiculo", "tipo_vehiculo", "vehicle_type", "glo3d.tipo_de_vehiculo"]) ?? ""),
     vehicleCondition:
       override?.vehicleCondition ??
       String(
@@ -569,6 +606,15 @@ function buildDetailsDraft(item: CatalogItem, override?: EditorVehicleDetails): 
       ),
     status: override?.status ?? (item.status ?? ""),
     location: override?.location ?? (item.location ?? ""),
+    ubicacionFisica:
+      override?.ubicacionFisica ??
+      String(getLookupValue(lookup, ["ubicacion_fisica", "ubi", "ubicacion", "location", "glo3d.ubicacion_fisica"]) ?? ""),
+    transportista:
+      override?.transportista ??
+      String(getLookupValue(lookup, ["transportista", "tra", "glo3d.transportista"]) ?? ""),
+    taller:
+      override?.taller ??
+      String(getLookupValue(lookup, ["taller", "tal", "glo3d.taller"]) ?? ""),
     lot: override?.lot ?? (item.lot ?? ""),
     auctionDate: override?.auctionDate ?? (item.auctionDate ?? ""),
     description: override?.description ?? String(raw.descripcion ?? raw.description ?? ""),
@@ -588,9 +634,9 @@ function buildDetailsDraft(item: CatalogItem, override?: EditorVehicleDetails): 
           "cav_campos.descripcion",
         ]) ?? "",
       ),
-    brand: override?.brand ?? String(raw.marca ?? raw.brand ?? ""),
-    model: override?.model ?? String(raw.modelo ?? raw.model ?? ""),
-    year: override?.year ?? String(raw.ano ?? raw.anio ?? raw.year ?? ""),
+    brand: override?.brand ?? String(getLookupValue(lookup, ["marca", "brand", "make", "glo3d.make"]) ?? raw.marca ?? raw.brand ?? ""),
+    model: override?.model ?? String(getLookupValue(lookup, ["modelo", "model", "model2", "glo3d.model2"]) ?? raw.modelo ?? raw.model ?? ""),
+    year: override?.year ?? String(getLookupValue(lookup, ["ano", "anio", "year", "glo3d.year"]) ?? raw.ano ?? raw.anio ?? raw.year ?? ""),
     category: override?.category ?? String(raw.categoria ?? ""),
     kilometraje: override?.kilometraje ?? String(raw.kilometraje ?? cav.kilometraje ?? cav.km ?? ""),
     color: override?.color ?? String(raw.color ?? cav.color ?? ""),
@@ -599,6 +645,49 @@ function buildDetailsDraft(item: CatalogItem, override?: EditorVehicleDetails): 
     traccion: override?.traccion ?? String(raw.traccion ?? cav.traccion ?? ""),
     aro: override?.aro ?? String(raw.aro ?? cav.aro ?? ""),
     cilindrada: override?.cilindrada ?? String(raw.cilindrada ?? cav.cilindrada ?? ""),
+    llaves:
+      override?.llaves ??
+      String(getLookupValue(lookup, ["llaves", "keys", "has_keys", "tiene_llaves", "glo3d.llaves"]) ?? ""),
+    aireAcondicionado:
+      override?.aireAcondicionado ??
+      String(getLookupValue(lookup, ["aire_acondicionado", "air_conditioning", "has_ac", "ac", "glo3d.aire_acondicionado"]) ?? ""),
+    unicoPropietario:
+      override?.unicoPropietario ??
+      String(getLookupValue(lookup, ["unico_propietario", "single_owner", "one_owner", "glo3d.unico_propietario"]) ?? ""),
+    condicionado:
+      override?.condicionado ??
+      String(getLookupValue(lookup, ["condicionado", "conditioned", "acondicionado", "glo3d.condicionado"]) ?? ""),
+    multas:
+      override?.multas ??
+      String(getLookupValue(lookup, ["multas", "mul", "glo3d.multas"]) ?? ""),
+    tag: override?.tag ?? String(getLookupValue(lookup, ["tag", "glo3d.tag"]) ?? ""),
+    vencRevisionTecnica:
+      override?.vencRevisionTecnica ??
+      String(getLookupValue(lookup, ["vencimiento_revision_tecnica", "vrt", "glo3d.vencimiento_revision_tecnica"]) ?? ""),
+    vencPermisoCirculacion:
+      override?.vencPermisoCirculacion ??
+      String(getLookupValue(lookup, ["vencimiento_permiso_circulacion", "vpc", "glo3d.vencimiento_permiso_circulacion"]) ?? ""),
+    vencSeguroObligatorio:
+      override?.vencSeguroObligatorio ??
+      String(getLookupValue(lookup, ["vencimiento_seguro_obligatorio", "vso", "glo3d.vencimiento_seguro_obligatorio"]) ?? ""),
+    pruebaMotor:
+      override?.pruebaMotor ??
+      String(getLookupValue(lookup, ["prueba_motor", "pdm", "glo3d.prueba_motor"]) ?? ""),
+    pruebaDesplazamiento:
+      override?.pruebaDesplazamiento ??
+      String(getLookupValue(lookup, ["prueba_desplazamiento", "pdd", "glo3d.prueba_desplazamiento"]) ?? ""),
+    estadoAirbags:
+      override?.estadoAirbags ??
+      String(getLookupValue(lookup, ["estado_airbags", "eda", "glo3d.estado_airbags"]) ?? ""),
+    nombrePropietarioAnterior:
+      override?.nombrePropietarioAnterior ??
+      String(getLookupValue(lookup, ["nombre_propietario_anterior", "npa", "glo3d.nombre_propietario_anterior"]) ?? ""),
+    rutPropietarioAnterior:
+      override?.rutPropietarioAnterior ??
+      String(getLookupValue(lookup, ["rut_propietario_anterior", "rpa", "glo3d.rut_propietario_anterior"]) ?? ""),
+    rutVerificador:
+      override?.rutVerificador ??
+      String(getLookupValue(lookup, ["rut_verificador", "verifier_rut", "glo3d.rut_verificador"]) ?? ""),
     thumbnail: override?.thumbnail ?? (item.thumbnail ?? ""),
     view3dUrl: override?.view3dUrl ?? (item.view3dUrl ?? ""),
     imagesCsv: override?.imagesCsv ?? baseImages,
@@ -610,10 +699,21 @@ function sanitizeDetails(details: EditorVehicleDetails): EditorVehicleDetails | 
     title: cleanOptional(details.title),
     subtitle: cleanOptional(details.subtitle),
     patente: cleanOptional(details.patente),
+    patenteVerifier: cleanOptional(details.patenteVerifier),
     vin: cleanOptional(details.vin),
+    nChasis: cleanOptional(details.nChasis),
+    nMotor: cleanOptional(details.nMotor),
+    nSerie: cleanOptional(details.nSerie),
+    nSiniestro: cleanOptional(details.nSiniestro),
+    version: cleanOptional(details.version),
+    tipo: cleanOptional(details.tipo),
+    tipoVehiculo: cleanOptional(details.tipoVehiculo),
     vehicleCondition: cleanOptional(details.vehicleCondition),
     status: cleanOptional(details.status),
     location: cleanOptional(details.location),
+    ubicacionFisica: cleanOptional(details.ubicacionFisica),
+    transportista: cleanOptional(details.transportista),
+    taller: cleanOptional(details.taller),
     lot: cleanOptional(details.lot),
     auctionDate: cleanOptional(details.auctionDate),
     description: cleanOptional(details.description),
@@ -629,6 +729,21 @@ function sanitizeDetails(details: EditorVehicleDetails): EditorVehicleDetails | 
     traccion: cleanOptional(details.traccion),
     aro: cleanOptional(details.aro),
     cilindrada: cleanOptional(details.cilindrada),
+    llaves: cleanOptional(details.llaves),
+    aireAcondicionado: cleanOptional(details.aireAcondicionado),
+    unicoPropietario: cleanOptional(details.unicoPropietario),
+    condicionado: cleanOptional(details.condicionado),
+    multas: cleanOptional(details.multas),
+    tag: cleanOptional(details.tag),
+    vencRevisionTecnica: cleanOptional(details.vencRevisionTecnica),
+    vencPermisoCirculacion: cleanOptional(details.vencPermisoCirculacion),
+    vencSeguroObligatorio: cleanOptional(details.vencSeguroObligatorio),
+    pruebaMotor: cleanOptional(details.pruebaMotor),
+    pruebaDesplazamiento: cleanOptional(details.pruebaDesplazamiento),
+    estadoAirbags: cleanOptional(details.estadoAirbags),
+    nombrePropietarioAnterior: cleanOptional(details.nombrePropietarioAnterior),
+    rutPropietarioAnterior: cleanOptional(details.rutPropietarioAnterior),
+    rutVerificador: cleanOptional(details.rutVerificador),
     thumbnail: cleanOptional(details.thumbnail),
     view3dUrl: cleanOptional(details.view3dUrl),
     imagesCsv: cleanOptional(details.imagesCsv),
@@ -655,7 +770,15 @@ function applyDetailsOverride(item: CatalogItem, override?: EditorVehicleDetails
     raw: {
       ...item.raw,
       ...(override.patente ? { patente: override.patente, PPU: override.patente } : {}),
+      ...(override.patenteVerifier ? { patente_verifier: override.patenteVerifier, ppu_dv: override.patenteVerifier, dv: override.patenteVerifier } : {}),
       ...(override.vin ? { vin: override.vin } : {}),
+      ...(override.nChasis ? { n_de_chasis: override.nChasis, numero_chasis: override.nChasis, nro_chasis: override.nChasis, chasis: override.nChasis } : {}),
+      ...(override.nMotor ? { n_de_motor: override.nMotor, numero_motor: override.nMotor, ndm: override.nMotor } : {}),
+      ...(override.nSerie ? { n_de_serie: override.nSerie, numero_serie: override.nSerie, nds: override.nSerie } : {}),
+      ...(override.nSiniestro ? { n_de_siniestro: override.nSiniestro, numero_siniestro: override.nSiniestro, n_s: override.nSiniestro, ns: override.nSiniestro } : {}),
+      ...(override.version ? { version: override.version, ver: override.version, trim: override.version } : {}),
+      ...(override.tipo ? { tipo: override.tipo, type: override.tipo } : {}),
+      ...(override.tipoVehiculo ? { tipo_de_vehiculo: override.tipoVehiculo, tipo_vehiculo: override.tipoVehiculo, vehicle_type: override.tipoVehiculo } : {}),
       ...(override.vehicleCondition
         ? {
             condicion: override.vehicleCondition,
@@ -678,6 +801,25 @@ function applyDetailsOverride(item: CatalogItem, override?: EditorVehicleDetails
       ...(override.traccion ? { traccion: override.traccion } : {}),
       ...(override.aro ? { aro: override.aro } : {}),
       ...(override.cilindrada ? { cilindrada: override.cilindrada } : {}),
+      ...(override.location ? { ubicacion: override.location } : {}),
+      ...(override.ubicacionFisica ? { ubicacion_fisica: override.ubicacionFisica, ubi: override.ubicacionFisica } : {}),
+      ...(override.transportista ? { transportista: override.transportista, tra: override.transportista } : {}),
+      ...(override.taller ? { taller: override.taller, tal: override.taller } : {}),
+      ...(override.llaves ? { llaves: override.llaves } : {}),
+      ...(override.aireAcondicionado ? { aire_acondicionado: override.aireAcondicionado } : {}),
+      ...(override.unicoPropietario ? { unico_propietario: override.unicoPropietario } : {}),
+      ...(override.condicionado ? { condicionado: override.condicionado } : {}),
+      ...(override.multas ? { multas: override.multas, mul: override.multas } : {}),
+      ...(override.tag ? { tag: override.tag } : {}),
+      ...(override.vencRevisionTecnica ? { vencimiento_revision_tecnica: override.vencRevisionTecnica, vrt: override.vencRevisionTecnica } : {}),
+      ...(override.vencPermisoCirculacion ? { vencimiento_permiso_circulacion: override.vencPermisoCirculacion, vpc: override.vencPermisoCirculacion } : {}),
+      ...(override.vencSeguroObligatorio ? { vencimiento_seguro_obligatorio: override.vencSeguroObligatorio, vso: override.vencSeguroObligatorio } : {}),
+      ...(override.pruebaMotor ? { prueba_motor: override.pruebaMotor, pdm: override.pruebaMotor } : {}),
+      ...(override.pruebaDesplazamiento ? { prueba_desplazamiento: override.pruebaDesplazamiento, pdd: override.pruebaDesplazamiento } : {}),
+      ...(override.estadoAirbags ? { estado_airbags: override.estadoAirbags, eda: override.estadoAirbags } : {}),
+      ...(override.nombrePropietarioAnterior ? { nombre_propietario_anterior: override.nombrePropietarioAnterior, npa: override.nombrePropietarioAnterior } : {}),
+      ...(override.rutPropietarioAnterior ? { rut_propietario_anterior: override.rutPropietarioAnterior, rpa: override.rutPropietarioAnterior } : {}),
+      ...(override.rutVerificador ? { rut_verificador: override.rutVerificador, verifier_rut: override.rutVerificador } : {}),
     },
   };
 }
@@ -4519,44 +4661,18 @@ export function CatalogHomeClient({ feed }: Props) {
                   Prueba con “Livianos”, quita filtros activos o busca por patente exacta (ej: SYGD93).
                 </div>
               ) : (
-                <>
-                  <div className="md:hidden">
-                    <HorizontalCardsRail
-                      sectionKey="catalogo"
-                      items={filteredCatalogItems}
-                      priceMap={config.vehiclePrices}
-                      upcomingAuctionByVehicleKey={upcomingAuctionByVehicleKey}
-                      favoriteKeys={favoriteKeys}
-                      onToggleFavorite={toggleFavorite}
-                      compareKeys={compareKeys}
-                      onToggleCompare={toggleCompare}
-                      onOpenVehicle={openVehicleDetail}
-                      cardDensity={cardDensity}
-                    />
-                  </div>
-                  <div className="hidden gap-6 md:grid md:grid-cols-2 xl:grid-cols-3">
-                    {filteredCatalogItems.map((item) => (
-                      <CatalogCard
-                        key={`catalog-${item.id}`}
-                        item={item}
-                        density={cardDensity}
-                        priceLabel={formatPrice(config.vehiclePrices[getVehicleKey(item)])}
-                        upcomingAuctionLabel={upcomingAuctionByVehicleKey[getVehicleKey(item)]}
-                        onOpen={() => openVehicleDetail(item)}
-                        isFavorite={favoriteKeys.includes(getVehicleKey(item))}
-                        onToggleFavorite={() => toggleFavorite(getVehicleKey(item))}
-                        isCompared={compareKeys.includes(getVehicleKey(item))}
-                        onToggleCompare={() => toggleCompare(getVehicleKey(item))}
-                        onWhatsappClick={() =>
-                          trackEvent("whatsapp_click_card", {
-                            section: "catalogo",
-                            itemKey: getVehicleKey(item),
-                          })
-                        }
-                      />
-                    ))}
-                  </div>
-                </>
+                <HorizontalCardsRail
+                  sectionKey="catalogo"
+                  items={filteredCatalogItems}
+                  priceMap={config.vehiclePrices}
+                  upcomingAuctionByVehicleKey={upcomingAuctionByVehicleKey}
+                  favoriteKeys={favoriteKeys}
+                  onToggleFavorite={toggleFavorite}
+                  compareKeys={compareKeys}
+                  onToggleCompare={toggleCompare}
+                  onOpenVehicle={openVehicleDetail}
+                  cardDensity={cardDensity}
+                />
               )}
             </section>
           );
@@ -5868,69 +5984,133 @@ export function CatalogHomeClient({ feed }: Props) {
             </div>
 
             {detailEditorTab === "general" ? (
-              <div className="grid gap-3 md:grid-cols-2">
-                <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Patente" value={editingDetails.patente ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), patente: event.target.value }))} />
-                <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="VIN" value={editingDetails.vin ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), vin: event.target.value }))} />
-                <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Marca" value={editingDetails.brand ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), brand: event.target.value }))} />
-                <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Modelo" value={editingDetails.model ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), model: event.target.value }))} />
-                <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Año" value={editingDetails.year ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), year: event.target.value }))} />
-                <select
-                  className="rounded border border-slate-300 px-3 py-2 text-sm"
-                  value={normalizeVehicleCategoryValue(editingDetails.category ?? "")}
-                  onChange={(event) =>
-                    setEditingDetails((prev) => ({
-                      ...(prev ?? {}),
-                      category: event.target.value,
-                    }))
-                  }
-                >
-                  <option value="">Categoría</option>
-                  {VEHICLE_CATEGORY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+              <div className="space-y-4">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Identificación y trazabilidad
+                  </p>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Patente" value={editingDetails.patente ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), patente: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Patente verificador (DV)" value={editingDetails.patenteVerifier ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), patenteVerifier: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="VIN" value={editingDetails.vin ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), vin: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="N° Chasis" value={editingDetails.nChasis ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), nChasis: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="N° Motor" value={editingDetails.nMotor ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), nMotor: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="N° Serie" value={editingDetails.nSerie ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), nSerie: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="N° de siniestro" value={editingDetails.nSiniestro ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), nSiniestro: event.target.value }))} />
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Clasificación comercial
+                  </p>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Marca" value={editingDetails.brand ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), brand: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Modelo" value={editingDetails.model ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), model: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Año" value={editingDetails.year ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), year: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Versión (ver / trim)" value={editingDetails.version ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), version: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Tipo de vehículo" value={editingDetails.tipoVehiculo ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), tipoVehiculo: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Tipo" value={editingDetails.tipo ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), tipo: event.target.value }))} />
+                    <select
+                      className="rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2"
+                      value={normalizeVehicleCategoryValue(editingDetails.category ?? "")}
+                      onChange={(event) =>
+                        setEditingDetails((prev) => ({
+                          ...(prev ?? {}),
+                          category: event.target.value,
+                        }))
+                      }
+                    >
+                      <option value="">Categoría</option>
+                      {VEHICLE_CATEGORY_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
               </div>
             ) : (
-              <div className="grid gap-3 md:grid-cols-2">
-                <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Kilometraje / KM" value={editingDetails.kilometraje ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), kilometraje: event.target.value }))} />
-                <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Color" value={editingDetails.color ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), color: event.target.value }))} />
-                <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Combustible" value={editingDetails.combustible ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), combustible: event.target.value }))} />
-                <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Transmisión" value={editingDetails.transmision ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), transmision: event.target.value }))} />
-                <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Tracción" value={editingDetails.traccion ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), traccion: event.target.value }))} />
-                <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Aro" value={editingDetails.aro ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), aro: event.target.value }))} />
-                <input className="rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Cilindrada" value={editingDetails.cilindrada ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), cilindrada: event.target.value }))} />
+              <div className="space-y-4">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Mecánica y configuración
+                  </p>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Kilometraje / KM" value={editingDetails.kilometraje ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), kilometraje: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Color" value={editingDetails.color ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), color: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Combustible" value={editingDetails.combustible ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), combustible: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Transmisión" value={editingDetails.transmision ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), transmision: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Tracción" value={editingDetails.traccion ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), traccion: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Aro" value={editingDetails.aro ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), aro: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Cilindrada" value={editingDetails.cilindrada ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), cilindrada: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Estado de airbags" value={editingDetails.estadoAirbags ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), estadoAirbags: event.target.value }))} />
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Pruebas y condición operativa
+                  </p>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Llaves (SI/NO)" value={editingDetails.llaves ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), llaves: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Aire acondicionado (SI/NO)" value={editingDetails.aireAcondicionado ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), aireAcondicionado: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Único propietario (SI/NO)" value={editingDetails.unicoPropietario ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), unicoPropietario: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Condicionado (SI/NO)" value={editingDetails.condicionado ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), condicionado: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Prueba de motor (SI/NO)" value={editingDetails.pruebaMotor ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), pruebaMotor: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Prueba de desplazamiento (SI/NO)" value={editingDetails.pruebaDesplazamiento ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), pruebaDesplazamiento: event.target.value }))} />
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Documentación y logística
+                  </p>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Ubicación física" value={editingDetails.ubicacionFisica ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), ubicacionFisica: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Transportista" value={editingDetails.transportista ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), transportista: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Taller" value={editingDetails.taller ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), taller: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Multas" value={editingDetails.multas ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), multas: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="TAG" value={editingDetails.tag ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), tag: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Vencimiento revisión técnica" value={editingDetails.vencRevisionTecnica ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), vencRevisionTecnica: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Vencimiento permiso circulación" value={editingDetails.vencPermisoCirculacion ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), vencPermisoCirculacion: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Vencimiento seguro obligatorio" value={editingDetails.vencSeguroObligatorio ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), vencSeguroObligatorio: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Nombre propietario anterior" value={editingDetails.nombrePropietarioAnterior ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), nombrePropietarioAnterior: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="RUT propietario anterior" value={editingDetails.rutPropietarioAnterior ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), rutPropietarioAnterior: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="RUT verificador" value={editingDetails.rutVerificador ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), rutVerificador: event.target.value }))} />
+                  </div>
+                </div>
               </div>
             )}
 
-            <p className="mt-4 mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Campos editoriales opcionales</p>
-            <div className="grid gap-3 md:grid-cols-2">
-              <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Titulo" value={editingDetails.title ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), title: event.target.value }))} />
-              <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Subtitulo" value={editingDetails.subtitle ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), subtitle: event.target.value }))} />
-              <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Estado" value={editingDetails.status ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), status: event.target.value }))} />
-              <select
-                className="rounded border border-slate-300 px-3 py-2 text-sm"
-                value={editingDetails.vehicleCondition ?? ""}
-                onChange={(event) =>
-                  setEditingDetails((prev) => ({ ...(prev ?? {}), vehicleCondition: event.target.value }))
-                }
-              >
-                <option value="">Condición del vehículo</option>
-                {VEHICLE_CONDITION_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-              <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Ubicacion" value={editingDetails.location ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), location: event.target.value }))} />
-              <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Lote" value={editingDetails.lot ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), lot: event.target.value }))} />
-              <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Fecha remate" value={editingDetails.auctionDate ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), auctionDate: event.target.value }))} />
-              <input className="rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Imagen principal URL" value={editingDetails.thumbnail ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), thumbnail: event.target.value }))} />
-              <input className="rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Visor 3D URL" value={editingDetails.view3dUrl ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), view3dUrl: event.target.value }))} />
-              <textarea className="min-h-20 rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Descripcion" value={editingDetails.description ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), description: event.target.value }))} />
-              <textarea className="min-h-24 rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Descripción ampliada (admite HTML: <p>, <br>, <strong>, <ul>, <li>, <a>)" value={editingDetails.extendedDescription ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), extendedDescription: event.target.value }))} />
-              <textarea className="min-h-20 rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="URLs de galeria separadas por coma" value={editingDetails.imagesCsv ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), imagesCsv: event.target.value }))} />
+            <div className="mt-4 rounded-xl border border-cyan-100 bg-cyan-50/40 p-3">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-cyan-700">
+                Configuración editorial y comercial
+              </p>
+              <p className="mb-3 text-xs text-cyan-900/80">
+                Esta sección concentra estado comercial, narrativa y campos de publicación.
+                Los links crudos de Glo3D se administran automáticamente y están ocultos para evitar confusión.
+              </p>
+              <div className="grid gap-3 md:grid-cols-2">
+                <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Estado" value={editingDetails.status ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), status: event.target.value }))} />
+                <select
+                  className="rounded border border-slate-300 px-3 py-2 text-sm"
+                  value={editingDetails.vehicleCondition ?? ""}
+                  onChange={(event) =>
+                    setEditingDetails((prev) => ({ ...(prev ?? {}), vehicleCondition: event.target.value }))
+                  }
+                >
+                  <option value="">Condición del vehículo</option>
+                  {VEHICLE_CONDITION_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+                <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Ubicación comercial" value={editingDetails.location ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), location: event.target.value }))} />
+                <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Lote" value={editingDetails.lot ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), lot: event.target.value }))} />
+                <input className="rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Fecha remate" value={editingDetails.auctionDate ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), auctionDate: event.target.value }))} />
+                <textarea className="min-h-20 rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Descripción corta" value={editingDetails.description ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), description: event.target.value }))} />
+                <textarea className="min-h-24 rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Descripción ampliada (admite HTML: <p>, <br>, <strong>, <ul>, <li>, <a>)" value={editingDetails.extendedDescription ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), extendedDescription: event.target.value }))} />
+              </div>
             </div>
 
             <div className="mt-4 flex justify-end gap-2">

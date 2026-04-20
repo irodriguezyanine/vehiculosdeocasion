@@ -23,15 +23,35 @@ export async function POST(req: Request) {
     return Response.json({ ok: false, error: "No autorizado." }, { status: 401 });
   }
 
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-  const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET;
-  const apiKey = process.env.CLOUDINARY_API_KEY;
-  const apiSecret = process.env.CLOUDINARY_API_SECRET;
-  const folder = process.env.CLOUDINARY_FOLDER ?? "vedisa/catalogo";
+  const cloudName =
+    process.env.CLOUDINARY_CLOUD_NAME ??
+    process.env.VITE_CLOUDINARY_CLOUD_NAME ??
+    process.env.CATALOG_CLOUDINARY_CLOUD_NAME;
+  const uploadPreset =
+    process.env.CLOUDINARY_UPLOAD_PRESET ??
+    process.env.VITE_CLOUDINARY_UPLOAD_PRESET ??
+    process.env.CATALOG_CLOUDINARY_UPLOAD_PRESET;
+  const apiKey =
+    process.env.CLOUDINARY_API_KEY ??
+    process.env.VITE_CLOUDINARY_API_KEY ??
+    process.env.CATALOG_CLOUDINARY_API_KEY;
+  const apiSecret =
+    process.env.CLOUDINARY_API_SECRET ??
+    process.env.VITE_CLOUDINARY_API_SECRET ??
+    process.env.CATALOG_CLOUDINARY_API_SECRET;
+  const folder =
+    process.env.CLOUDINARY_FOLDER ??
+    process.env.VITE_CLOUDINARY_FOLDER ??
+    process.env.CATALOG_CLOUDINARY_FOLDER ??
+    "vedisa/catalogo";
 
   if (!cloudName) {
     return Response.json(
-      { ok: false, error: "Falta CLOUDINARY_CLOUD_NAME en variables de entorno." },
+      {
+        ok: false,
+        error:
+          "Falta Cloudinary Cloud Name. Configura CLOUDINARY_CLOUD_NAME o VITE_CLOUDINARY_CLOUD_NAME.",
+      },
       { status: 400 },
     );
   }

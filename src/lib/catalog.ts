@@ -490,13 +490,130 @@ function normalizeGlo3dUrl(value: string): string {
   return value;
 }
 
-async function fetchGlo3dByStocks(stocks: string[]): Promise<Map<string, string>> {
+type Glo3dInventoryEntry = {
+  view3dUrl?: string;
+  technicalFields: Record<string, unknown>;
+  raw: Record<string, unknown>;
+};
+
+function normalizeGlo3dTechnicalFields(
+  glo3dRaw: Record<string, unknown>,
+): Record<string, unknown> {
+  const flat = flattenObject(glo3dRaw);
+  const merged = { ...glo3dRaw, ...flat };
+  const result: Record<string, unknown> = {};
+
+  const patenteVerifier = pickString(merged, [
+    "patente_verifier",
+    "patente_dv",
+    "ppu_dv",
+    "dv",
+    "verificador",
+  ]);
+  const marca = pickString(merged, ["marca", "brand", "make", "original_brand_name"]);
+  const tipo = pickString(merged, ["tipo", "type", "condition_type", "tipo_unidad"]);
+  const modelo = pickString(merged, ["modelo", "model", "original_model_name", "showName"]);
+  const color = pickString(merged, ["color", "color_exterior", "color_vehiculo", "exterior_color"]);
+  const combustible = pickString(merged, ["combustible", "tipo_combustible", "fuel", "fuel_type"]);
+  const llaves = pickString(merged, ["llaves", "keys", "has_keys", "tiene_llaves"]);
+  const transmision = pickString(merged, [
+    "transmision",
+    "transmisión",
+    "caja",
+    "tipo_caja",
+    "transmission",
+    "gearbox",
+  ]);
+  const traccion = pickString(merged, [
+    "traccion",
+    "tracción",
+    "tipo_traccion",
+    "drivetrain",
+    "traction",
+  ]);
+  const aireAcondicionado = pickString(merged, [
+    "aire_acondicionado",
+    "ac",
+    "air_conditioning",
+    "has_ac",
+  ]);
+  const unicoPropietario = pickString(merged, [
+    "unico_propietario",
+    "único_propietario",
+    "single_owner",
+    "one_owner",
+  ]);
+  const condicionado = pickString(merged, [
+    "condicionado",
+    "conditioned",
+    "acondicionado",
+  ]);
+  const ano = pickString(merged, ["ano", "anio", "year", "fields_year"]);
+  const nombrePropietarioAnterior = pickString(merged, [
+    "nombre_propietario_anterior",
+    "previous_owner_name",
+    "owner_previous_name",
+  ]);
+  const rutPropietarioAnterior = pickString(merged, [
+    "rut_propietario_anterior",
+    "previous_owner_rut",
+    "owner_previous_rut",
+  ]);
+  const rutVerificador = pickString(merged, [
+    "rut_verificador",
+    "verifier_rut",
+    "rut_verifier",
+  ]);
+  const cilindrada = pickString(merged, ["cilindrada", "cc", "motor_cc", "engine_cc"]);
+  const tipoVehiculo = pickString(merged, [
+    "tipo_de_vehiculo",
+    "tipo_vehiculo",
+    "vehicle_type",
+    "vehicle_type_name",
+  ]);
+
+  if (patenteVerifier) result.patente_verifier = patenteVerifier;
+  if (marca) result.marca = marca;
+  if (tipo) result.tipo = tipo;
+  if (modelo) result.modelo = modelo;
+  if (color) result.color = color;
+  if (combustible) result.combustible = combustible;
+  if (llaves) result.llaves = llaves;
+  if (transmision) {
+    result.transmision = transmision;
+    result.caja = transmision;
+  }
+  if (traccion) result.traccion = traccion;
+  if (aireAcondicionado) result.aire_acondicionado = aireAcondicionado;
+  if (unicoPropietario) result.unico_propietario = unicoPropietario;
+  if (condicionado) result.condicionado = condicionado;
+  if (ano) {
+    result.ano = ano;
+    result.anio = ano;
+    result.year = ano;
+  }
+  if (nombrePropietarioAnterior) result.nombre_propietario_anterior = nombrePropietarioAnterior;
+  if (rutPropietarioAnterior) result.rut_propietario_anterior = rutPropietarioAnterior;
+  if (rutVerificador) result.rut_verificador = rutVerificador;
+  if (cilindrada) {
+    result.cilindrada = cilindrada;
+    result.cc = cilindrada;
+  }
+  if (tipoVehiculo) {
+    result.tipo_de_vehiculo = tipoVehiculo;
+    result.tipo_vehiculo = tipoVehiculo;
+  }
+
+  return result;
+}
+
+async function fetchGlo3dByStocks(stocks: string[]): Promise<Map<string, Glo3dInventoryEntry>> {
   const username = process.env.GLO3D_API_USERNAME ?? process.env.VITE_GLO3D_API_USERNAME;
   const password = process.env.GLO3D_API_PASSWORD ?? process.env.VITE_GLO3D_API_PASSWORD;
   if (!username || !password || stocks.length === 0) return new Map();
 
   const pending = new Set(stocks.map(normalizeStock).filter(Boolean));
-  const resolved = new Map<string, string>();
+  const resolved = new Map<string, Glo3dInventoryEntry>();
   const authHeader = `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`;
 
   let page = 0;
@@ -532,15 +649,54 @@ async function fetchGlo3dByStocks(stocks: string[]): Promise<Map<string, string>
         extractEmbedUrl(item.iframe_with_params) ??
         extractEmbedUrl(item.iframe);
 
+      const technicalFields = normalizeGlo3dTechnicalFields(item);
       const glo3dId = extractGlo3dId(embed);
+      const fallbackView3d = pickString(item, [
+        "url_3d",
+        "glo3d_url",
+        "iframe",
+        "iframe_with_params",
+        "src",
+        "src_with_params",
+      ]);
+      const view3dUrlFromRaw = extractEmbedUrl(fallbackView3d);
+
       if (glo3dId) {
-        resolved.set(stock, buildGlo3dIframeNovaUrl(glo3dId));
+        const view3dUrl = buildGlo3dIframeNovaUrl(glo3dId);
+        resolved.set(stock, {
+          view3dUrl,
+          technicalFields: {
+            ...technicalFields,
+            foto3d: view3dUrl,
+          },
+          raw: item,
+        });
         pending.delete(stock);
         continue;
       }
 
       if (embed && /(?:iframe|iframeNova)\//i.test(embed)) {
-        resolved.set(stock, normalizeGlo3dUrl(embed));
+        const view3dUrl = normalizeGlo3dUrl(embed);
+        resolved.set(stock, {
+          view3dUrl,
+          technicalFields: {
+            ...technicalFields,
+            foto3d: view3dUrl,
+          },
+          raw: item,
+        });
+        pending.delete(stock);
+        continue;
+      }
+
+      if (Object.keys(technicalFields).length > 0 || view3dUrlFromRaw) {
+        resolved.set(stock, {
+          view3dUrl: view3dUrlFromRaw,
+          technicalFields: view3dUrlFromRaw
+            ? { ...technicalFields, foto3d: view3dUrlFromRaw }
+            : technicalFields,
+          raw: item,
+        });
         pending.delete(stock);
       }
     }
@@ -550,6 +706,33 @@ async function fetchGlo3dByStocks(stocks: string[]): Promise<Map<string, string>
   }
 
   return resolved;
+}
+
+async function enrichWithGlo3dInventory(items: CatalogItem[]): Promise<CatalogItem[]> {
+  if (items.length === 0) return items;
+  const stocks = Array.from(
+    new Set(items.map(getItemStock).filter((value): value is string => !!value)),
+  );
+  if (stocks.length === 0) return items;
+
+  const glo3dMap = await fetchGlo3dByStocks(stocks);
+  if (glo3dMap.size === 0) return items;
+
+  return items.map((item) => {
+    const stock = getItemStock(item);
+    if (!stock) return item;
+    const glo3d = glo3dMap.get(stock);
+    if (!glo3d) return item;
+    const raw = item.raw as Record<string, unknown>;
+    return {
+      ...item,
+      view3dUrl: item.view3dUrl ?? glo3d.view3dUrl,
+      raw: {
+        ...mergeRawPreferPrimary(raw, glo3d.technicalFields),
+        glo3d: glo3d.raw,
+      },
+    };
+  });
 }
 
 function getItemStock(item: CatalogItem): string | undefined {
@@ -842,19 +1025,8 @@ export async function getCatalogFeed(): Promise<CatalogFeed> {
       const awsItems = await fetchFromAwsInventory().catch(() => []);
       const mergedItems = mergeCatalogItems(apiItems, awsItems);
       const enrichedItems = await enrichWithAutoredFallback(mergedItems);
-      const stocks = enrichedItems
-        .filter((item) => !item.view3dUrl)
-        .map(getItemStock)
-        .filter((value): value is string => !!value);
-      const glo3dMap = await fetchGlo3dByStocks(stocks);
-
-      const itemsWith3d = enrichedItems.map((item) => ({
-        ...item,
-        view3dUrl:
-          item.view3dUrl ??
-          glo3dMap.get(getItemStock(item) ?? ""),
-      }));
-      const filtered = filterEnBodega(itemsWith3d);
+      const glo3dEnrichedItems = await enrichWithGlo3dInventory(enrichedItems);
+      const filtered = filterEnBodega(glo3dEnrichedItems);
 
       return {
         source: resolvedSource,
@@ -871,18 +1043,8 @@ export async function getCatalogFeed(): Promise<CatalogFeed> {
     const mergedItems = mergeCatalogItems(supabaseItems, awsItems);
     const enrichedItems = await enrichWithAutoredFallback(mergedItems);
 
-    const stocks = enrichedItems
-      .filter((item) => !item.view3dUrl)
-      .map(getItemStock)
-      .filter((value): value is string => !!value);
-    const glo3dMap = await fetchGlo3dByStocks(stocks);
-    const itemsWith3d = enrichedItems.map((item) => ({
-      ...item,
-      view3dUrl:
-        item.view3dUrl ??
-        glo3dMap.get(getItemStock(item) ?? ""),
-    }));
-    const filtered = filterEnBodega(itemsWith3d);
+    const glo3dEnrichedItems = await enrichWithGlo3dInventory(enrichedItems);
+    const filtered = filterEnBodega(glo3dEnrichedItems);
 
     return {
       source: filtered.length > 0 ? "supabase" : "empty",

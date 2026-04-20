@@ -1868,9 +1868,30 @@ export function CatalogHomeClient({ feed }: Props) {
           entry.formatter ? entry.formatter(entry.value) : String(entry.value),
         ]);
 
+    const formatYesNo = (value: unknown): string => {
+      const sample = String(value ?? "").trim().toLowerCase();
+      if (["si", "sí", "yes", "y", "true", "1"].includes(sample)) return "Sí";
+      if (["no", "false", "0", "n"].includes(sample)) return "No";
+      return String(value);
+    };
+
     return {
       general: toPairs([
         { label: "Patente", value: getPatent(selectedVehicle) },
+        {
+          label: "Patente verificador",
+          value: getLookupValue(selectedVehicleLookup, [
+            "patente_verifier",
+            "patente_dv",
+            "ppu_dv",
+            "dv",
+            "verificador_patente",
+            "glo3d.patente_verifier",
+            "glo3d.patente_dv",
+            "glo3d.ppu_dv",
+            "glo3d.dv",
+          ]),
+        },
         {
           label: "VIN",
           value: getLookupValue(selectedVehicleLookup, [
@@ -1883,6 +1904,18 @@ export function CatalogHomeClient({ feed }: Props) {
         { label: "Marca", value: getLookupValue(selectedVehicleLookup, ["marca", "brand"]) ?? raw.marca },
         { label: "Modelo", value: getLookupValue(selectedVehicleLookup, ["modelo", "model"]) ?? getModel(selectedVehicle) },
         { label: "Año", value: getLookupValue(selectedVehicleLookup, ["ano", "anio", "year"]) },
+        {
+          label: "Tipo de vehículo",
+          value: getLookupValue(selectedVehicleLookup, [
+            "tipo_de_vehiculo",
+            "tipo_vehiculo",
+            "vehicle_type",
+            "vehicle_type_name",
+            "glo3d.tipo_de_vehiculo",
+            "glo3d.tipo_vehiculo",
+            "glo3d.vehicle_type",
+          ]),
+        },
         {
           label: "Categoría",
           value: getVehicleCategoryLabel(
@@ -1984,6 +2017,54 @@ export function CatalogHomeClient({ feed }: Props) {
           ]),
         },
         {
+          label: "Llaves",
+          value: getLookupValue(selectedVehicleLookup, [
+            "llaves",
+            "keys",
+            "has_keys",
+            "tiene_llaves",
+            "glo3d.llaves",
+            "glo3d.keys",
+            "glo3d.has_keys",
+          ]),
+          formatter: formatYesNo,
+        },
+        {
+          label: "Aire acondicionado",
+          value: getLookupValue(selectedVehicleLookup, [
+            "aire_acondicionado",
+            "air_conditioning",
+            "has_ac",
+            "ac",
+            "glo3d.aire_acondicionado",
+            "glo3d.air_conditioning",
+            "glo3d.has_ac",
+          ]),
+          formatter: formatYesNo,
+        },
+        {
+          label: "Único propietario",
+          value: getLookupValue(selectedVehicleLookup, [
+            "unico_propietario",
+            "único_propietario",
+            "single_owner",
+            "one_owner",
+            "glo3d.unico_propietario",
+            "glo3d.single_owner",
+          ]),
+          formatter: formatYesNo,
+        },
+        {
+          label: "Condicionado",
+          value: getLookupValue(selectedVehicleLookup, [
+            "condicionado",
+            "conditioned",
+            "acondicionado",
+            "glo3d.condicionado",
+          ]),
+          formatter: formatYesNo,
+        },
+        {
           label: "Aro",
           value: getLookupValue(selectedVehicleLookup, [
             "aro",
@@ -2011,6 +2092,60 @@ export function CatalogHomeClient({ feed }: Props) {
             "autored.motor_cc",
             "autored.engine_cc",
           ]),
+        },
+        {
+          label: "Tipo",
+          value: getLookupValue(selectedVehicleLookup, [
+            "tipo",
+            "type",
+            "tipo_unidad",
+            "condition_type",
+            "glo3d.tipo",
+            "glo3d.type",
+          ]),
+        },
+        {
+          label: "Nombre propietario anterior",
+          value: getLookupValue(selectedVehicleLookup, [
+            "nombre_propietario_anterior",
+            "previous_owner_name",
+            "owner_previous_name",
+            "glo3d.nombre_propietario_anterior",
+            "glo3d.previous_owner_name",
+          ]),
+        },
+        {
+          label: "RUT propietario anterior",
+          value: getLookupValue(selectedVehicleLookup, [
+            "rut_propietario_anterior",
+            "previous_owner_rut",
+            "owner_previous_rut",
+            "glo3d.rut_propietario_anterior",
+            "glo3d.previous_owner_rut",
+          ]),
+        },
+        {
+          label: "RUT verificador",
+          value: getLookupValue(selectedVehicleLookup, [
+            "rut_verificador",
+            "verifier_rut",
+            "rut_verifier",
+            "glo3d.rut_verificador",
+            "glo3d.verifier_rut",
+          ]),
+        },
+        {
+          label: "Foto 3D",
+          value:
+            selectedVehicle.view3dUrl ??
+            getLookupValue(selectedVehicleLookup, [
+              "foto3d",
+              "url_3d",
+              "glo3d_url",
+              "iframe",
+              "src",
+              "glo3d.foto3d",
+            ]),
         },
       ]),
     };
@@ -4192,28 +4327,44 @@ export function CatalogHomeClient({ feed }: Props) {
                   Prueba con “Livianos”, quita filtros activos o busca por patente exacta (ej: SYGD93).
                 </div>
               ) : (
-                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                  {filteredCatalogItems.map((item) => (
-                    <CatalogCard
-                      key={`catalog-${item.id}`}
-                      item={item}
-                      density={cardDensity}
-                      priceLabel={formatPrice(config.vehiclePrices[getVehicleKey(item)])}
-                      upcomingAuctionLabel={upcomingAuctionByVehicleKey[getVehicleKey(item)]}
-                      onOpen={() => openVehicleDetail(item)}
-                      isFavorite={favoriteKeys.includes(getVehicleKey(item))}
-                      onToggleFavorite={() => toggleFavorite(getVehicleKey(item))}
-                      isCompared={compareKeys.includes(getVehicleKey(item))}
-                      onToggleCompare={() => toggleCompare(getVehicleKey(item))}
-                      onWhatsappClick={() =>
-                        trackEvent("whatsapp_click_card", {
-                          section: "catalogo",
-                          itemKey: getVehicleKey(item),
-                        })
-                      }
+                <>
+                  <div className="md:hidden">
+                    <HorizontalCardsRail
+                      sectionKey="catalogo"
+                      items={filteredCatalogItems}
+                      priceMap={config.vehiclePrices}
+                      upcomingAuctionByVehicleKey={upcomingAuctionByVehicleKey}
+                      favoriteKeys={favoriteKeys}
+                      onToggleFavorite={toggleFavorite}
+                      compareKeys={compareKeys}
+                      onToggleCompare={toggleCompare}
+                      onOpenVehicle={openVehicleDetail}
+                      cardDensity={cardDensity}
                     />
-                  ))}
-                </div>
+                  </div>
+                  <div className="hidden gap-6 md:grid md:grid-cols-2 xl:grid-cols-3">
+                    {filteredCatalogItems.map((item) => (
+                      <CatalogCard
+                        key={`catalog-${item.id}`}
+                        item={item}
+                        density={cardDensity}
+                        priceLabel={formatPrice(config.vehiclePrices[getVehicleKey(item)])}
+                        upcomingAuctionLabel={upcomingAuctionByVehicleKey[getVehicleKey(item)]}
+                        onOpen={() => openVehicleDetail(item)}
+                        isFavorite={favoriteKeys.includes(getVehicleKey(item))}
+                        onToggleFavorite={() => toggleFavorite(getVehicleKey(item))}
+                        isCompared={compareKeys.includes(getVehicleKey(item))}
+                        onToggleCompare={() => toggleCompare(getVehicleKey(item))}
+                        onWhatsappClick={() =>
+                          trackEvent("whatsapp_click_card", {
+                            section: "catalogo",
+                            itemKey: getVehicleKey(item),
+                          })
+                        }
+                      />
+                    ))}
+                  </div>
+                </>
               )}
             </section>
           );

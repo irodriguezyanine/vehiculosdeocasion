@@ -6248,16 +6248,10 @@ export function CatalogHomeClient({ feed }: Props) {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h3 className="text-xl font-bold text-slate-900">{selectedVehicle.title}</h3>
-                  <p className="text-sm text-slate-500">{selectedVehicle.subtitle ?? "Vehículo en catálogo"}</p>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <span className="whitespace-nowrap rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-800">
-                      Patente {getPatent(selectedVehicle)}
+                      {selectedVehicle.subtitle?.trim() || getPatent(selectedVehicle)}
                     </span>
-                    {selectedVehicle.view3dUrl ? (
-                      <span className="whitespace-nowrap rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-800">
-                        Visor 3D disponible
-                      </span>
-                    ) : null}
                     {selectedVehicleConditionLabel ? (
                       <span
                         className={`rounded-full border px-3 py-1 text-xs font-semibold ${selectedVehicleConditionClasses}`}
@@ -6441,7 +6435,7 @@ export function CatalogHomeClient({ feed }: Props) {
                       </div>
                     </div>
                   )
-                ) : selectedVehicleFieldsByTab[selectedVehicleTab].length === 0 ? (
+                ) : selectedVehicleTab !== "descripcion" && selectedVehicleFieldsByTab[selectedVehicleTab].length === 0 ? (
                   <p className="rounded-md border border-dashed border-slate-300 bg-white p-3 text-sm text-slate-500">
                     No hay datos disponibles para esta pestaña.
                   </p>

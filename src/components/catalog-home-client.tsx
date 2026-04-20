@@ -4431,6 +4431,12 @@ export function CatalogHomeClient({ feed }: Props) {
                   <button
                     type="button"
                     onClick={() => {
+                      if (adminTab === "vehiculos" && editorGroupFilter === "all") {
+                        setManualDraft(EMPTY_MANUAL_PUBLICATION_DRAFT);
+                        setManualUploadedImages([]);
+                        setShowManualCreateModal(true);
+                        return;
+                      }
                       if (editorGroupFilter === "ventas-directas" || editorGroupFilter === "novedades" || editorGroupFilter === "catalogo") {
                         openBatchAssignModal({ type: "section", sectionId: editorGroupFilter });
                         return;
@@ -4454,8 +4460,8 @@ export function CatalogHomeClient({ feed }: Props) {
                       );
                     }}
                     className="ui-focus inline-flex h-full min-h-10 items-center justify-center rounded-md border border-cyan-300 bg-cyan-50 px-3 text-cyan-700 transition hover:bg-cyan-100"
-                    aria-label="Agregar unidades del inventario"
-                    title="Agregar unidades"
+                    aria-label="Agregar unidades del inventario o crear unidad manual"
+                    title="Agregar o crear unidad"
                   >
                     <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-cyan-600 text-xs text-white">
                       +

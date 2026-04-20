@@ -566,21 +566,35 @@ function formatAuctionDateLabel(value?: string): string {
   });
 }
 
-function formatAuctionUrgency(value?: string): string {
-  if (!value) return "Próximo remate: martes 21 abril · 15:00";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return `Próximo remate: ${value}`;
-  const diffMs = date.getTime() - Date.now();
-  if (diffMs <= 0) return "Próximo remate: hoy";
+function formatDateDash(value: Date): string {
+  const dd = String(value.getDate()).padStart(2, "0");
+  const mm = String(value.getMonth() + 1).padStart(2, "0");
+  const yyyy = value.getFullYear();
+  return `${dd}-${mm}-${yyyy}`;
+}
 
-  const totalHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const days = Math.floor(totalHours / 24);
-  const hours = totalHours % 24;
+function parseAuctionDateTime(auction: UpcomingAuction): Date | null {
+  const rawDate = (auction.date ?? "").trim();
+  if (!rawDate) return null;
+  const dateMatch = rawDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const baseDate = dateMatch
+    ? new Date(Number(dateMatch[1]), Number(dateMatch[2]) - 1, Number(dateMatch[3]), 0, 0, 0, 0)
+    : new Date(rawDate);
+  if (Number.isNaN(baseDate.getTime())) return null;
 
-  if (days > 0) {
-    return `Próximo remate en ${days} día${days === 1 ? "" : "s"} y ${hours} hora${hours === 1 ? "" : "s"}`;
+  const timeMatch = auction.name.match(/(\d{1,2}):(\d{2})/);
+  if (timeMatch) {
+    baseDate.setHours(Number(timeMatch[1]), Number(timeMatch[2]), 0, 0);
   }
-  return `Próximo remate en ${hours} hora${hours === 1 ? "" : "s"}`;
+
+  return baseDate;
+}
+
+function formatAuctionCountdownHours(targetDate: Date | null): string {
+  if (!targetDate) return "Próximo remate en 0 (Cuenta regresiva) horas";
+  const diffMs = targetDate.getTime() - Date.now();
+  const diffHours = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60)));
+  return `Próximo remate en ${diffHours} (Cuenta regresiva) horas`;
 }
 
 function isRecentAuctionDate(value?: string): boolean {
@@ -2157,14 +2171,15 @@ export function CatalogHomeClient({ feed }: Props) {
   const nextAuction = useMemo(() => {
     const today = new Date();
     const upcoming = sortedUpcomingAuctions
-      .map((auction) => ({ auction, date: new Date(auction.date) }))
+      .map((auction) => ({ auction, date: parseAuctionDateTime(auction) }))
+      .filter((entry): entry is { auction: UpcomingAuction; date: Date } => !!entry.date)
       .filter((entry) => !Number.isNaN(entry.date.getTime()) && entry.date.getTime() >= today.getTime())
       .sort((a, b) => a.date.getTime() - b.date.getTime());
     return upcoming[0] ?? null;
   }, [sortedUpcomingAuctions]);
 
   const nextAuctionUrgencyLabel = useMemo(
-    () => formatAuctionUrgency(nextAuction?.auction.date),
+    () => formatAuctionCountdownHours(nextAuction?.date ?? null),
     [nextAuction],
   );
 
@@ -5272,8 +5287,8 @@ export function CatalogHomeClient({ feed }: Props) {
         </section>
       ) : null}
       {config.homeLayout.showSearchBar ? (
-      <section className={`${config.homeLayout.showStickySearchBar ? "sticky top-[68px] sm:top-[72px] md:static" : "relative"} z-40 mx-auto w-full max-w-7xl px-3 pt-3 sm:px-6 lg:px-8`}>
-        <div className="glass-soft rounded-2xl border border-slate-300/80 bg-white/95 p-3 shadow-md md:p-4">
+      <section className={`${config.homeLayout.showStickySearchBar ? "sticky top-[68px] sm:top-[72px] md:relative" : "relative"} z-50 mx-auto w-full max-w-7xl px-3 pt-3 sm:px-6 lg:px-8`}>
+        <div className="glass-soft overflow-visible rounded-2xl border border-slate-300/80 bg-white/95 p-3 shadow-md md:p-4">
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
             <div className="w-full">
               <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
@@ -5331,7 +5346,7 @@ export function CatalogHomeClient({ feed }: Props) {
                       <path d="M4 5h12M6 10h8M8 15h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                     </svg>
                   </summary>
-                  <div className="absolute right-0 z-30 mt-2 w-44 rounded-lg border border-slate-200 bg-white p-1 shadow-lg">
+                  <div className="absolute right-0 z-50 mt-2 w-44 rounded-lg border border-slate-200 bg-white p-1 shadow-lg">
                     {([
                       ["recomendado", "Recomendado"],
                       ["relevancia", "Relevancia"],
@@ -5474,8 +5489,10 @@ export function CatalogHomeClient({ feed }: Props) {
               <span>{nextAuctionUrgencyLabel}</span>
               {nextAuction ? (
                 <>
-                  <span className="text-amber-800">·</span>
-                  <span>{nextAuction.auction.name} · {formatAuctionDateLabel(nextAuction.auction.date)}</span>
+                  <span className="text-amber-800">-</span>
+                  <span>{nextAuction.auction.name}</span>
+                  <span className="text-amber-800">-</span>
+                  <span>{formatDateDash(new Date())}</span>
                 </>
               ) : null}
             </div>

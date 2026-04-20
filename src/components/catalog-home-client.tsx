@@ -503,6 +503,75 @@ function formatExtendedDescriptionHtml(value?: string | null): string {
   return escapeHtml(normalized).replace(/\n/g, "<br />");
 }
 
+function normalizeBinaryToken(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "");
+}
+
+function isValidBinaryValue(value?: string): boolean {
+  if (!value?.trim()) return true;
+  const normalized = normalizeBinaryToken(value);
+  return [
+    "si",
+    "no",
+    "yes",
+    "true",
+    "false",
+    "1",
+    "0",
+    "s",
+    "n",
+  ].includes(normalized);
+}
+
+function isValidDateValue(value?: string): boolean {
+  if (!value?.trim()) return true;
+  const sample = value.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(sample)) {
+    const date = new Date(`${sample}T00:00:00`);
+    return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === sample;
+  }
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(sample)) {
+    const [dd, mm, yyyy] = sample.split("/").map(Number);
+    const date = new Date(yyyy, mm - 1, dd);
+    return (
+      !Number.isNaN(date.getTime()) &&
+      date.getFullYear() === yyyy &&
+      date.getMonth() === mm - 1 &&
+      date.getDate() === dd
+    );
+  }
+  return false;
+}
+
+function normalizeRut(value?: string): string {
+  return (value ?? "")
+    .replace(/\./g, "")
+    .replace(/\s+/g, "")
+    .toUpperCase();
+}
+
+function isValidRut(value?: string): boolean {
+  const rut = normalizeRut(value);
+  if (!rut) return true;
+  const match = rut.match(/^(\d{7,8})-?([\dK])$/);
+  if (!match) return false;
+  const body = match[1];
+  const dv = match[2];
+  let sum = 0;
+  let multiplier = 2;
+  for (let i = body.length - 1; i >= 0; i -= 1) {
+    sum += Number(body[i]) * multiplier;
+    multiplier = multiplier === 7 ? 2 : multiplier + 1;
+  }
+  const mod = 11 - (sum % 11);
+  const expected = mod === 11 ? "0" : mod === 10 ? "K" : String(mod);
+  return dv === expected;
+}
+
 function parseImagesCsv(value?: string): string[] {
   return (value ?? "")
     .split(",")
@@ -1387,6 +1456,67 @@ export function CatalogHomeClient({ feed }: Props) {
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const autoSaveReadyRef = useRef(false);
   const lastPersistedConfigRef = useRef("");
+
+  const editingValidationErrors = useMemo(() => {
+    const errors: Partial<Record<keyof EditorVehicleDetails, string>> = {};
+    if (!editingDetails) return errors;
+
+    const binaryFields: Array<keyof EditorVehicleDetails> = [
+      "llaves",
+      "aireAcondicionado",
+      "unicoPropietario",
+      "condicionado",
+      "pruebaMotor",
+      "pruebaDesplazamiento",
+    ];
+    for (const field of binaryFields) {
+      if (!isValidBinaryValue(editingDetails[field])) {
+        errors[field] = "Usa SI o NO.";
+      }
+    }
+
+    const dateFields: Array<keyof EditorVehicleDetails> = [
+      "auctionDate",
+      "vencRevisionTecnica",
+      "vencPermisoCirculacion",
+      "vencSeguroObligatorio",
+    ];
+    for (const field of dateFields) {
+      if (!isValidDateValue(editingDetails[field])) {
+        errors[field] = "Formato válido: YYYY-MM-DD o DD/MM/YYYY.";
+      }
+    }
+
+    const rutFields: Array<keyof EditorVehicleDetails> = [
+      "rutPropietarioAnterior",
+      "rutVerificador",
+    ];
+    for (const field of rutFields) {
+      if (!isValidRut(editingDetails[field])) {
+        errors[field] = "RUT inválido.";
+      }
+    }
+
+    return errors;
+  }, [editingDetails]);
+
+  const setEditingDetailField = (
+    field: keyof EditorVehicleDetails,
+    value: string,
+  ) => {
+    setEditingDetails((prev) => ({ ...(prev ?? {}), [field]: value }));
+  };
+
+  const getEditorInputClass = (field: keyof EditorVehicleDetails): string =>
+    `rounded border px-3 py-2 text-sm ${
+      editingValidationErrors[field]
+        ? "border-rose-400 bg-rose-50"
+        : "border-slate-300"
+    }`;
+
+  const getEditorFieldError = (field: keyof EditorVehicleDetails): string | null =>
+    editingValidationErrors[field] ?? null;
+
   const rawItems = feed.items;
   const updateVehicleUrlParam = useCallback((vehicleKey?: string) => {
     if (typeof window === "undefined") return;
@@ -3149,6 +3279,14 @@ export function CatalogHomeClient({ feed }: Props) {
 
   const saveDetailsEditor = () => {
     if (!editingVehicleKey || !editingDetails) return;
+    if (Object.keys(editingValidationErrors).length > 0) {
+      showSystemNotice(
+        "error",
+        "Campos inválidos",
+        "Corrige los campos marcados en rojo antes de guardar.",
+      );
+      return;
+    }
     const sanitized = sanitizeDetails(editingDetails);
     setConfig((prev) => {
       const nextDetails = { ...prev.vehicleDetails };
@@ -6052,12 +6190,42 @@ export function CatalogHomeClient({ feed }: Props) {
                     Pruebas y condición operativa
                   </p>
                   <div className="grid gap-3 md:grid-cols-2">
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Llaves (SI/NO)" value={editingDetails.llaves ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), llaves: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Aire acondicionado (SI/NO)" value={editingDetails.aireAcondicionado ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), aireAcondicionado: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Único propietario (SI/NO)" value={editingDetails.unicoPropietario ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), unicoPropietario: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Condicionado (SI/NO)" value={editingDetails.condicionado ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), condicionado: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Prueba de motor (SI/NO)" value={editingDetails.pruebaMotor ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), pruebaMotor: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Prueba de desplazamiento (SI/NO)" value={editingDetails.pruebaDesplazamiento ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), pruebaDesplazamiento: event.target.value }))} />
+                    {([
+                      ["llaves", "Llaves (SI/NO)"],
+                      ["aireAcondicionado", "Aire acondicionado (SI/NO)"],
+                      ["unicoPropietario", "Único propietario (SI/NO)"],
+                      ["condicionado", "Condicionado (SI/NO)"],
+                      ["pruebaMotor", "Prueba de motor (SI/NO)"],
+                      ["pruebaDesplazamiento", "Prueba de desplazamiento (SI/NO)"],
+                    ] as Array<[keyof EditorVehicleDetails, string]>).map(([field, label]) => (
+                      <div key={field} className="space-y-1">
+                        <div className="flex gap-2">
+                          <input
+                            className={`${getEditorInputClass(field)} flex-1`}
+                            placeholder={label}
+                            value={String(editingDetails[field] ?? "")}
+                            onChange={(event) => setEditingDetailField(field, event.target.value)}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setEditingDetailField(field, "SI")}
+                            className="ui-focus rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700"
+                          >
+                            SI
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingDetailField(field, "NO")}
+                            className="ui-focus rounded border border-rose-300 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700"
+                          >
+                            NO
+                          </button>
+                        </div>
+                        {getEditorFieldError(field) ? (
+                          <p className="text-xs text-rose-600">{getEditorFieldError(field)}</p>
+                        ) : null}
+                      </div>
+                    ))}
                   </div>
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
@@ -6070,12 +6238,27 @@ export function CatalogHomeClient({ feed }: Props) {
                     <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Taller" value={editingDetails.taller ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), taller: event.target.value }))} />
                     <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Multas" value={editingDetails.multas ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), multas: event.target.value }))} />
                     <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="TAG" value={editingDetails.tag ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), tag: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Vencimiento revisión técnica" value={editingDetails.vencRevisionTecnica ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), vencRevisionTecnica: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Vencimiento permiso circulación" value={editingDetails.vencPermisoCirculacion ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), vencPermisoCirculacion: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Vencimiento seguro obligatorio" value={editingDetails.vencSeguroObligatorio ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), vencSeguroObligatorio: event.target.value }))} />
+                    <div className="space-y-1">
+                      <input className={getEditorInputClass("vencRevisionTecnica")} placeholder="Vencimiento revisión técnica" value={editingDetails.vencRevisionTecnica ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), vencRevisionTecnica: event.target.value }))} />
+                      {getEditorFieldError("vencRevisionTecnica") ? <p className="text-xs text-rose-600">{getEditorFieldError("vencRevisionTecnica")}</p> : null}
+                    </div>
+                    <div className="space-y-1">
+                      <input className={getEditorInputClass("vencPermisoCirculacion")} placeholder="Vencimiento permiso circulación" value={editingDetails.vencPermisoCirculacion ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), vencPermisoCirculacion: event.target.value }))} />
+                      {getEditorFieldError("vencPermisoCirculacion") ? <p className="text-xs text-rose-600">{getEditorFieldError("vencPermisoCirculacion")}</p> : null}
+                    </div>
+                    <div className="space-y-1">
+                      <input className={getEditorInputClass("vencSeguroObligatorio")} placeholder="Vencimiento seguro obligatorio" value={editingDetails.vencSeguroObligatorio ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), vencSeguroObligatorio: event.target.value }))} />
+                      {getEditorFieldError("vencSeguroObligatorio") ? <p className="text-xs text-rose-600">{getEditorFieldError("vencSeguroObligatorio")}</p> : null}
+                    </div>
                     <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Nombre propietario anterior" value={editingDetails.nombrePropietarioAnterior ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), nombrePropietarioAnterior: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="RUT propietario anterior" value={editingDetails.rutPropietarioAnterior ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), rutPropietarioAnterior: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="RUT verificador" value={editingDetails.rutVerificador ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), rutVerificador: event.target.value }))} />
+                    <div className="space-y-1">
+                      <input className={getEditorInputClass("rutPropietarioAnterior")} placeholder="RUT propietario anterior" value={editingDetails.rutPropietarioAnterior ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), rutPropietarioAnterior: event.target.value }))} />
+                      {getEditorFieldError("rutPropietarioAnterior") ? <p className="text-xs text-rose-600">{getEditorFieldError("rutPropietarioAnterior")}</p> : null}
+                    </div>
+                    <div className="space-y-1 md:col-span-2">
+                      <input className={getEditorInputClass("rutVerificador")} placeholder="RUT verificador" value={editingDetails.rutVerificador ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), rutVerificador: event.target.value }))} />
+                      {getEditorFieldError("rutVerificador") ? <p className="text-xs text-rose-600">{getEditorFieldError("rutVerificador")}</p> : null}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -6107,7 +6290,10 @@ export function CatalogHomeClient({ feed }: Props) {
                 </select>
                 <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Ubicación comercial" value={editingDetails.location ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), location: event.target.value }))} />
                 <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Lote" value={editingDetails.lot ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), lot: event.target.value }))} />
-                <input className="rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Fecha remate" value={editingDetails.auctionDate ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), auctionDate: event.target.value }))} />
+                <div className="space-y-1 md:col-span-2">
+                  <input className={getEditorInputClass("auctionDate")} placeholder="Fecha remate (YYYY-MM-DD o DD/MM/YYYY)" value={editingDetails.auctionDate ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), auctionDate: event.target.value }))} />
+                  {getEditorFieldError("auctionDate") ? <p className="text-xs text-rose-600">{getEditorFieldError("auctionDate")}</p> : null}
+                </div>
                 <textarea className="min-h-20 rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Descripción corta" value={editingDetails.description ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), description: event.target.value }))} />
                 <textarea className="min-h-24 rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Descripción ampliada (admite HTML: <p>, <br>, <strong>, <ul>, <li>, <a>)" value={editingDetails.extendedDescription ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), extendedDescription: event.target.value }))} />
               </div>

@@ -473,6 +473,36 @@ function cleanOptional(value?: string): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function sanitizeRichHtml(value: string): string {
+  let html = value;
+  html = html.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "");
+  html = html.replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, "");
+  html = html.replace(/<\/?(iframe|object|embed|link|meta)[^>]*>/gi, "");
+  html = html.replace(/\son\w+\s*=\s*"[^"]*"/gi, "");
+  html = html.replace(/\son\w+\s*=\s*'[^']*'/gi, "");
+  html = html.replace(/\son\w+\s*=\s*[^\s>]+/gi, "");
+  html = html.replace(/\s(href|src)\s*=\s*(['"])\s*javascript:[\s\S]*?\2/gi, "");
+  return html;
+}
+
+function formatExtendedDescriptionHtml(value?: string | null): string {
+  const normalized = String(value ?? "")
+    .replace(/\/n/g, "\n")
+    .trim();
+  if (!normalized) return "Sin descripción adicional para este vehículo.";
+  if (/<[a-z][\s\S]*>/i.test(normalized)) return sanitizeRichHtml(normalized);
+  return escapeHtml(normalized).replace(/\n/g, "<br />");
+}
+
 function parseImagesCsv(value?: string): string[] {
   return (value ?? "")
     .split(",")
@@ -1896,14 +1926,27 @@ export function CatalogHomeClient({ feed }: Props) {
           label: "VIN",
           value: getLookupValue(selectedVehicleLookup, [
             "vin",
+            "n_de_vin",
             "numero_chasis",
             "nro_chasis",
             "chasis",
+            "glo3d.n_de_vin",
+            "glo3d.vin",
           ]),
         },
-        { label: "Marca", value: getLookupValue(selectedVehicleLookup, ["marca", "brand"]) ?? raw.marca },
+        {
+          label: "N° de chasis",
+          value: getLookupValue(selectedVehicleLookup, [
+            "n_de_chasis",
+            "numero_chasis",
+            "nro_chasis",
+            "chasis",
+            "glo3d.n_de_chasis",
+          ]),
+        },
+        { label: "Marca", value: getLookupValue(selectedVehicleLookup, ["marca", "brand", "make", "glo3d.make"]) ?? raw.marca },
         { label: "Modelo", value: getLookupValue(selectedVehicleLookup, ["modelo", "model"]) ?? getModel(selectedVehicle) },
-        { label: "Año", value: getLookupValue(selectedVehicleLookup, ["ano", "anio", "year"]) },
+        { label: "Año", value: getLookupValue(selectedVehicleLookup, ["ano", "anio", "year", "glo3d.year"]) },
         {
           label: "Tipo de vehículo",
           value: getLookupValue(selectedVehicleLookup, [
@@ -2000,6 +2043,7 @@ export function CatalogHomeClient({ feed }: Props) {
             "autored.transmission",
             "autored.caja",
             "autored.tipo_caja",
+            "glo3d.transmission",
           ]),
         },
         {
@@ -2014,6 +2058,8 @@ export function CatalogHomeClient({ feed }: Props) {
             "autored.traccion",
             "autored.tipo_traccion",
             "autored.drivetrain",
+            "drive_type",
+            "glo3d.drive_type",
           ]),
         },
         {
@@ -2077,6 +2123,7 @@ export function CatalogHomeClient({ feed }: Props) {
             "autored.rin",
             "autored.rines",
             "autored.wheel_size",
+            "glo3d.aro",
           ]),
         },
         {
@@ -2091,6 +2138,7 @@ export function CatalogHomeClient({ feed }: Props) {
             "autored.cc",
             "autored.motor_cc",
             "autored.engine_cc",
+            "glo3d.engine",
           ]),
         },
         {
@@ -2105,13 +2153,168 @@ export function CatalogHomeClient({ feed }: Props) {
           ]),
         },
         {
+          label: "Versión",
+          value: getLookupValue(selectedVehicleLookup, [
+            "version",
+            "ver",
+            "trim",
+            "glo3d.version",
+            "glo3d.ver",
+            "glo3d.trim",
+          ]),
+        },
+        {
+          label: "N° de siniestro",
+          value: getLookupValue(selectedVehicleLookup, [
+            "n_de_siniestro",
+            "numero_siniestro",
+            "n_s",
+            "ns",
+            "n°s",
+            "glo3d.n_de_siniestro",
+            "glo3d.n_s",
+            "glo3d.ns",
+          ]),
+        },
+        {
+          label: "N° de motor",
+          value: getLookupValue(selectedVehicleLookup, [
+            "n_de_motor",
+            "numero_motor",
+            "motor_number",
+            "ndm",
+            "glo3d.n_de_motor",
+            "glo3d.ndm",
+          ]),
+        },
+        {
+          label: "N° de serie",
+          value: getLookupValue(selectedVehicleLookup, [
+            "n_de_serie",
+            "numero_serie",
+            "serial_number",
+            "nds",
+            "glo3d.n_de_serie",
+            "glo3d.nds",
+          ]),
+        },
+        {
+          label: "Ubicación física",
+          value: getLookupValue(selectedVehicleLookup, [
+            "ubicacion_fisica",
+            "ubicacion",
+            "ubi",
+            "location",
+            "glo3d.ubicacion_fisica",
+            "glo3d.ubi",
+          ]),
+        },
+        {
+          label: "Transportista",
+          value: getLookupValue(selectedVehicleLookup, [
+            "transportista",
+            "tra",
+            "glo3d.transportista",
+            "glo3d.tra",
+          ]),
+        },
+        {
+          label: "Taller",
+          value: getLookupValue(selectedVehicleLookup, [
+            "taller",
+            "tal",
+            "glo3d.taller",
+            "glo3d.tal",
+          ]),
+        },
+        {
+          label: "Multas",
+          value: getLookupValue(selectedVehicleLookup, [
+            "multas",
+            "mul",
+            "glo3d.multas",
+            "glo3d.mul",
+          ]),
+        },
+        {
+          label: "TAG",
+          value: getLookupValue(selectedVehicleLookup, [
+            "tag",
+            "glo3d.tag",
+          ]),
+        },
+        {
+          label: "Vencimiento revisión técnica",
+          value: getLookupValue(selectedVehicleLookup, [
+            "vencimiento_revision_tecnica",
+            "revision_tecnica_vencimiento",
+            "vrt",
+            "glo3d.vencimiento_revision_tecnica",
+            "glo3d.vrt",
+          ]),
+        },
+        {
+          label: "Vencimiento permiso circulación",
+          value: getLookupValue(selectedVehicleLookup, [
+            "vencimiento_permiso_circulacion",
+            "permiso_circulacion_vencimiento",
+            "vpc",
+            "glo3d.vencimiento_permiso_circulacion",
+            "glo3d.vpc",
+          ]),
+        },
+        {
+          label: "Vencimiento seguro obligatorio",
+          value: getLookupValue(selectedVehicleLookup, [
+            "vencimiento_seguro_obligatorio",
+            "seguro_obligatorio_vencimiento",
+            "vso",
+            "glo3d.vencimiento_seguro_obligatorio",
+            "glo3d.vso",
+          ]),
+        },
+        {
+          label: "Prueba de motor (arranca)",
+          value: getLookupValue(selectedVehicleLookup, [
+            "prueba_motor",
+            "prueba_motor_arranca",
+            "pdm",
+            "glo3d.prueba_motor",
+            "glo3d.pdm",
+          ]),
+          formatter: formatYesNo,
+        },
+        {
+          label: "Prueba de desplazamiento (se mueve)",
+          value: getLookupValue(selectedVehicleLookup, [
+            "prueba_desplazamiento",
+            "prueba_desplazamiento_mueve",
+            "pdd",
+            "glo3d.prueba_desplazamiento",
+            "glo3d.pdd",
+          ]),
+          formatter: formatYesNo,
+        },
+        {
+          label: "Estado de airbags",
+          value: getLookupValue(selectedVehicleLookup, [
+            "estado_airbags",
+            "airbags_estado",
+            "eda",
+            "glo3d.estado_airbags",
+            "glo3d.eda",
+          ]),
+        },
+        {
           label: "Nombre propietario anterior",
           value: getLookupValue(selectedVehicleLookup, [
             "nombre_propietario_anterior",
             "previous_owner_name",
             "owner_previous_name",
+            "npa",
             "glo3d.nombre_propietario_anterior",
             "glo3d.previous_owner_name",
+            "glo3d.npa",
           ]),
         },
         {
@@ -2120,8 +2323,10 @@ export function CatalogHomeClient({ feed }: Props) {
             "rut_propietario_anterior",
             "previous_owner_rut",
             "owner_previous_rut",
+            "rpa",
             "glo3d.rut_propietario_anterior",
             "glo3d.previous_owner_rut",
+            "glo3d.rpa",
           ]),
         },
         {
@@ -2133,19 +2338,6 @@ export function CatalogHomeClient({ feed }: Props) {
             "glo3d.rut_verificador",
             "glo3d.verifier_rut",
           ]),
-        },
-        {
-          label: "Foto 3D",
-          value:
-            selectedVehicle.view3dUrl ??
-            getLookupValue(selectedVehicleLookup, [
-              "foto3d",
-              "url_3d",
-              "glo3d_url",
-              "iframe",
-              "src",
-              "glo3d.foto3d",
-            ]),
         },
       ]),
     };
@@ -4692,9 +4884,11 @@ export function CatalogHomeClient({ feed }: Props) {
                 ) : (
                   <dl className="grid grid-cols-2 gap-2 text-sm">
                     {selectedVehicleFieldsByTab[selectedVehicleTab].map(([label, value]) => (
-                      <div key={label} className="rounded-md bg-white p-2">
+                      <div key={label} className="min-w-0 rounded-md bg-white p-2">
                         <dt className="text-xs uppercase text-slate-500">{label}</dt>
-                        <dd className="font-medium text-slate-800">{value}</dd>
+                        <dd className="break-words font-medium text-slate-800 [overflow-wrap:anywhere]">
+                          {value}
+                        </dd>
                       </div>
                     ))}
                   </dl>
@@ -4711,11 +4905,13 @@ export function CatalogHomeClient({ feed }: Props) {
                       </p>
                     </div>
                     <div className="mt-2 rounded-md border border-slate-200 bg-white p-3">
-                      <p className="text-xs uppercase tracking-wide text-slate-500">Descripción ampliada</p>
-                      <p className="mt-1 whitespace-pre-line text-sm text-slate-700">
-                        {selectedVehicleExpandedDescription ??
-                          "Sin descripción adicional para este vehículo."}
-                      </p>
+                      <p className="text-xs uppercase tracking-wide text-slate-500">Descripción ampliada (admite HTML)</p>
+                      <div
+                        className="mt-1 text-sm text-slate-700 [&_a]:text-cyan-700 [&_a]:underline [&_li]:ml-4 [&_p]:mb-2"
+                        dangerouslySetInnerHTML={{
+                          __html: formatExtendedDescriptionHtml(selectedVehicleExpandedDescription),
+                        }}
+                      />
                     </div>
                   </>
                 ) : null}
@@ -5733,7 +5929,7 @@ export function CatalogHomeClient({ feed }: Props) {
               <input className="rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Imagen principal URL" value={editingDetails.thumbnail ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), thumbnail: event.target.value }))} />
               <input className="rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Visor 3D URL" value={editingDetails.view3dUrl ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), view3dUrl: event.target.value }))} />
               <textarea className="min-h-20 rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Descripcion" value={editingDetails.description ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), description: event.target.value }))} />
-              <textarea className="min-h-24 rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Descripción ampliada / detalles adicionales" value={editingDetails.extendedDescription ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), extendedDescription: event.target.value }))} />
+              <textarea className="min-h-24 rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Descripción ampliada (admite HTML: <p>, <br>, <strong>, <ul>, <li>, <a>)" value={editingDetails.extendedDescription ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), extendedDescription: event.target.value }))} />
               <textarea className="min-h-20 rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="URLs de galeria separadas por coma" value={editingDetails.imagesCsv ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), imagesCsv: event.target.value }))} />
             </div>
 

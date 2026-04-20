@@ -512,7 +512,14 @@ function normalizeGlo3dTechnicalFields(
   ]);
   const marca = pickString(merged, ["marca", "brand", "make", "original_brand_name"]);
   const tipo = pickString(merged, ["tipo", "type", "condition_type", "tipo_unidad"]);
-  const modelo = pickString(merged, ["modelo", "model", "original_model_name", "showName"]);
+  const modelo = pickString(merged, [
+    "modelo",
+    "model",
+    "original_model_name",
+    "showName",
+    "model2",
+  ]);
+  const version = pickString(merged, ["version", "ver", "trim"]);
   const color = pickString(merged, ["color", "color_exterior", "color_vehiculo", "exterior_color"]);
   const combustible = pickString(merged, ["combustible", "tipo_combustible", "fuel", "fuel_type"]);
   const llaves = pickString(merged, ["llaves", "keys", "has_keys", "tiene_llaves"]);
@@ -530,6 +537,7 @@ function normalizeGlo3dTechnicalFields(
     "tipo_traccion",
     "drivetrain",
     "traction",
+    "drive_type",
   ]);
   const aireAcondicionado = pickString(merged, [
     "aire_acondicionado",
@@ -549,15 +557,18 @@ function normalizeGlo3dTechnicalFields(
     "acondicionado",
   ]);
   const ano = pickString(merged, ["ano", "anio", "year", "fields_year"]);
+  const patente = pickString(merged, ["patente", "PPU", "ppu", "plate"]);
   const nombrePropietarioAnterior = pickString(merged, [
     "nombre_propietario_anterior",
     "previous_owner_name",
     "owner_previous_name",
+    "npa",
   ]);
   const rutPropietarioAnterior = pickString(merged, [
     "rut_propietario_anterior",
     "previous_owner_rut",
     "owner_previous_rut",
+    "rpa",
   ]);
   const rutVerificador = pickString(merged, [
     "rut_verificador",
@@ -565,6 +576,38 @@ function normalizeGlo3dTechnicalFields(
     "rut_verifier",
   ]);
   const cilindrada = pickString(merged, ["cilindrada", "cc", "motor_cc", "engine_cc"]);
+  const nMotor = pickString(merged, ["n_de_motor", "numero_motor", "motor_number", "ndm"]);
+  const nSerie = pickString(merged, ["n_de_serie", "numero_serie", "serial_number", "nds"]);
+  const nVin = pickString(merged, ["n_de_vin", "vin", "numero_chasis", "nro_chasis"]);
+  const nChasis = pickString(merged, ["n_de_chasis", "numero_chasis", "nro_chasis"]);
+  const nSiniestro = pickString(merged, ["n_de_siniestro", "numero_siniestro", "n_s", "ns", "n°s"]);
+  const ubicacionFisica = pickString(merged, ["ubicacion_fisica", "ubicacion", "ubi", "location"]);
+  const transportista = pickString(merged, ["transportista", "tra"]);
+  const taller = pickString(merged, ["taller", "tal"]);
+  const multas = pickString(merged, ["multas", "mul"]);
+  const tag = pickString(merged, ["tag"]);
+  const vencRevisionTecnica = pickString(merged, [
+    "vencimiento_revision_tecnica",
+    "revision_tecnica_vencimiento",
+    "vrt",
+  ]);
+  const vencPermisoCirculacion = pickString(merged, [
+    "vencimiento_permiso_circulacion",
+    "permiso_circulacion_vencimiento",
+    "vpc",
+  ]);
+  const vencSeguroObligatorio = pickString(merged, [
+    "vencimiento_seguro_obligatorio",
+    "seguro_obligatorio_vencimiento",
+    "vso",
+  ]);
+  const pruebaMotor = pickString(merged, ["prueba_motor", "prueba_motor_arranca", "pdm"]);
+  const pruebaDesplazamiento = pickString(merged, [
+    "prueba_desplazamiento",
+    "prueba_desplazamiento_mueve",
+    "pdd",
+  ]);
+  const estadoAirbags = pickString(merged, ["estado_airbags", "airbags_estado", "eda"]);
   const tipoVehiculo = pickString(merged, [
     "tipo_de_vehiculo",
     "tipo_vehiculo",
@@ -572,10 +615,19 @@ function normalizeGlo3dTechnicalFields(
     "vehicle_type_name",
   ]);
 
+  if (patente) {
+    result.patente = patente;
+    result.ppu = patente;
+  }
   if (patenteVerifier) result.patente_verifier = patenteVerifier;
   if (marca) result.marca = marca;
   if (tipo) result.tipo = tipo;
   if (modelo) result.modelo = modelo;
+  if (version) {
+    result.version = version;
+    result.ver = version;
+    result.trim = version;
+  }
   if (color) result.color = color;
   if (combustible) result.combustible = combustible;
   if (llaves) result.llaves = llaves;
@@ -595,6 +647,62 @@ function normalizeGlo3dTechnicalFields(
   if (nombrePropietarioAnterior) result.nombre_propietario_anterior = nombrePropietarioAnterior;
   if (rutPropietarioAnterior) result.rut_propietario_anterior = rutPropietarioAnterior;
   if (rutVerificador) result.rut_verificador = rutVerificador;
+  if (nMotor) {
+    result.n_de_motor = nMotor;
+    result.ndm = nMotor;
+  }
+  if (nSerie) {
+    result.n_de_serie = nSerie;
+    result.nds = nSerie;
+  }
+  if (nVin) result.n_de_vin = nVin;
+  if (nChasis) result.n_de_chasis = nChasis;
+  if (nSiniestro) {
+    result.n_de_siniestro = nSiniestro;
+    result.n_s = nSiniestro;
+    result.ns = nSiniestro;
+  }
+  if (ubicacionFisica) {
+    result.ubicacion_fisica = ubicacionFisica;
+    result.ubi = ubicacionFisica;
+  }
+  if (transportista) {
+    result.transportista = transportista;
+    result.tra = transportista;
+  }
+  if (taller) {
+    result.taller = taller;
+    result.tal = taller;
+  }
+  if (multas) {
+    result.multas = multas;
+    result.mul = multas;
+  }
+  if (tag) result.tag = tag;
+  if (vencRevisionTecnica) {
+    result.vencimiento_revision_tecnica = vencRevisionTecnica;
+    result.vrt = vencRevisionTecnica;
+  }
+  if (vencPermisoCirculacion) {
+    result.vencimiento_permiso_circulacion = vencPermisoCirculacion;
+    result.vpc = vencPermisoCirculacion;
+  }
+  if (vencSeguroObligatorio) {
+    result.vencimiento_seguro_obligatorio = vencSeguroObligatorio;
+    result.vso = vencSeguroObligatorio;
+  }
+  if (pruebaMotor) {
+    result.prueba_motor = pruebaMotor;
+    result.pdm = pruebaMotor;
+  }
+  if (pruebaDesplazamiento) {
+    result.prueba_desplazamiento = pruebaDesplazamiento;
+    result.pdd = pruebaDesplazamiento;
+  }
+  if (estadoAirbags) {
+    result.estado_airbags = estadoAirbags;
+    result.eda = estadoAirbags;
+  }
   if (cilindrada) {
     result.cilindrada = cilindrada;
     result.cc = cilindrada;
@@ -639,7 +747,14 @@ async function fetchGlo3dByStocks(stocks: string[]): Promise<Map<string, Glo3dIn
     const data = payload.data ?? [];
     for (const item of data) {
       const stock = normalizeStock(
-        getStringFromKeys(item, ["stock_number", "stock", "PPU", "patente"]),
+        getStringFromKeys(item, [
+          "stock_number",
+          "stock",
+          "PPU",
+          "ppu",
+          "patente",
+          "plate",
+        ]),
       );
       if (!stock || !pending.has(stock)) continue;
 

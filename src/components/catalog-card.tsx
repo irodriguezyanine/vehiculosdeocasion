@@ -154,47 +154,47 @@ export function CatalogCard({
             ) : null}
             {conditionLabel ? (
               <span
-                className={`rounded-full px-2 py-1 text-[10px] font-semibold ${getConditionBadgeClasses(
+                className={`max-w-[12rem] truncate rounded-full px-2 py-1 text-[10px] font-semibold ${getConditionBadgeClasses(
                   conditionLabel,
                 )}`}
               >
-                {conditionLabel}
+                {shortText(conditionLabel, 32)}
               </span>
             ) : null}
           </div>
           {item.status ? (
-            <span className="absolute right-3 top-3 rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-white">
-              {item.status}
+            <span className="absolute right-3 top-3 max-w-[12rem] truncate rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-white">
+              {shortText(item.status, 30)}
             </span>
           ) : null}
         </div>
 
         <div className={`space-y-3 p-4 ${isCompact ? "space-y-2" : ""}`}>
           <div>
-            <h3 className="line-clamp-1 text-base font-semibold text-slate-900">
+            <h3 className="line-clamp-2 break-words text-base font-semibold text-slate-900">
               {item.title}
             </h3>
             {!isCompact && item.subtitle ? (
-              <p className="mt-1 text-sm text-slate-600">{shortText(item.subtitle)}</p>
+              <p className="mt-1 break-words text-sm text-slate-600 [overflow-wrap:anywhere]">{shortText(item.subtitle)}</p>
             ) : null}
           </div>
 
-          <div className="flex flex-wrap gap-2 text-xs text-slate-700">
+          <div className="flex min-w-0 flex-wrap gap-2 text-xs text-slate-700">
             {item.lot ? (
-              <span className="rounded-full bg-slate-100 px-2 py-1">Lote {item.lot}</span>
+              <span className="max-w-full truncate rounded-full bg-slate-100 px-2 py-1">Lote {item.lot}</span>
             ) : null}
             {formattedDate ? (
-              <span className="rounded-full bg-slate-100 px-2 py-1">
+              <span className="max-w-full truncate rounded-full bg-slate-100 px-2 py-1">
                 Remate {formattedDate}
               </span>
             ) : null}
             {item.location ? (
-              <span className="rounded-full bg-slate-100 px-2 py-1">
+              <span className="max-w-full truncate rounded-full bg-slate-100 px-2 py-1">
                 {shortText(item.location, 35)}
               </span>
             ) : null}
             {upcomingAuctionLabel ? (
-              <span className="rounded-full bg-indigo-100 px-2 py-1 font-semibold text-indigo-700">
+              <span className="max-w-full truncate rounded-full bg-indigo-100 px-2 py-1 font-semibold text-indigo-700">
                 {shortText(`Remate: ${upcomingAuctionLabel}`, 38)}
               </span>
             ) : null}

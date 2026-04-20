@@ -69,6 +69,9 @@ export type ManualPublication = {
   upcomingAuctionId?: string;
   visible: boolean;
   price?: string;
+  originalPrice?: string;
+  promoPrice?: string;
+  promoEnabled?: boolean;
 };
 
 export type EditorVehicleDetails = {

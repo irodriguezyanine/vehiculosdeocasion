@@ -33,7 +33,7 @@ const EDITOR_PAGE_SIZE = 20;
 type AdminTabId = "vehiculos" | "categorias" | "layout" | "analytics";
 type EditorGroupFilter = "all" | SectionId;
 type EditorVisibilityFilter = "all" | "visible" | "hidden";
-type EditorVehicleCategoryFilter = "all" | "livianos" | "pesados" | "maquinaria" | "chatarra";
+type EditorVehicleCategoryFilter = "all" | "livianos" | "pesados" | "maquinaria" | "chatarra" | "otros";
 type BatchAssignTarget =
   | { type: "section"; sectionId: "ventas-directas" | "novedades" | "catalogo" }
   | { type: "auction"; auctionId: string };
@@ -84,6 +84,7 @@ const VEHICLE_CATEGORY_OPTIONS = [
   { value: "vehiculo_pesado", label: "Vehículo pesado" },
   { value: "maquinaria", label: "Maquinaria" },
   { value: "chatarra", label: "Chatarra" },
+  { value: "otros", label: "Otros" },
 ] as const;
 
 const WHATSAPP_CTA_URL =
@@ -335,7 +336,9 @@ type ManualPublicationDraft = {
   imagesCsv: string;
   thumbnail: string;
   view3dUrl: string;
-  price: string;
+  normalPrice: string;
+  promoEnabled: boolean;
+  promoPrice: string;
   upcomingAuctionId: string;
   visible: boolean;
   sectionIds: SectionId[];
@@ -357,7 +360,9 @@ const EMPTY_MANUAL_PUBLICATION_DRAFT: ManualPublicationDraft = {
   imagesCsv: "",
   thumbnail: "",
   view3dUrl: "",
-  price: "",
+  normalPrice: "",
+  promoEnabled: false,
+  promoPrice: "",
   upcomingAuctionId: "",
   visible: true,
   sectionIds: ["catalogo"],
@@ -514,7 +519,7 @@ function inferVehicleType(item: CatalogItem): VehicleTypeId {
   return "otros";
 }
 
-function inferVehicleCategoryForAdmin(item: CatalogItem): EditorVehicleCategoryFilter | "otros" {
+function inferVehicleCategoryForAdmin(item: CatalogItem): EditorVehicleCategoryFilter {
   const raw = item.raw as Record<string, unknown>;
   const lookup = buildVehicleLookup(raw);
   const normalizedCategory = normalizeVehicleCategoryValue(
@@ -536,6 +541,7 @@ function inferVehicleCategoryForAdmin(item: CatalogItem): EditorVehicleCategoryF
   if (normalizedCategory === "vehiculo_pesado") return "pesados";
   if (normalizedCategory === "maquinaria") return "maquinaria";
   if (normalizedCategory === "chatarra") return "chatarra";
+  if (normalizedCategory === "otros") return "otros";
 
   const sample = normalizeText(
     [item.title, item.subtitle, raw.categoria, raw.tipo_vehiculo, raw.description]
@@ -548,11 +554,18 @@ function inferVehicleCategoryForAdmin(item: CatalogItem): EditorVehicleCategoryF
 
 function formatPrice(value?: string): string | null {
   if (!value?.trim()) return null;
-  const clean = value.replace(/[^\d]/g, "");
+  const sample = value.trim();
+  const clean = sample.replace(/[^\d]/g, "");
   if (!clean) return null;
   const amount = Number(clean);
   if (!Number.isFinite(amount)) return null;
-  return new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(amount);
+  const hasIva = /\biva\b/i.test(sample) && !/sin\s*iva/i.test(sample);
+  const base = new Intl.NumberFormat("es-CL", {
+    style: "currency",
+    currency: "CLP",
+    maximumFractionDigits: 0,
+  }).format(amount);
+  return hasIva ? `${base} + IVA` : base;
 }
 
 function getConditionBadgeClasses(condition?: string | null): string {
@@ -577,6 +590,7 @@ function normalizeVehicleCategoryValue(value?: string): string {
   if (/pesad|vehiculopesado/.test(sample)) return "vehiculo_pesado";
   if (/maquinaria|maquina/.test(sample)) return "maquinaria";
   if (/chatarra|scrap/.test(sample)) return "chatarra";
+  if (/otros|other/.test(sample)) return "otros";
   return (value ?? "").trim().toLowerCase().replace(/\s+/g, "_");
 }
 
@@ -910,6 +924,9 @@ function mapManualPublicationToCatalogItem(entry: ManualPublication): CatalogIte
       ano: entry.year,
       categoria: entry.category,
       descripcion: entry.description,
+      precio_normal: entry.originalPrice ?? entry.price,
+      precio_promocional: entry.promoPrice ?? (entry.promoEnabled ? entry.price : undefined),
+      promo_enabled: entry.promoEnabled ?? false,
       manual_id: entry.id,
     },
   };
@@ -2422,6 +2439,22 @@ export function CatalogHomeClient({ feed }: Props) {
     () => (selectedVehicleKey ? formatPrice(config.vehiclePrices[selectedVehicleKey]) : null),
     [config.vehiclePrices, selectedVehicleKey],
   );
+  const selectedVehiclePromoMeta = useMemo(() => {
+    if (!selectedVehicle) return { promoEnabled: false, originalPriceLabel: null as string | null };
+    const raw = selectedVehicle.raw as Record<string, unknown>;
+    const promoEnabled =
+      raw.promo_enabled === true ||
+      raw.promo_enabled === "true" ||
+      raw.promo_enabled === "1" ||
+      raw.promo_enabled === 1;
+    const originalPriceLabel =
+      typeof raw.precio_normal === "string" && raw.precio_normal.trim()
+        ? raw.precio_normal.trim()
+        : typeof raw.original_price === "string" && raw.original_price.trim()
+          ? raw.original_price.trim()
+          : null;
+    return { promoEnabled, originalPriceLabel };
+  }, [selectedVehicle]);
 
   const selectedVehicleShareUrl = useMemo(() => {
     if (!selectedVehicle || typeof window === "undefined") return "";
@@ -3671,6 +3704,19 @@ export function CatalogHomeClient({ feed }: Props) {
     const id = crypto.randomUUID();
     const sectionIds: SectionId[] =
       manualDraft.sectionIds.length > 0 ? manualDraft.sectionIds : ["catalogo"];
+    const normalizedNormalPrice = cleanOptional(manualDraft.normalPrice);
+    const normalizedPromoPrice = cleanOptional(manualDraft.promoPrice);
+    if (manualDraft.promoEnabled && !normalizedPromoPrice) {
+      showSystemNotice(
+        "error",
+        "Precio promocional",
+        "Activa un precio de oferta antes de crear la publicación.",
+      );
+      return;
+    }
+    const promoEnabled = Boolean(manualDraft.promoEnabled && normalizedPromoPrice);
+    const activePrice = promoEnabled ? normalizedPromoPrice : normalizedNormalPrice;
+
     const manual: ManualPublication = {
       id,
       title,
@@ -3691,7 +3737,10 @@ export function CatalogHomeClient({ feed }: Props) {
       sectionIds,
       upcomingAuctionId: cleanOptional(manualDraft.upcomingAuctionId),
       visible: manualDraft.visible,
-      price: cleanOptional(manualDraft.price),
+      price: activePrice,
+      originalPrice: normalizedNormalPrice,
+      promoPrice: normalizedPromoPrice,
+      promoEnabled,
     };
 
     setConfig((prev) => {
@@ -4384,6 +4433,7 @@ export function CatalogHomeClient({ feed }: Props) {
                             <option value="pesados">Vehículos pesados</option>
                             <option value="maquinaria">Maquinaria</option>
                             <option value="chatarra">Chatarra</option>
+                            <option value="otros">Otros</option>
                           </select>
                           <select
                             value={auctionFilterId}
@@ -6461,9 +6511,21 @@ export function CatalogHomeClient({ feed }: Props) {
                   <>
                     <div className="mt-2 rounded-md border border-cyan-100 bg-cyan-50/60 p-3">
                       <p className="text-xs uppercase tracking-wide text-cyan-700">Precio referencial</p>
-                      <p className="mt-1 text-lg font-bold text-slate-900">
+                      {selectedVehiclePromoMeta.promoEnabled &&
+                      selectedVehiclePromoMeta.originalPriceLabel &&
+                      selectedVehiclePriceLabel ? (
+                        <p className="mt-1 text-sm font-semibold text-slate-400 line-through">
+                          {selectedVehiclePromoMeta.originalPriceLabel}
+                        </p>
+                      ) : null}
+                      <p className={`mt-1 text-lg font-bold ${selectedVehiclePromoMeta.promoEnabled ? "text-rose-700" : "text-slate-900"}`}>
                         {selectedVehiclePriceLabel ?? "No informado"}
                       </p>
+                      {selectedVehiclePromoMeta.promoEnabled ? (
+                        <p className="mt-1 inline-flex rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
+                          Precio promocional
+                        </p>
+                      ) : null}
                       <p className="mt-1 text-xs text-slate-600">
                         Valor + gastos de impuesto y transferencia.
                       </p>
@@ -6887,12 +6949,34 @@ export function CatalogHomeClient({ feed }: Props) {
                   placeholder="Año"
                   className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
                 />
-                <input
-                  value={manualDraft.price}
-                  onChange={(event) => setManualDraft((prev) => ({ ...prev, price: event.target.value }))}
-                  placeholder="Precio CLP"
-                  className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
-                />
+                <div className="space-y-2 rounded-md border border-cyan-200 bg-cyan-50/40 p-2 md:col-span-2">
+                  <div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-center">
+                    <input
+                      value={manualDraft.normalPrice}
+                      onChange={(event) => setManualDraft((prev) => ({ ...prev, normalPrice: event.target.value }))}
+                      placeholder="Precio normal CLP"
+                      className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
+                    />
+                    <label className="inline-flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+                      <input
+                        type="checkbox"
+                        checked={manualDraft.promoEnabled}
+                        onChange={(event) =>
+                          setManualDraft((prev) => ({ ...prev, promoEnabled: event.target.checked }))
+                        }
+                      />
+                      Precio promocional
+                    </label>
+                  </div>
+                  {manualDraft.promoEnabled ? (
+                    <input
+                      value={manualDraft.promoPrice}
+                      onChange={(event) => setManualDraft((prev) => ({ ...prev, promoPrice: event.target.value }))}
+                      placeholder="Precio oferta CLP"
+                      className="ui-focus rounded-md border border-amber-300 bg-white px-3 py-2 text-sm font-semibold text-amber-900"
+                    />
+                  ) : null}
+                </div>
                 <input
                   value={manualDraft.auctionDate}
                   onChange={(event) => setManualDraft((prev) => ({ ...prev, auctionDate: event.target.value }))}
@@ -6911,24 +6995,31 @@ export function CatalogHomeClient({ feed }: Props) {
                   placeholder="Descripción personalizada"
                   className="ui-focus min-h-20 rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm md:col-span-2"
                 />
-                <textarea
-                  value={manualDraft.imagesCsv}
-                  onChange={(event) => setManualDraft((prev) => ({ ...prev, imagesCsv: event.target.value }))}
-                  placeholder="URLs adicionales de Cloudinary separadas por coma (opcional)"
-                  className="ui-focus min-h-16 rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm md:col-span-2"
-                />
-                <input
-                  value={manualDraft.thumbnail}
-                  onChange={(event) => setManualDraft((prev) => ({ ...prev, thumbnail: event.target.value }))}
-                  placeholder="URL portada Cloudinary (opcional, si no se usa la primera)"
-                  className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm md:col-span-2"
-                />
-                <input
-                  value={manualDraft.view3dUrl}
-                  onChange={(event) => setManualDraft((prev) => ({ ...prev, view3dUrl: event.target.value }))}
-                  placeholder="URL visor 3D (opcional)"
-                  className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm md:col-span-2"
-                />
+                <details className="md:col-span-2">
+                  <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Opciones avanzadas (links Cloudinary / Glo3D)
+                  </summary>
+                  <div className="mt-2 grid gap-2">
+                    <textarea
+                      value={manualDraft.imagesCsv}
+                      onChange={(event) => setManualDraft((prev) => ({ ...prev, imagesCsv: event.target.value }))}
+                      placeholder="URLs adicionales de Cloudinary separadas por coma (opcional)"
+                      className="ui-focus min-h-16 rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
+                    />
+                    <input
+                      value={manualDraft.thumbnail}
+                      onChange={(event) => setManualDraft((prev) => ({ ...prev, thumbnail: event.target.value }))}
+                      placeholder="URL portada Cloudinary (opcional, si no se usa la primera)"
+                      className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
+                    />
+                    <input
+                      value={manualDraft.view3dUrl}
+                      onChange={(event) => setManualDraft((prev) => ({ ...prev, view3dUrl: event.target.value }))}
+                      placeholder="URL visor 3D (opcional)"
+                      className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
+                    />
+                  </div>
+                </details>
                 <select
                   value={manualDraft.upcomingAuctionId}
                   onChange={(event) => setManualDraft((prev) => ({ ...prev, upcomingAuctionId: event.target.value }))}

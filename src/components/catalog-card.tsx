@@ -106,6 +106,7 @@ export function CatalogCard({
   onToggleCompare,
   onWhatsappClick,
 }: CatalogCardProps) {
+  const raw = item.raw as Record<string, unknown>;
   const coverCandidate = item.thumbnail ?? item.images[0];
   const cover = isLikelyImageUrl(coverCandidate) ? (coverCandidate as string) : "/placeholder-car.svg";
   const [coverSrc, setCoverSrc] = useState(cover);
@@ -114,6 +115,17 @@ export function CatalogCard({
   const brandModel = getBrandModel(item);
   const itemKey = getVehicleKey(item);
   const conditionLabel = getVehicleCondition(item);
+  const promoEnabled =
+    raw.promo_enabled === true ||
+    raw.promo_enabled === "true" ||
+    raw.promo_enabled === "1" ||
+    raw.promo_enabled === 1;
+  const originalPriceLabel =
+    typeof raw.precio_normal === "string" && raw.precio_normal.trim()
+      ? raw.precio_normal.trim()
+      : typeof raw.original_price === "string" && raw.original_price.trim()
+        ? raw.original_price.trim()
+        : null;
   const [shareCopied, setShareCopied] = useState(false);
   const shareUrl = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -133,8 +145,8 @@ export function CatalogCard({
   }, [cover]);
 
   return (
-    <article className="group glass-soft w-full overflow-hidden rounded-2xl text-left shadow-md transition duration-300 hover:-translate-y-1 hover:border-cyan-300 hover:shadow-lg">
-      <button type="button" onClick={onOpen} className="ui-focus w-full text-left">
+    <article className="group glass-soft flex h-full w-full flex-col overflow-hidden rounded-2xl text-left shadow-md transition duration-300 hover:-translate-y-1 hover:border-cyan-300 hover:shadow-lg">
+      <button type="button" onClick={onOpen} className="ui-focus flex flex-1 flex-col w-full text-left">
         <div className={`relative w-full bg-slate-100 ${isCompact ? "h-44" : "h-56"}`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -150,7 +162,9 @@ export function CatalogCard({
               <span className="rounded-full bg-cyan-500 px-2 py-1 text-[10px] font-semibold text-white">3D</span>
             ) : null}
             {priceLabel ? (
-              <span className="rounded-full bg-amber-500 px-2 py-1 text-[10px] font-semibold text-white">Precio</span>
+              <span className={`rounded-full px-2 py-1 text-[10px] font-semibold text-white ${promoEnabled ? "bg-rose-500" : "bg-amber-500"}`}>
+                {promoEnabled ? "Oferta" : "Precio"}
+              </span>
             ) : null}
             {conditionLabel ? (
               <span
@@ -169,8 +183,8 @@ export function CatalogCard({
           ) : null}
         </div>
 
-        <div className={`space-y-3 p-4 ${isCompact ? "space-y-2" : ""}`}>
-          <div>
+        <div className={`flex flex-1 flex-col space-y-3 p-4 ${isCompact ? "space-y-2" : ""}`}>
+          <div className={isCompact ? "min-h-[3.2rem]" : "min-h-[5.2rem]"}>
             <h3 className="line-clamp-2 break-words text-base font-semibold text-slate-900">
               {item.title}
             </h3>
@@ -179,7 +193,7 @@ export function CatalogCard({
             ) : null}
           </div>
 
-          <div className="flex min-w-0 flex-wrap gap-2 text-xs text-slate-700">
+          <div className="flex min-h-[2.6rem] min-w-0 flex-wrap content-start gap-2 text-xs text-slate-700">
             {item.lot ? (
               <span className="max-w-full truncate rounded-full bg-slate-100 px-2 py-1">Lote {item.lot}</span>
             ) : null}
@@ -200,9 +214,16 @@ export function CatalogCard({
             ) : null}
           </div>
 
-          <div className="flex items-center justify-between border-t border-slate-200 pt-3">
+          <div className="mt-auto flex items-center justify-between border-t border-slate-200 pt-3">
             <div className="flex flex-col">
-              {priceLabel ? <span className="text-sm font-semibold text-cyan-700">{priceLabel}</span> : null}
+              {promoEnabled && originalPriceLabel && priceLabel ? (
+                <span className="text-xs text-slate-400 line-through">{originalPriceLabel}</span>
+              ) : null}
+              {priceLabel ? (
+                <span className={`text-sm font-semibold ${promoEnabled ? "text-rose-600" : "text-cyan-700"}`}>
+                  {priceLabel}
+                </span>
+              ) : null}
               <span className="text-xs text-slate-500">
                 {item.images.length} foto{item.images.length === 1 ? "" : "s"}
               </span>

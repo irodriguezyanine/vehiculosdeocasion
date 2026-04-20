@@ -42,6 +42,11 @@ function normalizeConfig(config?: Partial<EditorConfig> | null): EditorConfig {
     !incomingSecondaryCta || incomingSecondaryCta === "Explorar secciones"
       ? defaults.homeLayout.heroSecondaryCtaLabel
       : config?.homeLayout?.heroSecondaryCtaLabel ?? defaults.homeLayout.heroSecondaryCtaLabel;
+  const incomingSecondaryHref = config?.homeLayout?.heroSecondaryCtaHref?.trim();
+  const normalizedSecondaryHref =
+    !incomingSecondaryHref || incomingSecondaryHref === "#proximos-remates"
+      ? "#como-participar"
+      : config?.homeLayout?.heroSecondaryCtaHref ?? defaults.homeLayout.heroSecondaryCtaHref;
   return {
     sectionVehicleIds: {
       "proximos-remates":
@@ -75,8 +80,7 @@ function normalizeConfig(config?: Partial<EditorConfig> | null): EditorConfig {
       heroPrimaryCtaHref:
         config?.homeLayout?.heroPrimaryCtaHref ?? defaults.homeLayout.heroPrimaryCtaHref,
       heroSecondaryCtaLabel: normalizedSecondaryCta,
-      heroSecondaryCtaHref:
-        config?.homeLayout?.heroSecondaryCtaHref ?? defaults.homeLayout.heroSecondaryCtaHref,
+      heroSecondaryCtaHref: normalizedSecondaryHref,
       heroAlignment: config?.homeLayout?.heroAlignment ?? defaults.homeLayout.heroAlignment,
       heroTheme: config?.homeLayout?.heroTheme ?? defaults.homeLayout.heroTheme,
       heroMaxWidth: config?.homeLayout?.heroMaxWidth ?? defaults.homeLayout.heroMaxWidth,
@@ -90,7 +94,8 @@ function normalizeConfig(config?: Partial<EditorConfig> | null): EditorConfig {
       showFavoritesSection:
         config?.homeLayout?.showFavoritesSection ?? defaults.homeLayout.showFavoritesSection,
       showHowToSection:
-        config?.homeLayout?.showHowToSection ?? defaults.homeLayout.showHowToSection,
+        (config?.homeLayout?.showHowToSection ?? defaults.homeLayout.showHowToSection) ||
+        normalizedSecondaryHref === "#como-participar",
       showSearchBar: config?.homeLayout?.showSearchBar ?? defaults.homeLayout.showSearchBar,
       showQuickFilters:
         config?.homeLayout?.showQuickFilters ?? defaults.homeLayout.showQuickFilters,

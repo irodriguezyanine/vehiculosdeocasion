@@ -186,6 +186,7 @@ function normalizeEditorConfigClient(
     "Catálogo oficial de Vedisa Remates con fotos, historial técnico y trazabilidad.";
   const requestedPrimaryCta = "Ver vehículos disponibles";
   const requestedSecondaryCta = "Cómo participar en el remate";
+  const requestedSecondaryHref = "#como-participar";
   const incomingHeroTitle = value?.homeLayout?.heroTitle;
   const normalizedHeroTitle =
     !incomingHeroTitle || legacyHeroTitles.has(incomingHeroTitle.trim())
@@ -208,6 +209,11 @@ function normalizeEditorConfigClient(
     !incomingSecondaryCta || incomingSecondaryCta === "Explorar secciones"
       ? requestedSecondaryCta
       : value?.homeLayout?.heroSecondaryCtaLabel ?? defaults.homeLayout.heroSecondaryCtaLabel;
+  const incomingSecondaryHref = value?.homeLayout?.heroSecondaryCtaHref?.trim();
+  const normalizedSecondaryHref =
+    !incomingSecondaryHref || incomingSecondaryHref === "#proximos-remates"
+      ? requestedSecondaryHref
+      : value?.homeLayout?.heroSecondaryCtaHref ?? defaults.homeLayout.heroSecondaryCtaHref;
   return {
     sectionVehicleIds: {
       "proximos-remates":
@@ -244,8 +250,7 @@ function normalizeEditorConfigClient(
       heroPrimaryCtaHref:
         value?.homeLayout?.heroPrimaryCtaHref ?? defaults.homeLayout.heroPrimaryCtaHref,
       heroSecondaryCtaLabel: normalizedSecondaryCta,
-      heroSecondaryCtaHref:
-        value?.homeLayout?.heroSecondaryCtaHref ?? defaults.homeLayout.heroSecondaryCtaHref,
+      heroSecondaryCtaHref: normalizedSecondaryHref,
       heroAlignment: value?.homeLayout?.heroAlignment ?? defaults.homeLayout.heroAlignment,
       heroTheme: value?.homeLayout?.heroTheme ?? defaults.homeLayout.heroTheme,
       heroMaxWidth: value?.homeLayout?.heroMaxWidth ?? defaults.homeLayout.heroMaxWidth,
@@ -260,7 +265,8 @@ function normalizeEditorConfigClient(
         value?.homeLayout?.showFavoritesSection ??
         defaults.homeLayout.showFavoritesSection,
       showHowToSection:
-        value?.homeLayout?.showHowToSection ?? defaults.homeLayout.showHowToSection,
+        (value?.homeLayout?.showHowToSection ?? defaults.homeLayout.showHowToSection) ||
+        normalizedSecondaryHref === "#como-participar",
       showSearchBar: value?.homeLayout?.showSearchBar ?? defaults.homeLayout.showSearchBar,
       showQuickFilters:
         value?.homeLayout?.showQuickFilters ?? defaults.homeLayout.showQuickFilters,
@@ -3706,6 +3712,9 @@ export function CatalogHomeClient({ feed }: Props) {
   const showAdminEditor = isAdmin && adminView === "editor";
   const showPublicHome = !isAdmin || adminView === "home";
   const hasActiveSearch = homeSearchTerm.trim().length > 0;
+  const shouldShowHowToSection =
+    config.homeLayout.showHowToSection ||
+    (config.homeLayout.heroSecondaryCtaHref ?? "").trim() === "#como-participar";
   const hasActiveSearchOrQuickFilters =
     hasActiveSearch || quickFilters.length > 0 || topSectionFilter !== "all";
 
@@ -4866,7 +4875,7 @@ export function CatalogHomeClient({ feed }: Props) {
                         <input
                           value={config.homeLayout.heroSecondaryCtaHref}
                           onChange={(event) => setHomeLayout("heroSecondaryCtaHref", event.target.value)}
-                          placeholder="URL CTA secundario (ej: #proximos-remates)"
+                          placeholder="URL CTA secundario (ej: #como-participar)"
                           className="ui-focus rounded-md border border-slate-200 px-3 py-2 text-sm"
                         />
                       </div>
@@ -5312,22 +5321,46 @@ export function CatalogHomeClient({ feed }: Props) {
                 {homeVisibleItems.length} resultados encontrados en catálogo.
               </span>
               {config.homeLayout.showSortSelector ? (
-                <select
-                  value={homeSort}
-                  onChange={(event) => {
-                    setHomeSort(event.target.value as SortOption);
-                    trackEvent("home_sort_change", { sort: event.target.value });
-                  }}
-                  className="ui-focus rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700"
-                  aria-label="Ordenar resultados del catálogo"
-                >
-                  <option value="recomendado">Orden: Recomendado</option>
-                  <option value="relevancia">Orden: Relevancia</option>
-                  <option value="fecha-remate">Orden: Fecha remate</option>
-                  <option value="precio-asc">Orden: Precio menor</option>
-                  <option value="precio-desc">Orden: Precio mayor</option>
-                  <option value="titulo">Orden: Título A-Z</option>
-                </select>
+                <details className="relative">
+                  <summary
+                    className="ui-focus flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                    aria-label="Abrir opciones de orden"
+                    title="Ordenar resultados"
+                  >
+                    <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4" aria-hidden="true">
+                      <path d="M4 5h12M6 10h8M8 15h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                    </svg>
+                  </summary>
+                  <div className="absolute right-0 z-30 mt-2 w-44 rounded-lg border border-slate-200 bg-white p-1 shadow-lg">
+                    {([
+                      ["recomendado", "Recomendado"],
+                      ["relevancia", "Relevancia"],
+                      ["fecha-remate", "Fecha remate"],
+                      ["precio-asc", "Precio menor"],
+                      ["precio-desc", "Precio mayor"],
+                      ["titulo", "Título A-Z"],
+                    ] as Array<[SortOption, string]>).map(([value, label]) => (
+                      <button
+                        key={`sort-${value}`}
+                        type="button"
+                        onClick={(event) => {
+                          setHomeSort(value);
+                          trackEvent("home_sort_change", { sort: value });
+                          const details = event.currentTarget.closest("details");
+                          if (details) details.removeAttribute("open");
+                        }}
+                        className={`ui-focus flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs font-medium ${
+                          homeSort === value
+                            ? "bg-slate-900 text-white"
+                            : "text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        <span>{label}</span>
+                        {homeSort === value ? <span>✓</span> : null}
+                      </button>
+                    ))}
+                  </div>
+                </details>
               ) : null}
             </div>
           </div>
@@ -5432,15 +5465,12 @@ export function CatalogHomeClient({ feed }: Props) {
               <a href={config.homeLayout.heroPrimaryCtaHref || "#catalogo"} className="premium-btn-primary ui-focus">
                 {config.homeLayout.heroPrimaryCtaLabel || "Ver catálogo completo"}
               </a>
-              <a href={config.homeLayout.heroSecondaryCtaHref || "#proximos-remates"} className="premium-btn-secondary ui-focus">
+              <a href={config.homeLayout.heroSecondaryCtaHref || "#como-participar"} className="premium-btn-secondary ui-focus">
                 {config.homeLayout.heroSecondaryCtaLabel || "Explorar secciones"}
               </a>
             </div>
             ) : null}
             <div className={`mt-4 inline-flex w-fit flex-wrap items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 ${config.homeLayout.heroAlignment === "center" ? "mx-auto justify-center" : ""}`}>
-              <span className="rounded-full bg-amber-200 px-2 py-0.5 text-[11px] uppercase tracking-wide text-amber-900">
-                Urgencia
-              </span>
               <span>{nextAuctionUrgencyLabel}</span>
               {nextAuction ? (
                 <>
@@ -5483,7 +5513,7 @@ export function CatalogHomeClient({ feed }: Props) {
             ? "gap-20"
             : "gap-14"
       } px-4 pb-14 sm:px-6 lg:px-8`}>
-        {config.homeLayout.showHowToSection ? (
+        {shouldShowHowToSection ? (
         <section
           id="como-participar"
           className={`section-shell transition-all duration-500 ease-out ${

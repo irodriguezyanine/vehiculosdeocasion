@@ -15,6 +15,33 @@ function getServerSupabase() {
 
 function normalizeConfig(config?: Partial<EditorConfig> | null): EditorConfig {
   const defaults = DEFAULT_EDITOR_CONFIG;
+  const legacyHeroTitles = new Set([
+    "Inventario de vehículos para remate y venta directa",
+    "Inventario de vehiculos",
+    "Inventario de vehículos",
+  ]);
+  const incomingHeroTitle = config?.homeLayout?.heroTitle?.trim();
+  const normalizedHeroTitle =
+    !incomingHeroTitle || legacyHeroTitles.has(incomingHeroTitle)
+      ? defaults.homeLayout.heroTitle
+      : config?.homeLayout?.heroTitle ?? defaults.homeLayout.heroTitle;
+  const incomingDescription = config?.homeLayout?.heroDescription?.trim();
+  const normalizedHeroDescription =
+    !incomingDescription ||
+    incomingDescription ===
+      "Plataforma oficial de ofertas online en vedisaremates.cl. Revisa cada unidad con información clara, fotos y trazabilidad comercial para tomar decisiones con confianza."
+      ? defaults.homeLayout.heroDescription
+      : config?.homeLayout?.heroDescription ?? defaults.homeLayout.heroDescription;
+  const incomingPrimaryCta = config?.homeLayout?.heroPrimaryCtaLabel?.trim();
+  const normalizedPrimaryCta =
+    !incomingPrimaryCta || incomingPrimaryCta === "Ver catálogo completo"
+      ? defaults.homeLayout.heroPrimaryCtaLabel
+      : config?.homeLayout?.heroPrimaryCtaLabel ?? defaults.homeLayout.heroPrimaryCtaLabel;
+  const incomingSecondaryCta = config?.homeLayout?.heroSecondaryCtaLabel?.trim();
+  const normalizedSecondaryCta =
+    !incomingSecondaryCta || incomingSecondaryCta === "Explorar secciones"
+      ? defaults.homeLayout.heroSecondaryCtaLabel
+      : config?.homeLayout?.heroSecondaryCtaLabel ?? defaults.homeLayout.heroSecondaryCtaLabel;
   return {
     sectionVehicleIds: {
       "proximos-remates":
@@ -42,14 +69,12 @@ function normalizeConfig(config?: Partial<EditorConfig> | null): EditorConfig {
     },
     homeLayout: {
       heroKicker: config?.homeLayout?.heroKicker ?? defaults.homeLayout.heroKicker,
-      heroTitle: config?.homeLayout?.heroTitle ?? defaults.homeLayout.heroTitle,
-      heroDescription: config?.homeLayout?.heroDescription ?? defaults.homeLayout.heroDescription,
-      heroPrimaryCtaLabel:
-        config?.homeLayout?.heroPrimaryCtaLabel ?? defaults.homeLayout.heroPrimaryCtaLabel,
+      heroTitle: normalizedHeroTitle,
+      heroDescription: normalizedHeroDescription,
+      heroPrimaryCtaLabel: normalizedPrimaryCta,
       heroPrimaryCtaHref:
         config?.homeLayout?.heroPrimaryCtaHref ?? defaults.homeLayout.heroPrimaryCtaHref,
-      heroSecondaryCtaLabel:
-        config?.homeLayout?.heroSecondaryCtaLabel ?? defaults.homeLayout.heroSecondaryCtaLabel,
+      heroSecondaryCtaLabel: normalizedSecondaryCta,
       heroSecondaryCtaHref:
         config?.homeLayout?.heroSecondaryCtaHref ?? defaults.homeLayout.heroSecondaryCtaHref,
       heroAlignment: config?.homeLayout?.heroAlignment ?? defaults.homeLayout.heroAlignment,

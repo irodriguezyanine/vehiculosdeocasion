@@ -176,13 +176,38 @@ function normalizeEditorConfigClient(
   value?: Partial<EditorConfig> | null,
 ): EditorConfig {
   const defaults = DEFAULT_EDITOR_CONFIG;
-  const legacyHeroTitle = "Inventario de vehículos para remate y venta directa";
-  const requestedHeroTitle = "Inventario de vehiculos";
+  const legacyHeroTitles = new Set([
+    "Inventario de vehículos para remate y venta directa",
+    "Inventario de vehiculos",
+    "Inventario de vehículos",
+  ]);
+  const requestedHeroTitle = "Encuentra tu próximo vehículo al mejor precio";
+  const requestedHeroDescription =
+    "Catálogo oficial de Vedisa Remates con fotos, historial técnico y trazabilidad.";
+  const requestedPrimaryCta = "Ver vehículos disponibles";
+  const requestedSecondaryCta = "Cómo participar en el remate";
   const incomingHeroTitle = value?.homeLayout?.heroTitle;
   const normalizedHeroTitle =
-    !incomingHeroTitle || incomingHeroTitle.trim() === legacyHeroTitle
+    !incomingHeroTitle || legacyHeroTitles.has(incomingHeroTitle.trim())
       ? requestedHeroTitle
       : incomingHeroTitle;
+  const incomingHeroDescription = value?.homeLayout?.heroDescription?.trim();
+  const normalizedHeroDescription =
+    !incomingHeroDescription ||
+    incomingHeroDescription ===
+      "Plataforma oficial de ofertas online en vedisaremates.cl. Revisa cada unidad con información clara, fotos y trazabilidad comercial para tomar decisiones con confianza."
+      ? requestedHeroDescription
+      : value?.homeLayout?.heroDescription ?? defaults.homeLayout.heroDescription;
+  const incomingPrimaryCta = value?.homeLayout?.heroPrimaryCtaLabel?.trim();
+  const normalizedPrimaryCta =
+    !incomingPrimaryCta || incomingPrimaryCta === "Ver catálogo completo"
+      ? requestedPrimaryCta
+      : value?.homeLayout?.heroPrimaryCtaLabel ?? defaults.homeLayout.heroPrimaryCtaLabel;
+  const incomingSecondaryCta = value?.homeLayout?.heroSecondaryCtaLabel?.trim();
+  const normalizedSecondaryCta =
+    !incomingSecondaryCta || incomingSecondaryCta === "Explorar secciones"
+      ? requestedSecondaryCta
+      : value?.homeLayout?.heroSecondaryCtaLabel ?? defaults.homeLayout.heroSecondaryCtaLabel;
   return {
     sectionVehicleIds: {
       "proximos-remates":
@@ -214,14 +239,11 @@ function normalizeEditorConfigClient(
     homeLayout: {
       heroKicker: value?.homeLayout?.heroKicker ?? defaults.homeLayout.heroKicker,
       heroTitle: normalizedHeroTitle,
-      heroDescription:
-        value?.homeLayout?.heroDescription ?? defaults.homeLayout.heroDescription,
-      heroPrimaryCtaLabel:
-        value?.homeLayout?.heroPrimaryCtaLabel ?? defaults.homeLayout.heroPrimaryCtaLabel,
+      heroDescription: normalizedHeroDescription,
+      heroPrimaryCtaLabel: normalizedPrimaryCta,
       heroPrimaryCtaHref:
         value?.homeLayout?.heroPrimaryCtaHref ?? defaults.homeLayout.heroPrimaryCtaHref,
-      heroSecondaryCtaLabel:
-        value?.homeLayout?.heroSecondaryCtaLabel ?? defaults.homeLayout.heroSecondaryCtaLabel,
+      heroSecondaryCtaLabel: normalizedSecondaryCta,
       heroSecondaryCtaHref:
         value?.homeLayout?.heroSecondaryCtaHref ?? defaults.homeLayout.heroSecondaryCtaHref,
       heroAlignment: value?.homeLayout?.heroAlignment ?? defaults.homeLayout.heroAlignment,
@@ -536,6 +558,23 @@ function formatAuctionDateLabel(value?: string): string {
     month: "2-digit",
     year: "numeric",
   });
+}
+
+function formatAuctionUrgency(value?: string): string {
+  if (!value) return "Próximo remate: martes 21 abril · 15:00";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return `Próximo remate: ${value}`;
+  const diffMs = date.getTime() - Date.now();
+  if (diffMs <= 0) return "Próximo remate: hoy";
+
+  const totalHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+
+  if (days > 0) {
+    return `Próximo remate en ${days} día${days === 1 ? "" : "s"} y ${hours} hora${hours === 1 ? "" : "s"}`;
+  }
+  return `Próximo remate en ${hours} hora${hours === 1 ? "" : "s"}`;
 }
 
 function isRecentAuctionDate(value?: string): boolean {
@@ -2117,6 +2156,11 @@ export function CatalogHomeClient({ feed }: Props) {
       .sort((a, b) => a.date.getTime() - b.date.getTime());
     return upcoming[0] ?? null;
   }, [sortedUpcomingAuctions]);
+
+  const nextAuctionUrgencyLabel = useMemo(
+    () => formatAuctionUrgency(nextAuction?.auction.date),
+    [nextAuction],
+  );
 
   const toggleQuickFilter = (filterId: QuickFilterId) => {
     trackEvent("quick_filter_toggle", { filterId });
@@ -5220,67 +5264,75 @@ export function CatalogHomeClient({ feed }: Props) {
       ) : null}
       {config.homeLayout.showSearchBar ? (
       <section className={`${config.homeLayout.showStickySearchBar ? "sticky top-[68px] sm:top-[72px] md:static" : "relative"} z-40 mx-auto w-full max-w-7xl px-3 pt-3 sm:px-6 lg:px-8`}>
-        <div className="glass-soft rounded-xl border border-cyan-100/80 p-3 shadow-sm md:p-4">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <input
-              value={homeSearchTerm}
-              onChange={(event) => {
-                setHomeSearchTerm(event.target.value);
-                trackEvent("home_search_change", { query: event.target.value });
-              }}
-              placeholder="Buscar por patente, marca, modelo o categoría..."
-              className="ui-focus w-full rounded-md border border-cyan-200 bg-white px-3 py-2.5 text-base sm:max-w-xl sm:py-2 sm:text-sm"
-              aria-label="Buscar vehículos por patente, marca, modelo o categoría"
-            />
-            <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:w-auto sm:justify-end">
-              <span className="text-xs font-semibold text-slate-600">
+        <div className="glass-soft rounded-2xl border border-slate-300/80 bg-white/95 p-3 shadow-md md:p-4">
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+            <div className="w-full">
+              <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                Búsqueda de inventario
+              </p>
+              <div className="relative">
+                <svg
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  aria-hidden="true"
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                >
+                  <path d="M13.5 13.5L17 17" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                  <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="1.8" />
+                </svg>
+                <input
+                  value={homeSearchTerm}
+                  onChange={(event) => {
+                    setHomeSearchTerm(event.target.value);
+                    trackEvent("home_search_change", { query: event.target.value });
+                  }}
+                  placeholder="Buscar por patente, marca, modelo o categoría..."
+                  className="ui-focus w-full rounded-xl border-2 border-slate-300 bg-white py-3 pl-10 pr-28 text-sm font-medium text-slate-800 shadow-sm placeholder:text-slate-500"
+                  aria-label="Buscar vehículos por patente, marca, modelo o categoría"
+                />
+                {homeSearchTerm ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setHomeSearchTerm("");
+                      trackEvent("home_search_clear");
+                    }}
+                    className="ui-focus absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    Limpiar
+                  </button>
+                ) : null}
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+              <span className="rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
                 {homeVisibleItems.length} resultado(s)
               </span>
               <span className="sr-only" aria-live="polite">
                 {homeVisibleItems.length} resultados encontrados en catálogo.
               </span>
-              {homeSearchTerm ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setHomeSearchTerm("");
-                    trackEvent("home_search_clear");
+              {config.homeLayout.showSortSelector ? (
+                <select
+                  value={homeSort}
+                  onChange={(event) => {
+                    setHomeSort(event.target.value as SortOption);
+                    trackEvent("home_sort_change", { sort: event.target.value });
                   }}
-                  className="ui-focus rounded border border-slate-300 px-2 py-1 text-xs text-slate-700"
+                  className="ui-focus rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700"
+                  aria-label="Ordenar resultados del catálogo"
                 >
-                  Limpiar
-                </button>
+                  <option value="recomendado">Orden: Recomendado</option>
+                  <option value="relevancia">Orden: Relevancia</option>
+                  <option value="fecha-remate">Orden: Fecha remate</option>
+                  <option value="precio-asc">Orden: Precio menor</option>
+                  <option value="precio-desc">Orden: Precio mayor</option>
+                  <option value="titulo">Orden: Título A-Z</option>
+                </select>
               ) : null}
-              <div className="inline-flex overflow-hidden rounded-md border border-slate-300 bg-white">
-                <button
-                  type="button"
-                  onClick={() => setCardDensity("compact")}
-                  className={`ui-focus min-h-9 px-3 py-1 text-xs font-semibold ${
-                    cardDensity === "compact"
-                      ? "bg-cyan-600 text-white"
-                      : "text-slate-600 hover:bg-slate-50"
-                  }`}
-                  aria-label="Cambiar a vista compacta"
-                >
-                  Compacta
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCardDensity("detailed")}
-                  className={`ui-focus min-h-9 px-3 py-1 text-xs font-semibold ${
-                    cardDensity === "detailed"
-                      ? "bg-cyan-600 text-white"
-                      : "text-slate-600 hover:bg-slate-50"
-                  }`}
-                  aria-label="Cambiar a vista detallada"
-                >
-                  Detallada
-                </button>
-              </div>
             </div>
           </div>
-          {config.homeLayout.showQuickFilters || config.homeLayout.showSortSelector ? (
-          <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1 whitespace-nowrap md:flex-wrap md:overflow-visible md:whitespace-normal">
+          {config.homeLayout.showQuickFilters ? (
+          <div className="mt-3 flex items-center gap-2 overflow-x-auto border-t border-slate-200 pt-3 pb-1 whitespace-nowrap md:flex-wrap md:overflow-visible md:whitespace-normal">
             {config.homeLayout.showQuickFilters ? (
               Object.entries(QUICK_FILTER_LABELS).map(([id, label]) => (
                 <button
@@ -5289,31 +5341,13 @@ export function CatalogHomeClient({ feed }: Props) {
                   onClick={() => toggleQuickFilter(id as QuickFilterId)}
                   className={`ui-focus shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                     quickFilters.includes(id as QuickFilterId)
-                      ? "border-cyan-500 bg-cyan-600 text-white"
+                      ? "border-slate-700 bg-slate-800 text-white"
                       : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
                   }`}
                 >
                   {label}
                 </button>
               ))
-            ) : null}
-            {config.homeLayout.showSortSelector ? (
-              <select
-                value={homeSort}
-                onChange={(event) => {
-                  setHomeSort(event.target.value as SortOption);
-                  trackEvent("home_sort_change", { sort: event.target.value });
-                }}
-                className="ui-focus shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 md:ml-auto"
-                aria-label="Ordenar resultados del catálogo"
-              >
-                <option value="recomendado">Orden: Recomendado</option>
-                <option value="relevancia">Orden: Relevancia</option>
-                <option value="fecha-remate">Orden: Fecha remate</option>
-                <option value="precio-asc">Orden: Precio menor</option>
-                <option value="precio-desc">Orden: Precio mayor</option>
-                <option value="titulo">Orden: Título A-Z</option>
-              </select>
             ) : null}
           </div>
           ) : null}
@@ -5351,7 +5385,7 @@ export function CatalogHomeClient({ feed }: Props) {
             : "max-h-[1200px] translate-y-0 opacity-100"
         }`}
       >
-        <section className="relative z-10 mx-auto grid max-w-7xl gap-6 px-4 py-10 sm:px-6 lg:grid-cols-12 lg:px-8">
+        <section className="relative z-10 mx-auto grid max-w-7xl gap-5 px-4 py-6 sm:px-6 md:py-7 lg:grid-cols-12 lg:px-8">
           <div
             className={`${config.homeLayout.showCommercialPanel ? "lg:col-span-8" : "lg:col-span-12"} premium-panel premium-panel-hero ${
               config.homeLayout.heroTheme === "indigo"
@@ -5368,10 +5402,10 @@ export function CatalogHomeClient({ feed }: Props) {
                   ? "text-slate-700"
                   : "text-cyan-700"
             }`}>{config.homeLayout.heroKicker}</p>
-            <h1 className="mt-3 text-3xl font-black leading-tight text-slate-900 md:text-5xl">
+            <h1 className="mt-2 text-3xl font-black leading-tight text-slate-900 md:text-[2.7rem]">
               {config.homeLayout.heroTitle}
             </h1>
-            <p className={`mt-5 text-sm leading-relaxed text-slate-600 md:text-[15px] ${
+            <p className={`mt-3 text-sm leading-relaxed text-slate-600 md:text-[15px] ${
               config.homeLayout.heroAlignment === "center"
                 ? config.homeLayout.heroMaxWidth === "xl"
                   ? "mx-auto max-w-xl"
@@ -5387,14 +5421,14 @@ export function CatalogHomeClient({ feed }: Props) {
               {config.homeLayout.heroDescription}
             </p>
             {config.homeLayout.showHeroChips ? (
-            <div className={`mt-5 flex flex-wrap gap-2 ${config.homeLayout.heroAlignment === "center" ? "justify-center" : ""}`}>
-              <span className="rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-700">Visor 3D</span>
-              <span className="rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-700">Agenda por remate</span>
-              <span className="rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-700">Contacto inmediato</span>
+            <div className={`mt-4 flex flex-wrap gap-2 ${config.homeLayout.heroAlignment === "center" ? "justify-center" : ""}`}>
+              <span className="rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">Visor 3D</span>
+              <span className="rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">Agenda por remate</span>
+              <span className="rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">Trazabilidad técnica</span>
             </div>
             ) : null}
             {config.homeLayout.showHeroCtas ? (
-            <div className={`mt-6 flex flex-wrap gap-3 border-t border-cyan-100 pt-5 ${config.homeLayout.heroAlignment === "center" ? "justify-center" : ""}`}>
+            <div className={`mt-4 flex flex-wrap gap-3 border-t border-slate-200 pt-4 ${config.homeLayout.heroAlignment === "center" ? "justify-center" : ""}`}>
               <a href={config.homeLayout.heroPrimaryCtaHref || "#catalogo"} className="premium-btn-primary ui-focus">
                 {config.homeLayout.heroPrimaryCtaLabel || "Ver catálogo completo"}
               </a>
@@ -5403,14 +5437,18 @@ export function CatalogHomeClient({ feed }: Props) {
               </a>
             </div>
             ) : null}
-            {nextAuction ? (
-              <div className={`mt-5 inline-flex w-fit items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-4 py-2 text-xs font-semibold text-indigo-800 ${config.homeLayout.heroAlignment === "center" ? "mx-auto" : ""}`}>
-                <span>Próximo remate:</span>
-                <span>{nextAuction.auction.name}</span>
-                <span>·</span>
-                <span>{formatAuctionDateLabel(nextAuction.auction.date)}</span>
-              </div>
-            ) : null}
+            <div className={`mt-4 inline-flex w-fit flex-wrap items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 ${config.homeLayout.heroAlignment === "center" ? "mx-auto justify-center" : ""}`}>
+              <span className="rounded-full bg-amber-200 px-2 py-0.5 text-[11px] uppercase tracking-wide text-amber-900">
+                Urgencia
+              </span>
+              <span>{nextAuctionUrgencyLabel}</span>
+              {nextAuction ? (
+                <>
+                  <span className="text-amber-800">·</span>
+                  <span>{nextAuction.auction.name} · {formatAuctionDateLabel(nextAuction.auction.date)}</span>
+                </>
+              ) : null}
+            </div>
           </div>
           {config.homeLayout.showCommercialPanel ? (
           <div className="premium-panel lg:col-span-4">
@@ -5447,6 +5485,7 @@ export function CatalogHomeClient({ feed }: Props) {
       } px-4 pb-14 sm:px-6 lg:px-8`}>
         {config.homeLayout.showHowToSection ? (
         <section
+          id="como-participar"
           className={`section-shell transition-all duration-500 ease-out ${
             hasActiveSearchOrQuickFilters
               ? "pointer-events-none max-h-0 -translate-y-2 overflow-hidden opacity-0"

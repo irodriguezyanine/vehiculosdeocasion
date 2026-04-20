@@ -573,28 +573,80 @@ function formatDateDash(value: Date): string {
   return `${dd}-${mm}-${yyyy}`;
 }
 
+function getTimeZoneOffsetMinutes(timeZone: string, date: Date): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    timeZoneName: "shortOffset",
+    hour: "2-digit",
+  }).formatToParts(date);
+  const zonePart = parts.find((part) => part.type === "timeZoneName")?.value ?? "GMT+0";
+  const match = zonePart.match(/GMT([+-])(\d{1,2})(?::?(\d{2}))?/i);
+  if (!match) return 0;
+  const sign = match[1] === "-" ? -1 : 1;
+  const hours = Number(match[2] ?? "0");
+  const minutes = Number(match[3] ?? "0");
+  return sign * (hours * 60 + minutes);
+}
+
+function buildDateInTimeZone(
+  year: number,
+  month: number,
+  day: number,
+  hours: number,
+  minutes: number,
+  timeZone: string,
+): Date {
+  let utcMs = Date.UTC(year, month - 1, day, hours, minutes, 0, 0);
+  for (let i = 0; i < 2; i += 1) {
+    const offsetMinutes = getTimeZoneOffsetMinutes(timeZone, new Date(utcMs));
+    utcMs = Date.UTC(year, month - 1, day, hours, minutes, 0, 0) - offsetMinutes * 60 * 1000;
+  }
+  return new Date(utcMs);
+}
+
 function parseAuctionDateTime(auction: UpcomingAuction): Date | null {
   const rawDate = (auction.date ?? "").trim();
   if (!rawDate) return null;
   const dateMatch = rawDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  const baseDate = dateMatch
-    ? new Date(Number(dateMatch[1]), Number(dateMatch[2]) - 1, Number(dateMatch[3]), 0, 0, 0, 0)
-    : new Date(rawDate);
-  if (Number.isNaN(baseDate.getTime())) return null;
-
+  let year = 0;
+  let month = 0;
+  let day = 0;
+  if (dateMatch) {
+    year = Number(dateMatch[1]);
+    month = Number(dateMatch[2]);
+    day = Number(dateMatch[3]);
+  } else {
+    const fallback = new Date(rawDate);
+    if (Number.isNaN(fallback.getTime())) return null;
+    year = fallback.getFullYear();
+    month = fallback.getMonth() + 1;
+    day = fallback.getDate();
+  }
   const timeMatch = auction.name.match(/(\d{1,2}):(\d{2})/);
+  let hours = 0;
+  let minutes = 0;
   if (timeMatch) {
-    baseDate.setHours(Number(timeMatch[1]), Number(timeMatch[2]), 0, 0);
+    hours = Number(timeMatch[1]);
+    minutes = Number(timeMatch[2]);
   }
 
-  return baseDate;
+  return buildDateInTimeZone(year, month, day, hours, minutes, "America/Santiago");
 }
 
-function formatAuctionCountdownHours(targetDate: Date | null): string {
+function formatAuctionCountdownClock(diffMs: number): string {
+  const totalSeconds = Math.max(0, Math.floor(diffMs / 1000));
+  const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
+  const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
+  const seconds = String(totalSeconds % 60).padStart(2, "0");
+  return `${hours}:${minutes}:${seconds}`;
+}
+
+function formatAuctionCountdownHours(targetDate: Date | null, nowMs: number): string {
   if (!targetDate) return "Próximo remate en 0 (Cuenta regresiva) horas";
-  const diffMs = targetDate.getTime() - Date.now();
+  const diffMs = targetDate.getTime() - nowMs;
   const diffHours = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60)));
-  return `Próximo remate en ${diffHours} (Cuenta regresiva) horas`;
+  const clock = formatAuctionCountdownClock(diffMs);
+  return `Próximo remate en ${diffHours} (${clock}) horas`;
 }
 
 function isRecentAuctionDate(value?: string): boolean {
@@ -724,6 +776,15 @@ function formatExtendedDescriptionHtml(value?: string | null): string {
   if (!normalized) return "Sin descripción adicional para este vehículo.";
   if (/<[a-z][\s\S]*>/i.test(normalized)) return sanitizeRichHtml(normalized);
   return escapeHtml(normalized).replace(/\n/g, "<br />");
+}
+
+function stripHtmlToText(value: string): string {
+  return value
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|li|h[1-6])>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 function normalizeBinaryToken(value: string): string {
@@ -1662,6 +1723,8 @@ export function CatalogHomeClient({ feed }: Props) {
   const [analyticsEventFilter, setAnalyticsEventFilter] = useState("all");
   const [analyticsSectionFilter, setAnalyticsSectionFilter] = useState("all");
   const [analyticsVehicleQuery, setAnalyticsVehicleQuery] = useState("");
+  const [countdownNowMs, setCountdownNowMs] = useState(() => Date.now());
+  const manualObservationsEditorRef = useRef<HTMLDivElement | null>(null);
   const autoSaveReadyRef = useRef(false);
   const lastPersistedConfigRef = useRef("");
 
@@ -1714,6 +1777,37 @@ export function CatalogHomeClient({ feed }: Props) {
 
   const getEditorFieldError = (field: keyof EditorVehicleDetails): string | null =>
     editingValidationErrors[field] ?? null;
+
+  const syncManualObservations = useCallback((html: string) => {
+    const text = stripHtmlToText(html);
+    setEditingDetails((prev) => ({
+      ...(prev ?? {}),
+      extendedDescription: html,
+      description: text,
+    }));
+  }, []);
+
+  const runObservationsCommand = useCallback((command: string, value?: string) => {
+    const editor = manualObservationsEditorRef.current;
+    if (!editor || typeof document === "undefined") return;
+    editor.focus();
+    document.execCommand("styleWithCSS", false, "true");
+    document.execCommand(command, false, value);
+    syncManualObservations(editor.innerHTML);
+  }, [syncManualObservations]);
+
+  useEffect(() => {
+    if (!editingDetails || detailEditorTab !== "general") return;
+    const editor = manualObservationsEditorRef.current;
+    if (!editor) return;
+    const desiredHtml =
+      editingDetails.extendedDescription?.trim() ||
+      escapeHtml(editingDetails.description ?? "").replace(/\n/g, "<br />");
+    const normalized = desiredHtml || "";
+    if (editor.innerHTML !== normalized) {
+      editor.innerHTML = normalized;
+    }
+  }, [editingVehicleKey, detailEditorTab, editingDetails]);
 
   const rawItems = feed.items;
   const updateVehicleUrlParam = useCallback((vehicleKey?: string) => {
@@ -2178,9 +2272,16 @@ export function CatalogHomeClient({ feed }: Props) {
     return upcoming[0] ?? null;
   }, [sortedUpcomingAuctions]);
 
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setCountdownNowMs(Date.now());
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const nextAuctionUrgencyLabel = useMemo(
-    () => formatAuctionCountdownHours(nextAuction?.date ?? null),
-    [nextAuction],
+    () => formatAuctionCountdownHours(nextAuction?.date ?? null, countdownNowMs),
+    [nextAuction, countdownNowMs],
   );
 
   const toggleQuickFilter = (filterId: QuickFilterId) => {
@@ -5287,7 +5388,7 @@ export function CatalogHomeClient({ feed }: Props) {
         </section>
       ) : null}
       {config.homeLayout.showSearchBar ? (
-      <section className={`${config.homeLayout.showStickySearchBar ? "sticky top-[68px] sm:top-[72px] md:relative" : "relative"} z-50 mx-auto w-full max-w-7xl px-3 pt-3 sm:px-6 lg:px-8`}>
+      <section className="relative z-50 mx-auto w-full max-w-7xl px-3 pt-3 pb-2 sm:px-6 lg:px-8">
         <div className="glass-soft overflow-visible rounded-2xl border border-slate-300/80 bg-white/95 p-3 shadow-md md:p-4">
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
             <div className="w-full">
@@ -7312,8 +7413,69 @@ export function CatalogHomeClient({ feed }: Props) {
                     <input className={getEditorInputClass("auctionDate")} placeholder="Fecha remate (YYYY-MM-DD o DD/MM/YYYY)" value={editingDetails.auctionDate ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), auctionDate: event.target.value }))} />
                     {getEditorFieldError("auctionDate") ? <p className="text-xs text-rose-600">{getEditorFieldError("auctionDate")}</p> : null}
                   </div>
-                  <textarea className="min-h-20 rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Descripción corta" value={editingDetails.description ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), description: event.target.value }))} />
-                  <textarea className="min-h-24 rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Descripción ampliada (admite HTML: <p>, <br>, <strong>, <ul>, <li>, <a>)" value={editingDetails.extendedDescription ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), extendedDescription: event.target.value }))} />
+                  <div className="space-y-2 md:col-span-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Observaciones (editor HTML)
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2 rounded border border-slate-300 bg-white px-2 py-2">
+                      <button type="button" onClick={() => runObservationsCommand("bold")} className="ui-focus rounded border border-slate-300 px-2 py-1 text-xs font-bold text-slate-700">B</button>
+                      <button type="button" onClick={() => runObservationsCommand("italic")} className="ui-focus rounded border border-slate-300 px-2 py-1 text-xs italic text-slate-700">I</button>
+                      <button type="button" onClick={() => runObservationsCommand("underline")} className="ui-focus rounded border border-slate-300 px-2 py-1 text-xs underline text-slate-700">U</button>
+                      <button type="button" onClick={() => runObservationsCommand("insertUnorderedList")} className="ui-focus rounded border border-slate-300 px-2 py-1 text-xs text-slate-700">Lista</button>
+                      <button type="button" onClick={() => runObservationsCommand("insertOrderedList")} className="ui-focus rounded border border-slate-300 px-2 py-1 text-xs text-slate-700">1.2.3</button>
+                      <select
+                        className="ui-focus rounded border border-slate-300 px-2 py-1 text-xs text-slate-700"
+                        defaultValue="3"
+                        onChange={(event) => runObservationsCommand("fontSize", event.target.value)}
+                      >
+                        <option value="2">Tamaño S</option>
+                        <option value="3">Tamaño M</option>
+                        <option value="4">Tamaño L</option>
+                        <option value="5">Tamaño XL</option>
+                      </select>
+                      <select
+                        className="ui-focus rounded border border-slate-300 px-2 py-1 text-xs text-slate-700"
+                        defaultValue="Arial"
+                        onChange={(event) => runObservationsCommand("fontName", event.target.value)}
+                      >
+                        <option value="Arial">Arial</option>
+                        <option value="Georgia">Georgia</option>
+                        <option value="Tahoma">Tahoma</option>
+                        <option value="Verdana">Verdana</option>
+                        <option value="Courier New">Courier</option>
+                      </select>
+                      <input
+                        type="color"
+                        title="Color de texto"
+                        className="ui-focus h-8 w-10 cursor-pointer rounded border border-slate-300 bg-white p-1"
+                        defaultValue="#0f172a"
+                        onChange={(event) => runObservationsCommand("foreColor", event.target.value)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const url = window.prompt("URL del enlace");
+                          if (!url) return;
+                          runObservationsCommand("createLink", url);
+                        }}
+                        className="ui-focus rounded border border-slate-300 px-2 py-1 text-xs text-slate-700"
+                      >
+                        Link
+                      </button>
+                      <button type="button" onClick={() => runObservationsCommand("removeFormat")} className="ui-focus rounded border border-slate-300 px-2 py-1 text-xs text-slate-700">Limpiar estilo</button>
+                    </div>
+                    <div
+                      ref={manualObservationsEditorRef}
+                      contentEditable
+                      suppressContentEditableWarning
+                      onInput={(event) => syncManualObservations(event.currentTarget.innerHTML)}
+                      className="ui-focus min-h-52 rounded border border-slate-300 bg-white px-3 py-3 text-sm leading-relaxed text-slate-800"
+                      aria-label="Editor de observaciones con formato HTML"
+                    />
+                    <p className="text-xs text-slate-500">
+                      Puedes usar negritas, listas, colores, tamaño y tipo de letra. Se guarda como HTML.
+                    </p>
+                  </div>
                 </div>
               </div>
             ) : null}

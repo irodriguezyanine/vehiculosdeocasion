@@ -18,6 +18,7 @@ import {
   DEFAULT_EDITOR_CONFIG,
   type EditorConfig,
   type EditorVehicleDetails,
+  type HomeSectionOrderId,
   type ManagedCategory,
   type ManualPublication,
   type UpcomingAuction,
@@ -31,7 +32,7 @@ const HOME_QUICK_FILTERS_STORAGE_KEY = "vedisa_home_quick_filters";
 const HOME_CARD_DENSITY_STORAGE_KEY = "vedisa_home_card_density";
 const EDITOR_PAGE_SIZE = 20;
 type AdminTabId = "vehiculos" | "categorias" | "layout" | "analytics";
-type EditorGroupFilter = "all" | SectionId;
+type EditorGroupFilter = "all" | SectionId | `managed:${string}`;
 type EditorVisibilityFilter = "all" | "visible" | "hidden";
 type EditorVehicleCategoryFilter = "all" | "livianos" | "pesados" | "maquinaria" | "chatarra" | "otros";
 type BatchAssignTarget =
@@ -145,6 +146,12 @@ const SECTION_LABELS: Record<SectionId, string> = {
   novedades: "Novedades",
   catalogo: "Catálogo",
 };
+const BASE_HOME_SECTION_ORDER: SectionId[] = [
+  "proximos-remates",
+  "ventas-directas",
+  "novedades",
+  "catalogo",
+];
 
 const HOME_LAYOUT_PRESETS: Array<{
   id: "balanced" | "conversion" | "minimal";
@@ -472,6 +479,10 @@ function hasValue(value: unknown): boolean {
   if (typeof value === "string") return value.trim().length > 0;
   if (Array.isArray(value)) return value.length > 0;
   return true;
+}
+
+function isBaseHomeSectionOrderId(value: string): value is SectionId {
+  return (BASE_HOME_SECTION_ORDER as string[]).includes(value);
 }
 
 function getVehicleKey(item: CatalogItem): string {
@@ -2375,6 +2386,38 @@ export function CatalogHomeClient({ feed }: Props) {
         .filter((category) => category.items.length > 0),
     [config.managedCategories, itemsByKey, homeVisibleKeys],
   );
+  const managedCategoryOrderEntries = useMemo(
+    () =>
+      (config.managedCategories ?? []).map((category) => ({
+        id: `managed:${category.id}` as HomeSectionOrderId,
+        name: category.name,
+      })),
+    [config.managedCategories],
+  );
+  const managedCategoryOrderLabelById = useMemo(
+    () => new Map(managedCategoryOrderEntries.map((entry) => [entry.id, entry.name])),
+    [managedCategoryOrderEntries],
+  );
+  const resolvedHomeSectionOrder = useMemo(() => {
+    const managedIds = managedCategoryOrderEntries.map((entry) => entry.id);
+    const validManagedIds = new Set(managedIds);
+    const unique: HomeSectionOrderId[] = [];
+    for (const rawSectionId of config.homeLayout.sectionOrder ?? []) {
+      const sectionId = rawSectionId as HomeSectionOrderId;
+      const isValidBase = isBaseHomeSectionOrderId(sectionId);
+      const isValidManaged =
+        sectionId.startsWith("managed:") && validManagedIds.has(sectionId as HomeSectionOrderId);
+      if (!isValidBase && !isValidManaged) continue;
+      if (!unique.includes(sectionId)) unique.push(sectionId);
+    }
+    for (const baseId of BASE_HOME_SECTION_ORDER) {
+      if (!unique.includes(baseId)) unique.push(baseId);
+    }
+    for (const managedId of managedIds) {
+      if (!unique.includes(managedId)) unique.push(managedId);
+    }
+    return unique;
+  }, [config.homeLayout.sectionOrder, managedCategoryOrderEntries]);
 
   const featuredItems = useMemo(() => homeVisibleItems.slice(0, 16), [homeVisibleItems]);
 
@@ -2481,19 +2524,15 @@ export function CatalogHomeClient({ feed }: Props) {
   const selectedVehiclePromoMeta = useMemo(() => {
     if (!selectedVehicle) return { promoEnabled: false, originalPriceLabel: null as string | null };
     const raw = selectedVehicle.raw as Record<string, unknown>;
+    const rawMeta = getRawPromoMeta(raw);
+    const override = selectedVehicleOverride;
     const promoEnabled =
-      raw.promo_enabled === true ||
-      raw.promo_enabled === "true" ||
-      raw.promo_enabled === "1" ||
-      raw.promo_enabled === 1;
-    const originalPriceLabel =
-      typeof raw.precio_normal === "string" && raw.precio_normal.trim()
-        ? raw.precio_normal.trim()
-        : typeof raw.original_price === "string" && raw.original_price.trim()
-          ? raw.original_price.trim()
-          : null;
+      typeof override?.promoEnabled === "boolean" ? override.promoEnabled : rawMeta.promoEnabled;
+    const originalPriceLabel = override?.originalPrice?.trim()
+      ? override.originalPrice.trim()
+      : rawMeta.originalPriceLabel;
     return { promoEnabled, originalPriceLabel };
-  }, [selectedVehicle]);
+  }, [selectedVehicle, selectedVehicleOverride]);
 
   const selectedVehicleShareUrl = useMemo(() => {
     if (!selectedVehicle || typeof window === "undefined") return "";
@@ -3256,9 +3295,19 @@ export function CatalogHomeClient({ feed }: Props) {
           ? source.filter((item) =>
               Boolean(config.vehicleUpcomingAuctionIds[getVehicleKey(item)]),
             )
-          : source.filter((item) =>
-              (config.sectionVehicleIds[editorGroupFilter] ?? []).includes(getVehicleKey(item)),
-            );
+          : editorGroupFilter.startsWith("managed:")
+            ? source.filter((item) => {
+                const managedCategoryId = editorGroupFilter.replace("managed:", "");
+                const managedCategory = (config.managedCategories ?? []).find(
+                  (category) => category.id === managedCategoryId,
+                );
+                if (!managedCategory) return false;
+                return (managedCategory.vehicleIds ?? []).includes(getVehicleKey(item));
+              })
+          : source.filter((item) => {
+              const sectionGroup = editorGroupFilter as Exclude<EditorGroupFilter, "all" | `managed:${string}`>;
+              return (config.sectionVehicleIds[sectionGroup] ?? []).includes(getVehicleKey(item));
+            });
     const byVisibility =
       editorVisibilityFilter === "all"
         ? byGroup
@@ -3288,6 +3337,7 @@ export function CatalogHomeClient({ feed }: Props) {
     mergedHiddenVehicleIds,
     config.vehicleUpcomingAuctionIds,
     config.sectionVehicleIds,
+    config.managedCategories,
   ]);
 
   const totalEditorPages = Math.max(1, Math.ceil(filteredEditorItems.length / EDITOR_PAGE_SIZE));
@@ -3386,10 +3436,72 @@ export function CatalogHomeClient({ feed }: Props) {
   };
 
   const setPrice = (itemKey: string, value: string) => {
-    setConfig((prev) => ({
-      ...prev,
-      vehiclePrices: { ...prev.vehiclePrices, [itemKey]: value },
-    }));
+    setConfig((prev) => {
+      const nextVehiclePrices = { ...prev.vehiclePrices, [itemKey]: value };
+      const nextManualPublications = (prev.manualPublications ?? []).map((entry) => {
+        if (`manual-${entry.id}` !== itemKey) return entry;
+        const promoEnabled = Boolean(entry.promoEnabled && (entry.promoPrice ?? "").trim());
+        return {
+          ...entry,
+          price: value,
+          promoPrice: promoEnabled ? value : entry.promoPrice,
+        };
+      });
+      return {
+        ...prev,
+        vehiclePrices: nextVehiclePrices,
+        manualPublications: nextManualPublications,
+      };
+    });
+  };
+
+  const updateVehiclePromoSettings = (
+    itemKey: string,
+    patch: Partial<Pick<EditorVehicleDetails, "originalPrice" | "promoPrice" | "promoEnabled">>,
+  ) => {
+    setConfig((prev) => {
+      const nextDetails = { ...prev.vehicleDetails };
+      const currentDetails = { ...(nextDetails[itemKey] ?? {}) };
+      const nextPromoEnabled =
+        typeof patch.promoEnabled === "boolean"
+          ? patch.promoEnabled
+          : typeof currentDetails.promoEnabled === "boolean"
+            ? currentDetails.promoEnabled
+            : false;
+      const nextOriginalPriceRaw =
+        typeof patch.originalPrice === "string"
+          ? patch.originalPrice
+          : (currentDetails.originalPrice ?? "");
+      const nextPromoPriceRaw =
+        typeof patch.promoPrice === "string" ? patch.promoPrice : (currentDetails.promoPrice ?? "");
+      const nextOriginalPrice = nextOriginalPriceRaw.trim();
+      const nextPromoPrice = nextPromoPriceRaw.trim();
+      const activePrice = nextPromoEnabled && nextPromoPrice ? nextPromoPriceRaw : nextOriginalPriceRaw;
+
+      currentDetails.originalPrice = nextOriginalPriceRaw;
+      currentDetails.promoPrice = nextPromoPriceRaw;
+      currentDetails.promoEnabled = nextPromoEnabled;
+      nextDetails[itemKey] = currentDetails;
+
+      const nextVehiclePrices = { ...prev.vehiclePrices, [itemKey]: activePrice };
+      const nextManualPublications = (prev.manualPublications ?? []).map((entry) => {
+        if (`manual-${entry.id}` !== itemKey) return entry;
+        return {
+          ...entry,
+          originalPrice: nextOriginalPrice || undefined,
+          promoPrice: nextPromoPrice || undefined,
+          promoEnabled: nextPromoEnabled,
+          price: activePrice,
+        };
+      });
+
+      return {
+        ...prev,
+        vehicleDetails: nextDetails,
+        vehiclePrices: nextVehiclePrices,
+        manualPublications: nextManualPublications,
+      };
+    });
   };
 
   const setVehicleCategory = (itemKey: string, value: string) => {
@@ -3423,7 +3535,7 @@ export function CatalogHomeClient({ feed }: Props) {
 
   const setHomeLayout = (
     field: keyof EditorConfig["homeLayout"],
-    value: string | boolean | SectionId[],
+    value: string | boolean | HomeSectionOrderId[],
   ) => {
     setConfig((prev) => ({
       ...prev,
@@ -3487,9 +3599,9 @@ export function CatalogHomeClient({ feed }: Props) {
     );
   };
 
-  const moveSectionOrder = (sectionId: SectionId, direction: "up" | "down") => {
+  const moveSectionOrder = (sectionId: HomeSectionOrderId, direction: "up" | "down") => {
     setConfig((prev) => {
-      const order = [...prev.homeLayout.sectionOrder];
+      const order = [...resolvedHomeSectionOrder];
       const index = order.indexOf(sectionId);
       if (index < 0) return prev;
       const target = direction === "up" ? index - 1 : index + 1;
@@ -4028,6 +4140,28 @@ export function CatalogHomeClient({ feed }: Props) {
 
   const editingItem = editingVehicleKey ? itemsByKey.get(editingVehicleKey) ?? null : null;
   const managingItem = managingVehicleKey ? itemsByKey.get(managingVehicleKey) ?? null : null;
+  const managingVehiclePromoMeta = useMemo(() => {
+    if (!managingVehicleKey || !managingItem) {
+      return {
+        originalPrice: "",
+        promoPrice: "",
+        promoEnabled: false,
+      };
+    }
+    const rawMeta = getRawPromoMeta(managingItem.raw as Record<string, unknown>);
+    const details = config.vehicleDetails[managingVehicleKey];
+    const originalPrice =
+      details?.originalPrice?.trim() ??
+      rawMeta.originalPriceLabel ??
+      (config.vehiclePrices[managingVehicleKey] ?? "");
+    const promoEnabled =
+      typeof details?.promoEnabled === "boolean" ? details.promoEnabled : rawMeta.promoEnabled;
+    const promoPrice =
+      details?.promoPrice?.trim() ??
+      rawMeta.promoPriceLabel ??
+      (promoEnabled ? (config.vehiclePrices[managingVehicleKey] ?? "") : "");
+    return { originalPrice, promoPrice, promoEnabled };
+  }, [config.vehicleDetails, config.vehiclePrices, managingItem, managingVehicleKey]);
   const analyticsBaseEvents = analyticsSource === "server" ? serverAnalyticsEvents : analyticsEvents;
 
   const analyticsFilteredEvents = useMemo(() => {
@@ -4505,6 +4639,11 @@ export function CatalogHomeClient({ feed }: Props) {
                             <option value="ventas-directas">Ventas directas</option>
                             <option value="novedades">Novedades</option>
                             <option value="catalogo">Catálogo</option>
+                            {(config.managedCategories ?? []).map((category) => (
+                              <option key={`group-filter-${category.id}`} value={`managed:${category.id}`}>
+                                {category.name}
+                              </option>
+                            ))}
                           </select>
                         </div>
                         <button
@@ -5353,9 +5492,13 @@ export function CatalogHomeClient({ feed }: Props) {
                       Orden de secciones
                     </summary>
                     <div className="mt-2 space-y-2">
-                      {config.homeLayout.sectionOrder.map((sectionId) => (
+                      {resolvedHomeSectionOrder.map((sectionId) => (
                         <div key={sectionId} className="flex items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm">
-                          <span>{SECTION_LABELS[sectionId]}</span>
+                          <span>
+                            {isBaseHomeSectionOrderId(sectionId)
+                              ? SECTION_LABELS[sectionId]
+                              : managedCategoryOrderLabelById.get(sectionId) ?? "Categoría personalizada"}
+                          </span>
                           <div className="flex gap-2">
                             <button type="button" onClick={() => moveSectionOrder(sectionId, "up")} className="ui-focus rounded border border-slate-300 px-2 py-1 text-xs">Subir</button>
                             <button type="button" onClick={() => moveSectionOrder(sectionId, "down")} className="ui-focus rounded border border-slate-300 px-2 py-1 text-xs">Bajar</button>
@@ -6030,6 +6173,8 @@ export function CatalogHomeClient({ feed }: Props) {
                   item={item}
                   density={cardDensity}
                   priceLabel={formatPrice(config.vehiclePrices[getVehicleKey(item)])}
+                  promoEnabled={config.vehicleDetails[getVehicleKey(item)]?.promoEnabled}
+                  originalPriceLabel={config.vehicleDetails[getVehicleKey(item)]?.originalPrice}
                   upcomingAuctionLabel={upcomingAuctionByVehicleKey[getVehicleKey(item)]}
                   onOpen={() => openVehicleDetail(item)}
                   isFavorite={favoriteKeys.includes(getVehicleKey(item))}
@@ -6060,6 +6205,8 @@ export function CatalogHomeClient({ feed }: Props) {
                   item={item}
                   density={cardDensity}
                   priceLabel={formatPrice(config.vehiclePrices[getVehicleKey(item)])}
+                  promoEnabled={config.vehicleDetails[getVehicleKey(item)]?.promoEnabled}
+                  originalPriceLabel={config.vehicleDetails[getVehicleKey(item)]?.originalPrice}
                   upcomingAuctionLabel={upcomingAuctionByVehicleKey[getVehicleKey(item)]}
                   onOpen={() => openVehicleDetail(item)}
                   isFavorite={favoriteKeys.includes(getVehicleKey(item))}
@@ -6077,7 +6224,29 @@ export function CatalogHomeClient({ feed }: Props) {
             </div>
           </section>
         ) : null}
-        {config.homeLayout.sectionOrder.map((sectionId) => {
+        {resolvedHomeSectionOrder.map((sectionId) => {
+          if (sectionId.startsWith("managed:")) {
+            const managedCategoryId = sectionId.replace("managed:", "");
+            const category = managedCategorySections.find((entry) => entry.id === managedCategoryId);
+            if (!category) return null;
+            return (
+              <Section
+                key={`managed-${category.id}`}
+                id={`categoria-${category.id}`}
+                title={category.name}
+                subtitle={category.description}
+                items={category.items}
+                priceMap={config.vehiclePrices}
+                upcomingAuctionByVehicleKey={upcomingAuctionByVehicleKey}
+                favoriteKeys={favoriteKeys}
+                onToggleFavorite={toggleFavorite}
+                compareKeys={compareKeys}
+                onToggleCompare={toggleCompare}
+                onOpenVehicle={openVehicleDetail}
+                cardDensity={cardDensity}
+              />
+            );
+          }
           if (sectionId === "proximos-remates") {
             if (proximosRemates.length === 0 && !hasUpcomingAuctionCategories) {
               return null;
@@ -6201,23 +6370,6 @@ export function CatalogHomeClient({ feed }: Props) {
             </section>
           );
         })}
-        {managedCategorySections.map((category) => (
-          <Section
-            key={`managed-${category.id}`}
-            id={`categoria-${category.id}`}
-            title={category.name}
-            subtitle={category.description}
-            items={category.items}
-            priceMap={config.vehiclePrices}
-            upcomingAuctionByVehicleKey={upcomingAuctionByVehicleKey}
-            favoriteKeys={favoriteKeys}
-            onToggleFavorite={toggleFavorite}
-            compareKeys={compareKeys}
-            onToggleCompare={toggleCompare}
-            onOpenVehicle={openVehicleDetail}
-            cardDensity={cardDensity}
-          />
-        ))}
       </div>
       <section className="relative z-10 mx-auto mb-14 grid max-w-7xl gap-6 px-4 sm:px-6 lg:grid-cols-2 lg:px-8">
         <div className="section-shell">
@@ -7409,12 +7561,42 @@ export function CatalogHomeClient({ feed }: Props) {
                     />
                     Visible en el sitio
                   </label>
-                  <input
-                    className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                    placeholder="Precio CLP"
-                    value={config.vehiclePrices[managingVehicleKey] ?? ""}
-                    onChange={(event) => setPrice(managingVehicleKey, event.target.value)}
-                  />
+                  <div className="space-y-2">
+                    <input
+                      className="ui-focus w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                      placeholder="Precio normal CLP"
+                      value={managingVehiclePromoMeta.originalPrice}
+                      onChange={(event) =>
+                        updateVehiclePromoSettings(managingVehicleKey, {
+                          originalPrice: event.target.value,
+                        })
+                      }
+                    />
+                    <label className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">
+                      <input
+                        type="checkbox"
+                        checked={managingVehiclePromoMeta.promoEnabled}
+                        onChange={(event) =>
+                          updateVehiclePromoSettings(managingVehicleKey, {
+                            promoEnabled: event.target.checked,
+                          })
+                        }
+                      />
+                      Precio promocional
+                    </label>
+                    {managingVehiclePromoMeta.promoEnabled ? (
+                      <input
+                        className="ui-focus w-full rounded-md border border-rose-300 bg-white px-3 py-2 text-sm"
+                        placeholder="Precio oferta CLP"
+                        value={managingVehiclePromoMeta.promoPrice}
+                        onChange={(event) =>
+                          updateVehiclePromoSettings(managingVehicleKey, {
+                            promoPrice: event.target.value,
+                          })
+                        }
+                      />
+                    ) : null}
+                  </div>
                   <select
                     className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm sm:col-span-2"
                     value={normalizeVehicleCategoryValue(

@@ -1,4 +1,5 @@
 export type SectionId = "proximos-remates" | "ventas-directas" | "novedades" | "catalogo";
+export type HomeSectionOrderId = SectionId | `managed:${string}`;
 
 export type VehicleTypeId = "livianos" | "pesados" | "maquinaria" | "otros";
 
@@ -45,7 +46,7 @@ export type HomeLayoutConfig = {
   showCommercialPanel: boolean;
   defaultCardDensity: "compact" | "detailed";
   sectionSpacing: "compact" | "normal" | "airy";
-  sectionOrder: SectionId[];
+  sectionOrder: HomeSectionOrderId[];
 };
 
 export type ManualPublication = {

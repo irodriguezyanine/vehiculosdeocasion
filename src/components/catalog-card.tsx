@@ -4,6 +4,8 @@ import type { CatalogItem } from "@/types/catalog";
 type CatalogCardProps = {
   item: CatalogItem;
   priceLabel?: string | null;
+  promoEnabled?: boolean;
+  originalPriceLabel?: string | null;
   upcomingAuctionLabel?: string;
   density?: "compact" | "detailed";
   onOpen?: () => void;
@@ -97,6 +99,8 @@ function getConditionBadgeClasses(condition?: string | null): string {
 export function CatalogCard({
   item,
   priceLabel,
+  promoEnabled: promoEnabledOverride,
+  originalPriceLabel: originalPriceLabelOverride,
   upcomingAuctionLabel,
   density = "detailed",
   onOpen,
@@ -115,17 +119,19 @@ export function CatalogCard({
   const brandModel = getBrandModel(item);
   const itemKey = getVehicleKey(item);
   const conditionLabel = getVehicleCondition(item);
-  const promoEnabled =
+  const promoEnabledFromRaw =
     raw.promo_enabled === true ||
     raw.promo_enabled === "true" ||
     raw.promo_enabled === "1" ||
     raw.promo_enabled === 1;
-  const originalPriceLabel =
+  const originalPriceLabelFromRaw =
     typeof raw.precio_normal === "string" && raw.precio_normal.trim()
       ? raw.precio_normal.trim()
       : typeof raw.original_price === "string" && raw.original_price.trim()
         ? raw.original_price.trim()
         : null;
+  const promoEnabled = promoEnabledOverride ?? promoEnabledFromRaw;
+  const originalPriceLabel = originalPriceLabelOverride ?? originalPriceLabelFromRaw;
   const [shareCopied, setShareCopied] = useState(false);
   const shareUrl = useMemo(() => {
     if (typeof window === "undefined") return "";

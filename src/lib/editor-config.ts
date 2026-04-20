@@ -44,13 +44,40 @@ function normalizeConfig(config?: Partial<EditorConfig> | null): EditorConfig {
       heroKicker: config?.homeLayout?.heroKicker ?? defaults.homeLayout.heroKicker,
       heroTitle: config?.homeLayout?.heroTitle ?? defaults.homeLayout.heroTitle,
       heroDescription: config?.homeLayout?.heroDescription ?? defaults.homeLayout.heroDescription,
+      heroPrimaryCtaLabel:
+        config?.homeLayout?.heroPrimaryCtaLabel ?? defaults.homeLayout.heroPrimaryCtaLabel,
+      heroPrimaryCtaHref:
+        config?.homeLayout?.heroPrimaryCtaHref ?? defaults.homeLayout.heroPrimaryCtaHref,
+      heroSecondaryCtaLabel:
+        config?.homeLayout?.heroSecondaryCtaLabel ?? defaults.homeLayout.heroSecondaryCtaLabel,
+      heroSecondaryCtaHref:
+        config?.homeLayout?.heroSecondaryCtaHref ?? defaults.homeLayout.heroSecondaryCtaHref,
+      heroAlignment: config?.homeLayout?.heroAlignment ?? defaults.homeLayout.heroAlignment,
+      heroTheme: config?.homeLayout?.heroTheme ?? defaults.homeLayout.heroTheme,
+      heroMaxWidth: config?.homeLayout?.heroMaxWidth ?? defaults.homeLayout.heroMaxWidth,
+      showHeroChips: config?.homeLayout?.showHeroChips ?? defaults.homeLayout.showHeroChips,
+      showHeroCtas: config?.homeLayout?.showHeroCtas ?? defaults.homeLayout.showHeroCtas,
       showFeaturedStrip:
         config?.homeLayout?.showFeaturedStrip ?? defaults.homeLayout.showFeaturedStrip,
       showRecentPublications:
         config?.homeLayout?.showRecentPublications ??
         defaults.homeLayout.showRecentPublications,
+      showFavoritesSection:
+        config?.homeLayout?.showFavoritesSection ?? defaults.homeLayout.showFavoritesSection,
+      showHowToSection:
+        config?.homeLayout?.showHowToSection ?? defaults.homeLayout.showHowToSection,
+      showSearchBar: config?.homeLayout?.showSearchBar ?? defaults.homeLayout.showSearchBar,
+      showQuickFilters:
+        config?.homeLayout?.showQuickFilters ?? defaults.homeLayout.showQuickFilters,
+      showSortSelector:
+        config?.homeLayout?.showSortSelector ?? defaults.homeLayout.showSortSelector,
+      showStickySearchBar:
+        config?.homeLayout?.showStickySearchBar ?? defaults.homeLayout.showStickySearchBar,
       showCommercialPanel:
         config?.homeLayout?.showCommercialPanel ?? defaults.homeLayout.showCommercialPanel,
+      defaultCardDensity:
+        config?.homeLayout?.defaultCardDensity ?? defaults.homeLayout.defaultCardDensity,
+      sectionSpacing: config?.homeLayout?.sectionSpacing ?? defaults.homeLayout.sectionSpacing,
       sectionOrder: config?.homeLayout?.sectionOrder ?? defaults.homeLayout.sectionOrder,
     },
     manualPublications: config?.manualPublications ?? defaults.manualPublications,

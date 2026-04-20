@@ -30,7 +30,7 @@ const FAVORITES_STORAGE_KEY = "vedisa_client_favorites";
 const HOME_QUICK_FILTERS_STORAGE_KEY = "vedisa_home_quick_filters";
 const HOME_CARD_DENSITY_STORAGE_KEY = "vedisa_home_card_density";
 const EDITOR_PAGE_SIZE = 20;
-type AdminTabId = "vehiculos" | "categorias" | "layout";
+type AdminTabId = "vehiculos" | "categorias" | "layout" | "analytics";
 type EditorGroupFilter = "all" | SectionId;
 type EditorVisibilityFilter = "all" | "visible" | "hidden";
 type EditorVehicleCategoryFilter = "all" | "livianos" | "pesados" | "maquinaria" | "chatarra";
@@ -52,6 +52,13 @@ type SystemNotice = {
   tone: "success" | "error" | "info";
   title: string;
   message: string;
+};
+
+type AnalyticsEventPayload = Record<string, unknown> & {
+  event?: string;
+  timestamp?: string;
+  itemKey?: string;
+  section?: string;
 };
 
 const QUICK_FILTER_LABELS: Record<QuickFilterId, string> = {
@@ -543,6 +550,16 @@ function getPriceAmount(value?: string): number {
   return Number.isFinite(amount) && amount > 0 ? amount : Number.POSITIVE_INFINITY;
 }
 
+function parseAnalyticsTimestamp(value: unknown): Date | null {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatCompactNumber(value: number): string {
+  return new Intl.NumberFormat("es-CL").format(value);
+}
+
 function trackEvent(eventName: string, payload?: Record<string, unknown>) {
   if (typeof window === "undefined") return;
   const eventPayload = {
@@ -561,6 +578,23 @@ function trackEvent(eventName: string, payload?: Record<string, unknown>) {
     const parsed = raw ? (JSON.parse(raw) as Array<Record<string, unknown>>) : [];
     const next = [eventPayload, ...parsed].slice(0, 120);
     window.localStorage.setItem(ANALYTICS_STORAGE_KEY, JSON.stringify(next));
+    window.dispatchEvent(new Event("vedisa-analytics-updated"));
+    void fetch("/api/analytics/track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event: eventName,
+        timestamp: eventPayload.timestamp,
+        itemKey:
+          typeof payload?.itemKey === "string" ? payload.itemKey : undefined,
+        section:
+          typeof payload?.section === "string" ? payload.section : undefined,
+        payload: payload ?? {},
+      }),
+      keepalive: true,
+    }).catch(() => {
+      // noop: local analytics remains available even if server tracking fails
+    });
   } catch {
     // avoid breaking UX if analytics fails
   }
@@ -1552,6 +1586,11 @@ export function CatalogHomeClient({ feed }: Props) {
   const [selectedVehicleTab, setSelectedVehicleTab] = useState<VehicleDetailTabId>("general");
   const [revalidating, setRevalidating] = useState(false);
   const [isBootstrapping, setIsBootstrapping] = useState(true);
+  const [analyticsRangeDays, setAnalyticsRangeDays] = useState<7 | 30 | 90>(30);
+  const [analyticsEvents, setAnalyticsEvents] = useState<AnalyticsEventPayload[]>([]);
+  const [serverAnalyticsEvents, setServerAnalyticsEvents] = useState<AnalyticsEventPayload[]>([]);
+  const [analyticsSource, setAnalyticsSource] = useState<"local" | "server">("local");
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const autoSaveReadyRef = useRef(false);
   const lastPersistedConfigRef = useRef("");
 
@@ -1631,8 +1670,12 @@ export function CatalogHomeClient({ feed }: Props) {
     (item: CatalogItem) => {
       setSelectedVehicle(item);
       updateVehicleUrlParam(getVehicleKey(item));
+      trackEvent("vehicle_detail_open", {
+        itemKey: getVehicleKey(item),
+        section: topSectionFilter,
+      });
     },
-    [updateVehicleUrlParam],
+    [updateVehicleUrlParam, topSectionFilter],
   );
   const closeSelectedVehicle = useCallback(() => {
     setSelectedVehicle(null);
@@ -1722,10 +1765,82 @@ export function CatalogHomeClient({ feed }: Props) {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    const loadEvents = () => {
+      try {
+        const raw = window.localStorage.getItem(ANALYTICS_STORAGE_KEY);
+        const parsed = raw ? (JSON.parse(raw) as AnalyticsEventPayload[]) : [];
+        setAnalyticsEvents(Array.isArray(parsed) ? parsed : []);
+      } catch {
+        setAnalyticsEvents([]);
+      }
+    };
+    loadEvents();
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === ANALYTICS_STORAGE_KEY) loadEvents();
+    };
+    const onAnalyticsUpdated = () => loadEvents();
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("vedisa-analytics-updated", onAnalyticsUpdated);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("vedisa-analytics-updated", onAnalyticsUpdated);
+    };
+  }, []);
+
+  useEffect(() => {
+    const shouldLoadServerAnalytics = isAdmin && adminView === "editor" && adminTab === "analytics";
+    if (!shouldLoadServerAnalytics) return;
+    let cancelled = false;
+    const fetchServerAnalytics = async () => {
+      setAnalyticsLoading(true);
+      try {
+        const response = await fetch(
+          `/api/admin/analytics?days=${analyticsRangeDays}&limit=5000`,
+          { cache: "no-store" },
+        );
+        if (!response.ok) {
+          if (!cancelled) {
+            setAnalyticsSource("local");
+            setServerAnalyticsEvents([]);
+          }
+          return;
+        }
+        const payload = (await response.json()) as {
+          ok?: boolean;
+          events?: AnalyticsEventPayload[];
+        };
+        if (!cancelled && payload.ok && Array.isArray(payload.events)) {
+          setServerAnalyticsEvents(payload.events);
+          setAnalyticsSource("server");
+        } else if (!cancelled) {
+          setAnalyticsSource("local");
+          setServerAnalyticsEvents([]);
+        }
+      } catch {
+        if (!cancelled) {
+          setAnalyticsSource("local");
+          setServerAnalyticsEvents([]);
+        }
+      } finally {
+        if (!cancelled) setAnalyticsLoading(false);
+      }
+    };
+    void fetchServerAnalytics();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin, adminView, adminTab, analyticsRangeDays]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
     const hasPersistedDensity = window.localStorage.getItem(HOME_CARD_DENSITY_STORAGE_KEY);
     if (hasPersistedDensity) return;
     setCardDensity(config.homeLayout.defaultCardDensity);
   }, [config.homeLayout.defaultCardDensity]);
+
+  useEffect(() => {
+    trackEvent("page_view_home", { mode: "catalogo" });
+  }, []);
 
   useEffect(() => {
     if (!systemNotice) return;
@@ -3550,6 +3665,103 @@ export function CatalogHomeClient({ feed }: Props) {
 
   const editingItem = editingVehicleKey ? itemsByKey.get(editingVehicleKey) ?? null : null;
   const managingItem = managingVehicleKey ? itemsByKey.get(managingVehicleKey) ?? null : null;
+  const analyticsBaseEvents = analyticsSource === "server" ? serverAnalyticsEvents : analyticsEvents;
+
+  const analyticsFilteredEvents = useMemo(() => {
+    if (analyticsSource === "server") return analyticsBaseEvents;
+    const now = Date.now();
+    const cutoff = now - analyticsRangeDays * 24 * 60 * 60 * 1000;
+    return analyticsBaseEvents.filter((event) => {
+      const timestamp = parseAnalyticsTimestamp(event.timestamp);
+      return timestamp ? timestamp.getTime() >= cutoff : false;
+    });
+  }, [analyticsBaseEvents, analyticsRangeDays, analyticsSource]);
+
+  const analyticsOverview = useMemo(() => {
+    const eventCount = analyticsFilteredEvents.length;
+    const visits = analyticsFilteredEvents.filter((event) => event.event === "page_view_home").length;
+    const detailOpens = analyticsFilteredEvents.filter((event) => event.event === "vehicle_detail_open").length;
+    const whatsappClicks = analyticsFilteredEvents.filter((event) =>
+      String(event.event).startsWith("whatsapp_click"),
+    ).length;
+    const shares = analyticsFilteredEvents.filter((event) => event.event === "vehicle_share").length;
+    const leads = analyticsFilteredEvents.filter((event) => event.event === "lead_form_submit").length;
+    const uniqueVehicles = new Set(
+      analyticsFilteredEvents
+        .map((event) => event.itemKey)
+        .filter((value): value is string => typeof value === "string" && value.trim().length > 0),
+    ).size;
+
+    return {
+      eventCount,
+      visits,
+      detailOpens,
+      whatsappClicks,
+      shares,
+      leads,
+      uniqueVehicles,
+      whatsappRate: detailOpens > 0 ? Math.round((whatsappClicks / detailOpens) * 100) : 0,
+      leadRate: detailOpens > 0 ? Math.round((leads / detailOpens) * 100) : 0,
+    };
+  }, [analyticsFilteredEvents]);
+
+  const analyticsTopVehicles = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const event of analyticsFilteredEvents) {
+      const key = typeof event.itemKey === "string" ? event.itemKey : "";
+      if (!key) continue;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .map(([itemKey, total]) => {
+        const item = itemsByKey.get(itemKey);
+        return {
+          itemKey,
+          total,
+          patent: item ? getPatent(item) : itemKey,
+          model: item ? getModel(item) : "Vehículo no disponible",
+        };
+      })
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 10);
+  }, [analyticsFilteredEvents, itemsByKey]);
+
+  const analyticsTopEvents = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const event of analyticsFilteredEvents) {
+      const name = typeof event.event === "string" ? event.event : "sin_evento";
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .map(([eventName, total]) => ({ eventName, total }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 12);
+  }, [analyticsFilteredEvents]);
+
+  const analyticsTopSections = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const event of analyticsFilteredEvents) {
+      const section = typeof event.section === "string" ? event.section : "sin-seccion";
+      counts.set(section, (counts.get(section) ?? 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .map(([section, total]) => ({ section, total }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 8);
+  }, [analyticsFilteredEvents]);
+
+  const analyticsTimeline = useMemo(() => {
+    const buckets = new Map<string, number>();
+    for (const event of analyticsFilteredEvents) {
+      const timestamp = parseAnalyticsTimestamp(event.timestamp);
+      if (!timestamp) continue;
+      const key = timestamp.toISOString().slice(0, 10);
+      buckets.set(key, (buckets.get(key) ?? 0) + 1);
+    }
+    return Array.from(buckets.entries())
+      .map(([date, total]) => ({ date, total }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [analyticsFilteredEvents]);
 
   return (
     <main className="premium-bg min-h-screen overflow-x-hidden text-slate-900">
@@ -3749,6 +3961,7 @@ export function CatalogHomeClient({ feed }: Props) {
                 ["vehiculos", "1. Inventario"],
                 ["categorias", "2. Editar categorías"],
                 ["layout", "3. Editar layout home"],
+                ["analytics", "4. Dashboard analytics"],
               ] as Array<[AdminTabId, string]>).map(([tabId, label]) => (
                 <button
                   key={tabId}
@@ -4568,6 +4781,156 @@ export function CatalogHomeClient({ feed }: Props) {
                         </div>
                       </div>
                     ))}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {adminTab === "analytics" ? (
+              <div className="space-y-4">
+                <div className="rounded-xl border border-slate-200 bg-white p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Dashboard de tráfico y conversión
+                      </p>
+                      <p className="text-sm text-slate-600">
+                        Analiza visitas, interacciones, ranking de vehículos y efectividad comercial.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {([7, 30, 90] as const).map((days) => (
+                        <button
+                          key={`analytics-range-${days}`}
+                          type="button"
+                          onClick={() => setAnalyticsRangeDays(days)}
+                          className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold ${
+                            analyticsRangeDays === days
+                              ? "bg-cyan-600 text-white"
+                              : "border border-slate-300 bg-white text-slate-700"
+                          }`}
+                        >
+                          {days} días
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500">
+                    Fuente actual: {analyticsSource === "server" ? "Supabase (todos los visitantes)" : "Navegador local"}.
+                    {analyticsLoading ? " Actualizando..." : ""}
+                  </p>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+                  {[
+                    ["Eventos", formatCompactNumber(analyticsOverview.eventCount)],
+                    ["Visitas", formatCompactNumber(analyticsOverview.visits)],
+                    ["Detalles abiertos", formatCompactNumber(analyticsOverview.detailOpens)],
+                    ["Clicks WhatsApp", formatCompactNumber(analyticsOverview.whatsappClicks)],
+                    ["Leads", formatCompactNumber(analyticsOverview.leads)],
+                    ["Vehículos únicos", formatCompactNumber(analyticsOverview.uniqueVehicles)],
+                  ].map(([label, value]) => (
+                    <div key={label} className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+                      <p className="mt-1 text-xl font-black text-slate-900">{value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="rounded-lg border border-cyan-200 bg-cyan-50/40 px-3 py-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-cyan-800">
+                      Tasa WhatsApp / detalle
+                    </p>
+                    <p className="mt-1 text-xl font-black text-cyan-900">{analyticsOverview.whatsappRate}%</p>
+                  </div>
+                  <div className="rounded-lg border border-indigo-200 bg-indigo-50/40 px-3 py-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-indigo-800">
+                      Tasa lead / detalle
+                    </p>
+                    <p className="mt-1 text-xl font-black text-indigo-900">{analyticsOverview.leadRate}%</p>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 xl:grid-cols-3">
+                  <div className="rounded-xl border border-slate-200 bg-white p-3 xl:col-span-2">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Ranking vehículos más interactuados
+                    </p>
+                    {analyticsTopVehicles.length === 0 ? (
+                      <p className="text-sm text-slate-500">Aún no hay datos de vehículos para este rango.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {analyticsTopVehicles.map((row, index) => (
+                          <div key={`top-vehicle-${row.itemKey}`} className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold text-slate-500">#{index + 1} · {row.patent}</p>
+                              <p className="line-clamp-1 text-sm font-semibold text-slate-900">{row.model}</p>
+                            </div>
+                            <span className="rounded-full bg-cyan-100 px-2 py-0.5 text-xs font-semibold text-cyan-800">
+                              {row.total} interacciones
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Eventos más frecuentes
+                    </p>
+                    {analyticsTopEvents.length === 0 ? (
+                      <p className="text-sm text-slate-500">Sin eventos para este rango.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {analyticsTopEvents.map((row) => (
+                          <div key={`top-event-${row.eventName}`} className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
+                            <span className="line-clamp-1 text-xs font-semibold text-slate-700">{row.eventName}</span>
+                            <span className="text-xs font-bold text-slate-900">{row.total}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid gap-4 xl:grid-cols-2">
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Actividad por sección
+                    </p>
+                    {analyticsTopSections.length === 0 ? (
+                      <p className="text-sm text-slate-500">Sin datos por sección.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {analyticsTopSections.map((row) => (
+                          <div key={`top-section-${row.section}`} className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+                            <span className="text-sm font-semibold text-slate-700">{row.section}</span>
+                            <span className="rounded-full bg-slate-900 px-2 py-0.5 text-xs font-semibold text-white">
+                              {row.total}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Línea de tiempo de eventos
+                    </p>
+                    {analyticsTimeline.length === 0 ? (
+                      <p className="text-sm text-slate-500">Sin actividad en el rango seleccionado.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {analyticsTimeline.map((row) => (
+                          <div key={`timeline-${row.date}`} className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+                            <span className="text-sm font-semibold text-slate-700">{formatAuctionDateLabel(row.date)}</span>
+                            <span className="text-sm font-bold text-slate-900">{row.total}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

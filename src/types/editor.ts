@@ -126,6 +126,9 @@ export type EditorVehicleDetails = {
   thumbnail?: string;
   view3dUrl?: string;
   imagesCsv?: string;
+  originalPrice?: string;
+  promoPrice?: string;
+  promoEnabled?: boolean;
 };
 
 export type EditorConfig = {

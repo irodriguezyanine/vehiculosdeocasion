@@ -38,7 +38,15 @@ type BatchAssignTarget =
   | { type: "section"; sectionId: "ventas-directas" | "novedades" | "catalogo" }
   | { type: "auction"; auctionId: string };
 type SortOption = "recomendado" | "relevancia" | "fecha-remate" | "precio-asc" | "precio-desc" | "titulo";
-type QuickFilterId = "livianos" | "pesados" | "con3d" | "conPrecio" | "recientes" | "manuales";
+type QuickFilterId =
+  | "livianos"
+  | "pesados"
+  | "con3d"
+  | "conPrecio"
+  | "recientes"
+  | "manuales"
+  | "proximoRemate"
+  | "categoriaOtros";
 type CardDensity = "compact" | "detailed";
 type DetailEditorTabId = "general" | "tecnica";
 type ClientLeadForm = {
@@ -70,6 +78,8 @@ const QUICK_FILTER_LABELS: Record<QuickFilterId, string> = {
   conPrecio: "Con precio",
   recientes: "Recientes",
   manuales: "Manuales",
+  proximoRemate: "Próximo remate",
+  categoriaOtros: "Categoría: Otros",
 };
 
 const VEHICLE_CONDITION_OPTIONS = [
@@ -566,6 +576,28 @@ function formatPrice(value?: string): string | null {
     maximumFractionDigits: 0,
   }).format(amount);
   return hasIva ? `${base} + IVA` : base;
+}
+
+function isPromoEnabledValue(value: unknown): boolean {
+  return value === true || value === 1 || value === "1" || value === "true";
+}
+
+function pickFirstTextValue(values: unknown[]): string | null {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function getRawPromoMeta(raw: Record<string, unknown>): {
+  promoEnabled: boolean;
+  originalPriceLabel: string | null;
+  promoPriceLabel: string | null;
+} {
+  const promoEnabled = isPromoEnabledValue(raw.promo_enabled);
+  const originalPriceLabel = pickFirstTextValue([raw.precio_normal, raw.original_price]);
+  const promoPriceLabel = pickFirstTextValue([raw.precio_promocional, raw.promo_price]);
+  return { promoEnabled, originalPriceLabel, promoPriceLabel };
 }
 
 function getConditionBadgeClasses(condition?: string | null): string {
@@ -1807,7 +1839,7 @@ export function CatalogHomeClient({ feed }: Props) {
       "pruebaDesplazamiento",
     ];
     for (const field of binaryFields) {
-      if (!isValidBinaryValue(editingDetails[field])) {
+      if (!isValidBinaryValue(String(editingDetails[field] ?? ""))) {
         errors[field] = "Usa SI o NO.";
       }
     }
@@ -1819,7 +1851,7 @@ export function CatalogHomeClient({ feed }: Props) {
       "vencSeguroObligatorio",
     ];
     for (const field of dateFields) {
-      if (!isValidDateValue(editingDetails[field])) {
+      if (!isValidDateValue(String(editingDetails[field] ?? ""))) {
         errors[field] = "Formato válido: YYYY-MM-DD o DD/MM/YYYY.";
       }
     }
@@ -2197,6 +2229,10 @@ export function CatalogHomeClient({ feed }: Props) {
       const key = getVehicleKey(item);
       const vehicleType = inferVehicleType(item);
       const isManual = String((item.raw as Record<string, unknown>).source ?? "") === "manual";
+      const detailsCategory = normalizeVehicleCategoryValue(config.vehicleDetails[key]?.category);
+      const inferredCategory = inferVehicleCategoryForAdmin(item);
+      const isOtrosCategory =
+        detailsCategory.length > 0 ? detailsCategory === "otros" : inferredCategory === "otros";
       for (const filter of quickFilters) {
         if (filter === "livianos" && vehicleType !== "livianos") return false;
         if (filter === "pesados" && vehicleType !== "pesados") return false;
@@ -2204,6 +2240,8 @@ export function CatalogHomeClient({ feed }: Props) {
         if (filter === "conPrecio" && !formatPrice(config.vehiclePrices[key])) return false;
         if (filter === "recientes" && !isRecentAuctionDate(item.auctionDate)) return false;
         if (filter === "manuales" && !isManual) return false;
+        if (filter === "proximoRemate" && !config.vehicleUpcomingAuctionIds[key]) return false;
+        if (filter === "categoriaOtros" && !isOtrosCategory) return false;
       }
       return true;
     });
@@ -2212,6 +2250,7 @@ export function CatalogHomeClient({ feed }: Props) {
     topSectionFilter,
     quickFilters,
     config.vehiclePrices,
+    config.vehicleDetails,
     config.vehicleUpcomingAuctionIds,
     config.sectionVehicleIds,
   ]);

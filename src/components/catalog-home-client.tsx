@@ -90,6 +90,76 @@ const SECTION_LABELS: Record<SectionId, string> = {
   catalogo: "Catálogo",
 };
 
+const HOME_LAYOUT_PRESETS: Array<{
+  id: "balanced" | "conversion" | "minimal";
+  label: string;
+  description: string;
+  patch: Partial<EditorConfig["homeLayout"]>;
+}> = [
+  {
+    id: "balanced",
+    label: "Balanceado",
+    description: "Hero completo + búsqueda + bloques principales visibles.",
+    patch: {
+      heroAlignment: "left",
+      heroTheme: "cyan",
+      heroMaxWidth: "2xl",
+      showHeroChips: true,
+      showHeroCtas: true,
+      showSearchBar: true,
+      showQuickFilters: true,
+      showSortSelector: true,
+      showCommercialPanel: true,
+      showHowToSection: true,
+      showFavoritesSection: true,
+      showRecentPublications: true,
+      showFeaturedStrip: true,
+      sectionSpacing: "normal",
+    },
+  },
+  {
+    id: "conversion",
+    label: "Conversión",
+    description: "Enfoque en CTA y navegación rápida de inventario.",
+    patch: {
+      heroAlignment: "center",
+      heroTheme: "indigo",
+      showHeroChips: false,
+      showHeroCtas: true,
+      showSearchBar: true,
+      showQuickFilters: true,
+      showSortSelector: true,
+      showCommercialPanel: false,
+      showHowToSection: false,
+      showFavoritesSection: true,
+      showRecentPublications: false,
+      showFeaturedStrip: true,
+      sectionSpacing: "compact",
+    },
+  },
+  {
+    id: "minimal",
+    label: "Minimalista",
+    description: "Home limpia y liviana para performance y foco visual.",
+    patch: {
+      heroAlignment: "left",
+      heroTheme: "slate",
+      heroMaxWidth: "xl",
+      showHeroChips: false,
+      showHeroCtas: false,
+      showSearchBar: true,
+      showQuickFilters: false,
+      showSortSelector: true,
+      showCommercialPanel: false,
+      showHowToSection: false,
+      showFavoritesSection: false,
+      showRecentPublications: false,
+      showFeaturedStrip: false,
+      sectionSpacing: "airy",
+    },
+  },
+];
+
 function normalizeEditorConfigClient(
   value?: Partial<EditorConfig> | null,
 ): EditorConfig {
@@ -134,13 +204,41 @@ function normalizeEditorConfigClient(
       heroTitle: normalizedHeroTitle,
       heroDescription:
         value?.homeLayout?.heroDescription ?? defaults.homeLayout.heroDescription,
+      heroPrimaryCtaLabel:
+        value?.homeLayout?.heroPrimaryCtaLabel ?? defaults.homeLayout.heroPrimaryCtaLabel,
+      heroPrimaryCtaHref:
+        value?.homeLayout?.heroPrimaryCtaHref ?? defaults.homeLayout.heroPrimaryCtaHref,
+      heroSecondaryCtaLabel:
+        value?.homeLayout?.heroSecondaryCtaLabel ?? defaults.homeLayout.heroSecondaryCtaLabel,
+      heroSecondaryCtaHref:
+        value?.homeLayout?.heroSecondaryCtaHref ?? defaults.homeLayout.heroSecondaryCtaHref,
+      heroAlignment: value?.homeLayout?.heroAlignment ?? defaults.homeLayout.heroAlignment,
+      heroTheme: value?.homeLayout?.heroTheme ?? defaults.homeLayout.heroTheme,
+      heroMaxWidth: value?.homeLayout?.heroMaxWidth ?? defaults.homeLayout.heroMaxWidth,
+      showHeroChips: value?.homeLayout?.showHeroChips ?? defaults.homeLayout.showHeroChips,
+      showHeroCtas: value?.homeLayout?.showHeroCtas ?? defaults.homeLayout.showHeroCtas,
       showFeaturedStrip:
         value?.homeLayout?.showFeaturedStrip ?? defaults.homeLayout.showFeaturedStrip,
       showRecentPublications:
         value?.homeLayout?.showRecentPublications ??
         defaults.homeLayout.showRecentPublications,
+      showFavoritesSection:
+        value?.homeLayout?.showFavoritesSection ??
+        defaults.homeLayout.showFavoritesSection,
+      showHowToSection:
+        value?.homeLayout?.showHowToSection ?? defaults.homeLayout.showHowToSection,
+      showSearchBar: value?.homeLayout?.showSearchBar ?? defaults.homeLayout.showSearchBar,
+      showQuickFilters:
+        value?.homeLayout?.showQuickFilters ?? defaults.homeLayout.showQuickFilters,
+      showSortSelector:
+        value?.homeLayout?.showSortSelector ?? defaults.homeLayout.showSortSelector,
+      showStickySearchBar:
+        value?.homeLayout?.showStickySearchBar ?? defaults.homeLayout.showStickySearchBar,
       showCommercialPanel:
         value?.homeLayout?.showCommercialPanel ?? defaults.homeLayout.showCommercialPanel,
+      defaultCardDensity:
+        value?.homeLayout?.defaultCardDensity ?? defaults.homeLayout.defaultCardDensity,
+      sectionSpacing: value?.homeLayout?.sectionSpacing ?? defaults.homeLayout.sectionSpacing,
       sectionOrder: value?.homeLayout?.sectionOrder ?? defaults.homeLayout.sectionOrder,
     },
     manualPublications: value?.manualPublications ?? defaults.manualPublications,
@@ -1623,6 +1721,13 @@ export function CatalogHomeClient({ feed }: Props) {
   }, [cardDensity]);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const hasPersistedDensity = window.localStorage.getItem(HOME_CARD_DENSITY_STORAGE_KEY);
+    if (hasPersistedDensity) return;
+    setCardDensity(config.homeLayout.defaultCardDensity);
+  }, [config.homeLayout.defaultCardDensity]);
+
+  useEffect(() => {
     if (!systemNotice) return;
     const timeout = window.setTimeout(() => setSystemNotice(null), 3200);
     return () => window.clearTimeout(timeout);
@@ -2892,6 +2997,35 @@ export function CatalogHomeClient({ feed }: Props) {
         [field]: value,
       },
     }));
+  };
+
+  const applyHomeLayoutPreset = (
+    presetId: "balanced" | "conversion" | "minimal",
+  ) => {
+    const preset = HOME_LAYOUT_PRESETS.find((entry) => entry.id === presetId);
+    if (!preset) return;
+    setConfig((prev) => ({
+      ...prev,
+      homeLayout: {
+        ...prev.homeLayout,
+        ...preset.patch,
+      },
+    }));
+    showSystemNotice("success", "Preset aplicado", `Se aplicó el preset ${preset.label}.`);
+  };
+
+  const resetHomeLayoutToDefault = () => {
+    setConfig((prev) => ({
+      ...prev,
+      homeLayout: {
+        ...DEFAULT_EDITOR_CONFIG.homeLayout,
+      },
+    }));
+    showSystemNotice(
+      "info",
+      "Layout restablecido",
+      "Se restauró la configuración base del Home Layout.",
+    );
   };
 
   const moveSectionOrder = (sectionId: SectionId, direction: "up" | "down") => {
@@ -4254,47 +4388,174 @@ export function CatalogHomeClient({ feed }: Props) {
             {adminTab === "layout" ? (
               <div className="space-y-4">
                 <div className="rounded-xl border border-slate-200 bg-white p-3">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Textos hero</p>
-                  <div className="grid gap-2">
-                    <input
-                      value={config.homeLayout.heroKicker}
-                      onChange={(event) => setHomeLayout("heroKicker", event.target.value)}
-                      placeholder="Kicker"
-                      className="ui-focus rounded-md border border-slate-200 px-3 py-2 text-sm"
-                    />
-                    <input
-                      value={config.homeLayout.heroTitle}
-                      onChange={(event) => setHomeLayout("heroTitle", event.target.value)}
-                      placeholder="Título principal"
-                      className="ui-focus rounded-md border border-slate-200 px-3 py-2 text-sm"
-                    />
-                    <textarea
-                      value={config.homeLayout.heroDescription}
-                      onChange={(event) => setHomeLayout("heroDescription", event.target.value)}
-                      placeholder="Descripción hero"
-                      className="ui-focus min-h-24 rounded-md border border-slate-200 px-3 py-2 text-sm"
-                    />
+                  <div className="mb-3 flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Presets y control avanzado
+                      </p>
+                      <p className="text-sm text-slate-600">
+                        Mejora rápida del home con presets + edición granular de layout.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={resetHomeLayoutToDefault}
+                      className="ui-focus rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
+                    >
+                      Restaurar layout base
+                    </button>
                   </div>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-white p-3">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Bloques home</p>
-                  <div className="flex flex-wrap gap-4 text-sm">
-                    <label className="inline-flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={config.homeLayout.showFeaturedStrip}
-                        onChange={(event) => setHomeLayout("showFeaturedStrip", event.target.checked)}
-                      />
-                      Mostrar vitrina destacada
-                    </label>
-                    <label className="inline-flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={config.homeLayout.showCommercialPanel}
-                        onChange={(event) => setHomeLayout("showCommercialPanel", event.target.checked)}
-                      />
-                      Mostrar panel comercial derecho
-                    </label>
+
+                  <div className="mb-3 grid gap-2 md:grid-cols-3">
+                    {HOME_LAYOUT_PRESETS.map((preset) => (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => applyHomeLayoutPreset(preset.id)}
+                        className="ui-focus rounded-lg border border-cyan-200 bg-cyan-50/50 px-3 py-2 text-left transition hover:bg-cyan-100"
+                      >
+                        <p className="text-xs font-bold uppercase tracking-wide text-cyan-800">{preset.label}</p>
+                        <p className="mt-1 text-xs text-slate-600">{preset.description}</p>
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Textos hero</p>
+                      <div className="grid gap-2">
+                        <input
+                          value={config.homeLayout.heroKicker}
+                          onChange={(event) => setHomeLayout("heroKicker", event.target.value)}
+                          placeholder="Kicker"
+                          className="ui-focus rounded-md border border-slate-200 px-3 py-2 text-sm"
+                        />
+                        <input
+                          value={config.homeLayout.heroTitle}
+                          onChange={(event) => setHomeLayout("heroTitle", event.target.value)}
+                          placeholder="Título principal"
+                          className="ui-focus rounded-md border border-slate-200 px-3 py-2 text-sm"
+                        />
+                        <textarea
+                          value={config.homeLayout.heroDescription}
+                          onChange={(event) => setHomeLayout("heroDescription", event.target.value)}
+                          placeholder="Descripción hero"
+                          className="ui-focus min-h-24 rounded-md border border-slate-200 px-3 py-2 text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Estilo del hero</p>
+                      <div className="grid gap-2">
+                        <select
+                          value={config.homeLayout.heroAlignment}
+                          onChange={(event) => setHomeLayout("heroAlignment", event.target.value)}
+                          className="ui-focus rounded-md border border-slate-200 px-3 py-2 text-sm"
+                        >
+                          <option value="left">Alineación izquierda</option>
+                          <option value="center">Alineación centrada</option>
+                        </select>
+                        <select
+                          value={config.homeLayout.heroTheme}
+                          onChange={(event) => setHomeLayout("heroTheme", event.target.value)}
+                          className="ui-focus rounded-md border border-slate-200 px-3 py-2 text-sm"
+                        >
+                          <option value="cyan">Tema Cian</option>
+                          <option value="indigo">Tema Índigo</option>
+                          <option value="slate">Tema Slate</option>
+                        </select>
+                        <select
+                          value={config.homeLayout.heroMaxWidth}
+                          onChange={(event) => setHomeLayout("heroMaxWidth", event.target.value)}
+                          className="ui-focus rounded-md border border-slate-200 px-3 py-2 text-sm"
+                        >
+                          <option value="xl">Ancho texto XL</option>
+                          <option value="2xl">Ancho texto 2XL</option>
+                          <option value="full">Ancho texto completo</option>
+                        </select>
+                        <label className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={config.homeLayout.showHeroChips}
+                            onChange={(event) => setHomeLayout("showHeroChips", event.target.checked)}
+                          />
+                          Mostrar chips del hero
+                        </label>
+                        <label className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={config.homeLayout.showHeroCtas}
+                            onChange={(event) => setHomeLayout("showHeroCtas", event.target.checked)}
+                          />
+                          Mostrar CTAs del hero
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Botones CTA Hero</p>
+                      <div className="grid gap-2">
+                        <input
+                          value={config.homeLayout.heroPrimaryCtaLabel}
+                          onChange={(event) => setHomeLayout("heroPrimaryCtaLabel", event.target.value)}
+                          placeholder="Texto CTA principal"
+                          className="ui-focus rounded-md border border-slate-200 px-3 py-2 text-sm"
+                        />
+                        <input
+                          value={config.homeLayout.heroPrimaryCtaHref}
+                          onChange={(event) => setHomeLayout("heroPrimaryCtaHref", event.target.value)}
+                          placeholder="URL CTA principal (ej: #catalogo)"
+                          className="ui-focus rounded-md border border-slate-200 px-3 py-2 text-sm"
+                        />
+                        <input
+                          value={config.homeLayout.heroSecondaryCtaLabel}
+                          onChange={(event) => setHomeLayout("heroSecondaryCtaLabel", event.target.value)}
+                          placeholder="Texto CTA secundario"
+                          className="ui-focus rounded-md border border-slate-200 px-3 py-2 text-sm"
+                        />
+                        <input
+                          value={config.homeLayout.heroSecondaryCtaHref}
+                          onChange={(event) => setHomeLayout("heroSecondaryCtaHref", event.target.value)}
+                          placeholder="URL CTA secundario (ej: #proximos-remates)"
+                          className="ui-focus rounded-md border border-slate-200 px-3 py-2 text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Bloques y experiencia</p>
+                      <div className="grid gap-2">
+                        <label className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"><input type="checkbox" checked={config.homeLayout.showFeaturedStrip} onChange={(event) => setHomeLayout("showFeaturedStrip", event.target.checked)} /> Mostrar vitrina destacada</label>
+                        <label className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"><input type="checkbox" checked={config.homeLayout.showCommercialPanel} onChange={(event) => setHomeLayout("showCommercialPanel", event.target.checked)} /> Mostrar panel comercial derecho</label>
+                        <label className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"><input type="checkbox" checked={config.homeLayout.showHowToSection} onChange={(event) => setHomeLayout("showHowToSection", event.target.checked)} /> Mostrar sección ¿Cómo participar?</label>
+                        <label className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"><input type="checkbox" checked={config.homeLayout.showFavoritesSection} onChange={(event) => setHomeLayout("showFavoritesSection", event.target.checked)} /> Mostrar sección favoritos</label>
+                        <label className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"><input type="checkbox" checked={config.homeLayout.showRecentPublications} onChange={(event) => setHomeLayout("showRecentPublications", event.target.checked)} /> Mostrar recién publicados</label>
+                        <label className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"><input type="checkbox" checked={config.homeLayout.showSearchBar} onChange={(event) => { const checked = event.target.checked; setHomeLayout("showSearchBar", checked); if (!checked) { setHomeSearchTerm(""); setQuickFilters([]); setTopSectionFilter("all"); } }} /> Mostrar barra de búsqueda superior</label>
+                        <label className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"><input type="checkbox" checked={config.homeLayout.showStickySearchBar} onChange={(event) => setHomeLayout("showStickySearchBar", event.target.checked)} /> Barra búsqueda sticky en móvil</label>
+                        <label className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"><input type="checkbox" checked={config.homeLayout.showQuickFilters} onChange={(event) => { const checked = event.target.checked; setHomeLayout("showQuickFilters", checked); if (!checked) setQuickFilters([]); }} /> Mostrar quick filters</label>
+                        <label className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"><input type="checkbox" checked={config.homeLayout.showSortSelector} onChange={(event) => setHomeLayout("showSortSelector", event.target.checked)} /> Mostrar selector de orden</label>
+                        <select
+                          value={config.homeLayout.defaultCardDensity}
+                          onChange={(event) => setHomeLayout("defaultCardDensity", event.target.value)}
+                          className="ui-focus rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
+                        >
+                          <option value="detailed">Densidad por defecto: Detallada</option>
+                          <option value="compact">Densidad por defecto: Compacta</option>
+                        </select>
+                        <select
+                          value={config.homeLayout.sectionSpacing}
+                          onChange={(event) => setHomeLayout("sectionSpacing", event.target.value)}
+                          className="ui-focus rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
+                        >
+                          <option value="compact">Espaciado entre secciones: Compacto</option>
+                          <option value="normal">Espaciado entre secciones: Normal</option>
+                          <option value="airy">Espaciado entre secciones: Amplio</option>
+                        </select>
+                      </div>
+                    </div>
                   </div>
                   <p className="mt-3 mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Orden de secciones</p>
                   <div className="space-y-2">
@@ -4337,7 +4598,8 @@ export function CatalogHomeClient({ feed }: Props) {
           </div>
         </section>
       ) : null}
-      <section className="sticky top-[68px] z-40 mx-auto w-full max-w-7xl px-3 pt-3 sm:top-[72px] sm:px-6 md:static lg:px-8">
+      {config.homeLayout.showSearchBar ? (
+      <section className={`${config.homeLayout.showStickySearchBar ? "sticky top-[68px] sm:top-[72px] md:static" : "relative"} z-40 mx-auto w-full max-w-7xl px-3 pt-3 sm:px-6 lg:px-8`}>
         <div className="glass-soft rounded-xl border border-cyan-100/80 p-3 shadow-sm md:p-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <input
@@ -4397,39 +4659,45 @@ export function CatalogHomeClient({ feed }: Props) {
               </div>
             </div>
           </div>
+          {config.homeLayout.showQuickFilters || config.homeLayout.showSortSelector ? (
           <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1 whitespace-nowrap md:flex-wrap md:overflow-visible md:whitespace-normal">
-            {Object.entries(QUICK_FILTER_LABELS).map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => toggleQuickFilter(id as QuickFilterId)}
-                className={`ui-focus shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                  quickFilters.includes(id as QuickFilterId)
-                    ? "border-cyan-500 bg-cyan-600 text-white"
-                    : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                }`}
+            {config.homeLayout.showQuickFilters ? (
+              Object.entries(QUICK_FILTER_LABELS).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => toggleQuickFilter(id as QuickFilterId)}
+                  className={`ui-focus shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                    quickFilters.includes(id as QuickFilterId)
+                      ? "border-cyan-500 bg-cyan-600 text-white"
+                      : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))
+            ) : null}
+            {config.homeLayout.showSortSelector ? (
+              <select
+                value={homeSort}
+                onChange={(event) => {
+                  setHomeSort(event.target.value as SortOption);
+                  trackEvent("home_sort_change", { sort: event.target.value });
+                }}
+                className="ui-focus shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 md:ml-auto"
+                aria-label="Ordenar resultados del catálogo"
               >
-                {label}
-              </button>
-            ))}
-            <select
-              value={homeSort}
-              onChange={(event) => {
-                setHomeSort(event.target.value as SortOption);
-                trackEvent("home_sort_change", { sort: event.target.value });
-              }}
-              className="ui-focus shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 md:ml-auto"
-              aria-label="Ordenar resultados del catálogo"
-            >
-              <option value="recomendado">Orden: Recomendado</option>
-              <option value="relevancia">Orden: Relevancia</option>
-              <option value="fecha-remate">Orden: Fecha remate</option>
-              <option value="precio-asc">Orden: Precio menor</option>
-              <option value="precio-desc">Orden: Precio mayor</option>
-              <option value="titulo">Orden: Título A-Z</option>
-            </select>
+                <option value="recomendado">Orden: Recomendado</option>
+                <option value="relevancia">Orden: Relevancia</option>
+                <option value="fecha-remate">Orden: Fecha remate</option>
+                <option value="precio-asc">Orden: Precio menor</option>
+                <option value="precio-desc">Orden: Precio mayor</option>
+                <option value="titulo">Orden: Título A-Z</option>
+              </select>
+            ) : null}
           </div>
-          {quickFilters.length > 0 ? (
+          ) : null}
+          {config.homeLayout.showQuickFilters && quickFilters.length > 0 ? (
             <div className="mt-3 flex items-center gap-2 overflow-x-auto border-t border-cyan-100 pt-3 whitespace-nowrap">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Filtros activos
@@ -4455,6 +4723,7 @@ export function CatalogHomeClient({ feed }: Props) {
           ) : null}
         </div>
       </section>
+      ) : null}
       <div
         className={`transition-all duration-500 ease-out ${
           hasActiveSearchOrQuickFilters
@@ -4463,25 +4732,59 @@ export function CatalogHomeClient({ feed }: Props) {
         }`}
       >
         <section className="relative z-10 mx-auto grid max-w-7xl gap-6 px-4 py-10 sm:px-6 lg:grid-cols-12 lg:px-8">
-          <div className={`${config.homeLayout.showCommercialPanel ? "lg:col-span-8" : "lg:col-span-12"} premium-panel premium-panel-hero`}>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-700">{config.homeLayout.heroKicker}</p>
+          <div
+            className={`${config.homeLayout.showCommercialPanel ? "lg:col-span-8" : "lg:col-span-12"} premium-panel premium-panel-hero ${
+              config.homeLayout.heroTheme === "indigo"
+                ? "border-indigo-200 bg-indigo-50/40"
+                : config.homeLayout.heroTheme === "slate"
+                  ? "border-slate-300 bg-slate-100/70"
+                  : "border-cyan-200 bg-cyan-50/30"
+            } ${config.homeLayout.heroAlignment === "center" ? "text-center" : "text-left"}`}
+          >
+            <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${
+              config.homeLayout.heroTheme === "indigo"
+                ? "text-indigo-700"
+                : config.homeLayout.heroTheme === "slate"
+                  ? "text-slate-700"
+                  : "text-cyan-700"
+            }`}>{config.homeLayout.heroKicker}</p>
             <h1 className="mt-3 text-3xl font-black leading-tight text-slate-900 md:text-5xl">
               {config.homeLayout.heroTitle}
             </h1>
-            <p className="mt-5 max-w-2xl text-sm leading-relaxed text-slate-600 md:text-[15px]">
+            <p className={`mt-5 text-sm leading-relaxed text-slate-600 md:text-[15px] ${
+              config.homeLayout.heroAlignment === "center"
+                ? config.homeLayout.heroMaxWidth === "xl"
+                  ? "mx-auto max-w-xl"
+                  : config.homeLayout.heroMaxWidth === "full"
+                    ? "mx-auto max-w-full"
+                    : "mx-auto max-w-2xl"
+                : config.homeLayout.heroMaxWidth === "xl"
+                  ? "max-w-xl"
+                  : config.homeLayout.heroMaxWidth === "full"
+                    ? "max-w-full"
+                    : "max-w-2xl"
+            }`}>
               {config.homeLayout.heroDescription}
             </p>
-            <div className="mt-5 flex flex-wrap gap-2">
+            {config.homeLayout.showHeroChips ? (
+            <div className={`mt-5 flex flex-wrap gap-2 ${config.homeLayout.heroAlignment === "center" ? "justify-center" : ""}`}>
               <span className="rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-700">Visor 3D</span>
               <span className="rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-700">Agenda por remate</span>
               <span className="rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-700">Contacto inmediato</span>
             </div>
-            <div className="mt-6 flex flex-wrap gap-3 border-t border-cyan-100 pt-5">
-              <a href="#catalogo" className="premium-btn-primary ui-focus">Ver catálogo completo</a>
-              <a href="#proximos-remates" className="premium-btn-secondary ui-focus">Explorar secciones</a>
+            ) : null}
+            {config.homeLayout.showHeroCtas ? (
+            <div className={`mt-6 flex flex-wrap gap-3 border-t border-cyan-100 pt-5 ${config.homeLayout.heroAlignment === "center" ? "justify-center" : ""}`}>
+              <a href={config.homeLayout.heroPrimaryCtaHref || "#catalogo"} className="premium-btn-primary ui-focus">
+                {config.homeLayout.heroPrimaryCtaLabel || "Ver catálogo completo"}
+              </a>
+              <a href={config.homeLayout.heroSecondaryCtaHref || "#proximos-remates"} className="premium-btn-secondary ui-focus">
+                {config.homeLayout.heroSecondaryCtaLabel || "Explorar secciones"}
+              </a>
             </div>
+            ) : null}
             {nextAuction ? (
-              <div className="mt-5 inline-flex w-fit items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-4 py-2 text-xs font-semibold text-indigo-800">
+              <div className={`mt-5 inline-flex w-fit items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-4 py-2 text-xs font-semibold text-indigo-800 ${config.homeLayout.heroAlignment === "center" ? "mx-auto" : ""}`}>
                 <span>Próximo remate:</span>
                 <span>{nextAuction.auction.name}</span>
                 <span>·</span>
@@ -4515,7 +4818,14 @@ export function CatalogHomeClient({ feed }: Props) {
         </section>
       </div>
 
-      <div className="relative z-10 mx-auto flex max-w-7xl flex-col gap-14 px-4 pb-14 sm:px-6 lg:px-8">
+      <div className={`relative z-10 mx-auto flex max-w-7xl flex-col ${
+        config.homeLayout.sectionSpacing === "compact"
+          ? "gap-8"
+          : config.homeLayout.sectionSpacing === "airy"
+            ? "gap-20"
+            : "gap-14"
+      } px-4 pb-14 sm:px-6 lg:px-8`}>
+        {config.homeLayout.showHowToSection ? (
         <section
           className={`section-shell transition-all duration-500 ease-out ${
             hasActiveSearchOrQuickFilters
@@ -4626,7 +4936,8 @@ export function CatalogHomeClient({ feed }: Props) {
             ))}
           </div>
         </section>
-        {favoritesItems.length > 0 ? (
+        ) : null}
+        {config.homeLayout.showFavoritesSection && favoritesItems.length > 0 ? (
           <section className="section-shell">
             <header className="mb-4 flex items-center justify-between gap-3">
               <div>
@@ -6264,40 +6575,42 @@ export function CatalogHomeClient({ feed }: Props) {
               </div>
             )}
 
-            <div className="mt-4 rounded-xl border border-cyan-100 bg-cyan-50/40 p-3">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-cyan-700">
-                Configuración editorial y comercial
-              </p>
-              <p className="mb-3 text-xs text-cyan-900/80">
-                Esta sección concentra estado comercial, narrativa y campos de publicación.
-                Los links crudos de Glo3D se administran automáticamente y están ocultos para evitar confusión.
-              </p>
-              <div className="grid gap-3 md:grid-cols-2">
-                <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Estado" value={editingDetails.status ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), status: event.target.value }))} />
-                <select
-                  className="rounded border border-slate-300 px-3 py-2 text-sm"
-                  value={editingDetails.vehicleCondition ?? ""}
-                  onChange={(event) =>
-                    setEditingDetails((prev) => ({ ...(prev ?? {}), vehicleCondition: event.target.value }))
-                  }
-                >
-                  <option value="">Condición del vehículo</option>
-                  {VEHICLE_CONDITION_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-                <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Ubicación comercial" value={editingDetails.location ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), location: event.target.value }))} />
-                <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Lote" value={editingDetails.lot ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), lot: event.target.value }))} />
-                <div className="space-y-1 md:col-span-2">
-                  <input className={getEditorInputClass("auctionDate")} placeholder="Fecha remate (YYYY-MM-DD o DD/MM/YYYY)" value={editingDetails.auctionDate ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), auctionDate: event.target.value }))} />
-                  {getEditorFieldError("auctionDate") ? <p className="text-xs text-rose-600">{getEditorFieldError("auctionDate")}</p> : null}
+            {detailEditorTab === "general" ? (
+              <div className="mt-4 rounded-xl border border-cyan-100 bg-cyan-50/40 p-3">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-cyan-700">
+                  Configuración editorial y comercial
+                </p>
+                <p className="mb-3 text-xs text-cyan-900/80">
+                  Esta sección concentra estado comercial, narrativa y campos de publicación.
+                  Los links crudos de Glo3D se administran automáticamente y están ocultos para evitar confusión.
+                </p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Estado" value={editingDetails.status ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), status: event.target.value }))} />
+                  <select
+                    className="rounded border border-slate-300 px-3 py-2 text-sm"
+                    value={editingDetails.vehicleCondition ?? ""}
+                    onChange={(event) =>
+                      setEditingDetails((prev) => ({ ...(prev ?? {}), vehicleCondition: event.target.value }))
+                    }
+                  >
+                    <option value="">Condición del vehículo</option>
+                    {VEHICLE_CONDITION_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                  <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Ubicación comercial" value={editingDetails.location ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), location: event.target.value }))} />
+                  <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Lote" value={editingDetails.lot ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), lot: event.target.value }))} />
+                  <div className="space-y-1 md:col-span-2">
+                    <input className={getEditorInputClass("auctionDate")} placeholder="Fecha remate (YYYY-MM-DD o DD/MM/YYYY)" value={editingDetails.auctionDate ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), auctionDate: event.target.value }))} />
+                    {getEditorFieldError("auctionDate") ? <p className="text-xs text-rose-600">{getEditorFieldError("auctionDate")}</p> : null}
+                  </div>
+                  <textarea className="min-h-20 rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Descripción corta" value={editingDetails.description ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), description: event.target.value }))} />
+                  <textarea className="min-h-24 rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Descripción ampliada (admite HTML: <p>, <br>, <strong>, <ul>, <li>, <a>)" value={editingDetails.extendedDescription ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), extendedDescription: event.target.value }))} />
                 </div>
-                <textarea className="min-h-20 rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Descripción corta" value={editingDetails.description ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), description: event.target.value }))} />
-                <textarea className="min-h-24 rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="Descripción ampliada (admite HTML: <p>, <br>, <strong>, <ul>, <li>, <a>)" value={editingDetails.extendedDescription ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), extendedDescription: event.target.value }))} />
               </div>
-            </div>
+            ) : null}
 
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" onClick={cancelDetailsEditor} className="ui-focus rounded border border-slate-300 px-4 py-2 text-sm text-slate-700 transition hover:bg-slate-50">

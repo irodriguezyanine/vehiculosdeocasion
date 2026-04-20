@@ -25,9 +25,26 @@ export type HomeLayoutConfig = {
   heroKicker: string;
   heroTitle: string;
   heroDescription: string;
+  heroPrimaryCtaLabel: string;
+  heroPrimaryCtaHref: string;
+  heroSecondaryCtaLabel: string;
+  heroSecondaryCtaHref: string;
+  heroAlignment: "left" | "center";
+  heroTheme: "cyan" | "indigo" | "slate";
+  heroMaxWidth: "xl" | "2xl" | "full";
+  showHeroChips: boolean;
+  showHeroCtas: boolean;
   showFeaturedStrip: boolean;
   showRecentPublications: boolean;
+  showFavoritesSection: boolean;
+  showHowToSection: boolean;
+  showSearchBar: boolean;
+  showQuickFilters: boolean;
+  showSortSelector: boolean;
+  showStickySearchBar: boolean;
   showCommercialPanel: boolean;
+  defaultCardDensity: "compact" | "detailed";
+  sectionSpacing: "compact" | "normal" | "airy";
   sectionOrder: SectionId[];
 };
 
@@ -156,9 +173,26 @@ export const DEFAULT_EDITOR_CONFIG: EditorConfig = {
     heroTitle: "Inventario de vehiculos",
     heroDescription:
       "Plataforma oficial de ofertas online en vedisaremates.cl. Revisa cada unidad con información clara, fotos y trazabilidad comercial para tomar decisiones con confianza.",
+    heroPrimaryCtaLabel: "Ver catálogo completo",
+    heroPrimaryCtaHref: "#catalogo",
+    heroSecondaryCtaLabel: "Explorar secciones",
+    heroSecondaryCtaHref: "#proximos-remates",
+    heroAlignment: "left",
+    heroTheme: "cyan",
+    heroMaxWidth: "2xl",
+    showHeroChips: true,
+    showHeroCtas: true,
     showFeaturedStrip: true,
     showRecentPublications: false,
+    showFavoritesSection: true,
+    showHowToSection: true,
+    showSearchBar: true,
+    showQuickFilters: true,
+    showSortSelector: true,
+    showStickySearchBar: true,
     showCommercialPanel: true,
+    defaultCardDensity: "detailed",
+    sectionSpacing: "normal",
     sectionOrder: ["proximos-remates", "ventas-directas", "novedades", "catalogo"],
   },
   manualPublications: [],

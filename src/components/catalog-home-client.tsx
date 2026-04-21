@@ -933,6 +933,19 @@ function formatExtendedDescriptionHtml(value?: string | null): string {
   return escapeHtml(normalized).replace(/\n/g, "<br />");
 }
 
+function formatHomeHeroHtml(value?: string | null): string {
+  const normalized = String(value ?? "")
+    .replace(/\/n/g, "\n")
+    .trim();
+  if (!normalized) return "";
+  const maybeDecoded =
+    /&lt;[a-z][\s\S]*&gt;/i.test(normalized) && !/<[a-z][\s\S]*>/i.test(normalized)
+      ? decodeBasicHtmlEntities(normalized)
+      : normalized;
+  if (/<[a-z][\s\S]*>/i.test(maybeDecoded)) return sanitizeRichHtml(maybeDecoded);
+  return escapeHtml(normalized).replace(/\n/g, "<br />");
+}
+
 function stripHtmlToText(value: string): string {
   return value
     .replace(/<br\s*\/?>/gi, "\n")
@@ -1900,6 +1913,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   const [draggedLayoutSectionId, setDraggedLayoutSectionId] = useState<HomeSectionOrderId | null>(null);
   const [countdownNowMs, setCountdownNowMs] = useState(() => Date.now());
   const manualObservationsEditorRef = useRef<HTMLDivElement | null>(null);
+  const heroHtmlEditorRef = useRef<HTMLDivElement | null>(null);
   const [observationsTemplateHtml, setObservationsTemplateHtml] = useState(
     DEFAULT_OBSERVATIONS_TEMPLATE_HTML,
   );
@@ -2014,6 +2028,30 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       setObservationsTemplateHtml(saved);
     }
   }, []);
+
+  const runHeroHtmlCommand = useCallback((command: string, value?: string) => {
+    const editor = heroHtmlEditorRef.current;
+    if (!editor || typeof document === "undefined") return;
+    editor.focus();
+    document.execCommand("styleWithCSS", false, "true");
+    document.execCommand(command, false, value);
+    setConfig((prev) => ({
+      ...prev,
+      homeLayout: {
+        ...prev.homeLayout,
+        heroDescription: editor.innerHTML,
+      },
+    }));
+  }, []);
+
+  useEffect(() => {
+    const editor = heroHtmlEditorRef.current;
+    if (!editor) return;
+    const normalized = formatHomeHeroHtml(config.homeLayout.heroDescription);
+    if (editor.innerHTML !== normalized) {
+      editor.innerHTML = normalized;
+    }
+  }, [config.homeLayout.heroDescription]);
 
   const rawItems = feed.items;
   const updateVehicleUrlParam = useCallback((vehicleKey?: string) => {
@@ -5603,30 +5641,6 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   </div>
 
                   <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-3">
-                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-2">
-                      <div className="mb-2 flex items-center justify-between">
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                          Barra de búsqueda
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => toggleHomeLayoutFlag("showSearchBar", !config.homeLayout.showSearchBar)}
-                          className={`ui-focus rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                            config.homeLayout.showSearchBar ? "bg-cyan-600 text-white" : "bg-slate-200 text-slate-700"
-                          }`}
-                        >
-                          {config.homeLayout.showSearchBar ? "Visible" : "Oculta"}
-                        </button>
-                      </div>
-                      {config.homeLayout.showSearchBar ? (
-                        <div className="h-8 rounded-md border border-slate-300 bg-white" />
-                      ) : (
-                        <div className="rounded-md border border-dashed border-slate-300 bg-slate-100 p-2 text-xs text-slate-500">
-                          Bloque oculto
-                        </div>
-                      )}
-                    </div>
-
                     <div
                       className={`rounded-lg border p-3 ${
                         config.homeLayout.heroTheme === "indigo"
@@ -5652,45 +5666,73 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                           placeholder="Título principal"
                           className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
                         />
-                        <textarea
-                          value={config.homeLayout.heroDescription}
-                          onChange={(event) => setHomeLayout("heroDescription", event.target.value)}
-                          placeholder="Descripción del hero (puedes pegar HTML)"
-                          className="ui-focus min-h-20 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-2">
-                      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                        Bloques del home (visibilidad)
-                      </p>
-                      <div className="grid gap-2 md:grid-cols-2">
-                        {([
-                          ["showQuickFilters", "Quick filters"],
-                          ["showSortSelector", "Selector de orden"],
-                          ["showFeaturedStrip", "Vitrina destacada"],
-                          ["showCommercialPanel", "Panel comercial"],
-                          ["showHowToSection", "Cómo participar"],
-                          ["showFavoritesSection", "Favoritos"],
-                          ["showRecentPublications", "Recién publicados"],
-                        ] as const).map(([field, label]) => (
-                          <button
-                            key={field}
-                            type="button"
-                            onClick={() => toggleHomeLayoutFlag(field, !config.homeLayout[field])}
-                            className={`ui-focus flex items-center justify-between rounded-md border px-3 py-2 text-sm ${
-                              config.homeLayout[field]
-                                ? "border-cyan-600 bg-cyan-600 text-white"
-                                : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
-                            }`}
-                          >
-                            <span>{label}</span>
-                            <span className="text-xs font-semibold">
-                              {config.homeLayout[field] ? "ON" : "OFF"}
-                            </span>
-                          </button>
-                        ))}
+                        <div className="rounded-md border border-slate-300 bg-white p-2">
+                          <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                            <select
+                              defaultValue="p"
+                              onChange={(event) => {
+                                const value = event.target.value;
+                                if (value === "p") runHeroHtmlCommand("formatBlock", "<p>");
+                                if (value === "h2") runHeroHtmlCommand("formatBlock", "<h2>");
+                                if (value === "h3") runHeroHtmlCommand("formatBlock", "<h3>");
+                              }}
+                              className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700"
+                            >
+                              <option value="p">Párrafo</option>
+                              <option value="h2">Título H2</option>
+                              <option value="h3">Subtítulo H3</option>
+                            </select>
+                            <button type="button" onClick={() => runHeroHtmlCommand("bold")} className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700" title="Negrita">B</button>
+                            <button type="button" onClick={() => runHeroHtmlCommand("italic")} className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700" title="Cursiva">I</button>
+                            <button type="button" onClick={() => runHeroHtmlCommand("underline")} className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700" title="Subrayado">U</button>
+                            <button type="button" onClick={() => runHeroHtmlCommand("justifyLeft")} className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700" title="Alinear izquierda">↤</button>
+                            <button type="button" onClick={() => runHeroHtmlCommand("justifyCenter")} className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700" title="Centrar">↔</button>
+                            <button type="button" onClick={() => runHeroHtmlCommand("justifyRight")} className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700" title="Alinear derecha">↦</button>
+                            <button type="button" onClick={() => runHeroHtmlCommand("insertUnorderedList")} className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700">Lista •</button>
+                            <button type="button" onClick={() => runHeroHtmlCommand("insertOrderedList")} className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700">Lista 1.</button>
+                            <label className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
+                              Color
+                              <input
+                                type="color"
+                                defaultValue="#1e293b"
+                                onChange={(event) => runHeroHtmlCommand("foreColor", event.target.value)}
+                                className="h-5 w-6 cursor-pointer border-0 bg-transparent p-0"
+                              />
+                            </label>
+                            <label className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
+                              Fondo
+                              <input
+                                type="color"
+                                defaultValue="#ffffff"
+                                onChange={(event) => runHeroHtmlCommand("hiliteColor", event.target.value)}
+                                className="h-5 w-6 cursor-pointer border-0 bg-transparent p-0"
+                              />
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const url = typeof window !== "undefined"
+                                  ? window.prompt("URL del enlace (https://...)")
+                                  : null;
+                                if (url?.trim()) runHeroHtmlCommand("createLink", url.trim());
+                              }}
+                              className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700"
+                            >
+                              Enlace
+                            </button>
+                            <button type="button" onClick={() => runHeroHtmlCommand("unlink")} className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700">Quitar enlace</button>
+                            <button type="button" onClick={() => runHeroHtmlCommand("undo")} className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700">↶</button>
+                            <button type="button" onClick={() => runHeroHtmlCommand("redo")} className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700">↷</button>
+                            <button type="button" onClick={() => runHeroHtmlCommand("removeFormat")} className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700">Limpiar</button>
+                          </div>
+                          <div
+                            ref={heroHtmlEditorRef}
+                            contentEditable
+                            suppressContentEditableWarning
+                            onInput={(event) => setHomeLayout("heroDescription", event.currentTarget.innerHTML)}
+                            className="ui-focus min-h-24 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 [&_a]:text-cyan-700 [&_a]:underline [&_b]:font-bold [&_strong]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_p]:mb-2"
+                          />
+                        </div>
                       </div>
                     </div>
 
@@ -6456,21 +6498,24 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             <h1 className="mt-2 text-3xl font-black leading-tight text-slate-900 md:text-[2.7rem]">
               {config.homeLayout.heroTitle}
             </h1>
-            <p className={`mt-3 text-sm leading-relaxed text-slate-600 md:text-[15px] ${
-              config.homeLayout.heroAlignment === "center"
-                ? config.homeLayout.heroMaxWidth === "xl"
-                  ? "mx-auto max-w-xl"
-                  : config.homeLayout.heroMaxWidth === "full"
-                    ? "mx-auto max-w-full"
-                    : "mx-auto max-w-2xl"
-                : config.homeLayout.heroMaxWidth === "xl"
-                  ? "max-w-xl"
-                  : config.homeLayout.heroMaxWidth === "full"
-                    ? "max-w-full"
-                    : "max-w-2xl"
-            }`}>
-              {config.homeLayout.heroDescription}
-            </p>
+            <div
+              className={`mt-3 text-sm leading-relaxed text-slate-600 md:text-[15px] [&_a]:text-cyan-700 [&_a]:underline [&_b]:font-bold [&_strong]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_p]:mb-2 ${
+                config.homeLayout.heroAlignment === "center"
+                  ? config.homeLayout.heroMaxWidth === "xl"
+                    ? "mx-auto max-w-xl"
+                    : config.homeLayout.heroMaxWidth === "full"
+                      ? "mx-auto max-w-full"
+                      : "mx-auto max-w-2xl"
+                  : config.homeLayout.heroMaxWidth === "xl"
+                    ? "max-w-xl"
+                    : config.homeLayout.heroMaxWidth === "full"
+                      ? "max-w-full"
+                      : "max-w-2xl"
+              }`}
+              dangerouslySetInnerHTML={{
+                __html: formatHomeHeroHtml(config.homeLayout.heroDescription),
+              }}
+            />
             {config.homeLayout.showHeroChips ? (
             <div className={`mt-4 flex flex-wrap gap-2 ${config.homeLayout.heroAlignment === "center" ? "justify-center" : ""}`}>
               <span className="rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">Visor 3D</span>

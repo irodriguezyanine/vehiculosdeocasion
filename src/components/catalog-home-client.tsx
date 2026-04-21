@@ -34,6 +34,7 @@ const HOME_QUICK_FILTERS_STORAGE_KEY = "vedisa_home_quick_filters";
 const HOME_CARD_DENSITY_STORAGE_KEY = "vedisa_home_card_density";
 const EDITOR_PAGE_SIZE = 20;
 type AdminTabId = "vehiculos" | "categorias" | "layout" | "analytics" | "ofertas";
+type InventorySubtabId = "actual" | "vendidas";
 type EditorGroupFilter = "all" | SectionId | `managed:${string}`;
 type EditorVisibilityFilter = "all" | "visible" | "hidden";
 type EditorVehicleCategoryFilter = "all" | "livianos" | "pesados" | "maquinaria" | "chatarra" | "otros";
@@ -1856,6 +1857,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   const [systemNotice, setSystemNotice] = useState<SystemNotice | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [adminTab, setAdminTab] = useState<AdminTabId>("vehiculos");
+  const [inventorySubtab, setInventorySubtab] = useState<InventorySubtabId>("actual");
   const [auctionFilterId, setAuctionFilterId] = useState("");
   const [editorGroupFilter, setEditorGroupFilter] = useState<EditorGroupFilter>("all");
   const [editorVisibilityFilter, setEditorVisibilityFilter] =
@@ -4352,6 +4354,31 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     [buildSoldVehicleRecord, itemsByKey],
   );
 
+  const revertVehicleSale = useCallback((vehicleKey: string) => {
+    setConfig((prev) => {
+      const soldSet = new Set(prev.soldVehicleIds ?? []);
+      soldSet.delete(vehicleKey);
+
+      const hiddenSet = new Set(prev.hiddenVehicleIds ?? []);
+      hiddenSet.delete(vehicleKey);
+
+      const manualPublications = (prev.manualPublications ?? []).map((entry) => {
+        if (`manual-${entry.id}` !== vehicleKey) return entry;
+        return { ...entry, visible: true };
+      });
+
+      return {
+        ...prev,
+        soldVehicleIds: Array.from(soldSet),
+        soldVehicleHistory: (prev.soldVehicleHistory ?? []).filter(
+          (entry) => entry.vehicleKey !== vehicleKey,
+        ),
+        hiddenVehicleIds: Array.from(hiddenSet),
+        manualPublications,
+      };
+    });
+  }, []);
+
   const setPrice = (itemKey: string, value: string) => {
     setConfig((prev) => {
       const nextVehiclePrices = { ...prev.vehiclePrices, [itemKey]: value };
@@ -5649,6 +5676,27 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
 
             {adminTab === "vehiculos" ? (
               <>
+                <div className="flex flex-wrap items-center gap-2">
+                  {([
+                    ["actual", "Inventario actual"],
+                    ["vendidas", "Unidades vendidas"],
+                  ] as Array<[InventorySubtabId, string]>).map(([tabId, label]) => (
+                    <button
+                      key={`inventory-subtab-${tabId}`}
+                      type="button"
+                      onClick={() => setInventorySubtab(tabId)}
+                      className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold transition ${
+                        inventorySubtab === tabId
+                          ? "bg-slate-900 text-white"
+                          : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {inventorySubtab === "actual" ? (
+                  <>
                 <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
                   <input
                     value={searchTerm}
@@ -5920,10 +5968,13 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                     </button>
                   </div>
                 </div>
-                <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-3">
+                  </>
+                ) : null}
+                {inventorySubtab === "vendidas" ? (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-3">
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">
-                      Historial de unidades vendidas
+                      Unidades vendidas
                     </p>
                     <span className="rounded-full border border-amber-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-amber-700">
                       {soldHistoryRows.length}
@@ -5936,7 +5987,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       {soldHistoryRows.slice(0, 60).map((entry) => (
                         <article
                           key={`${entry.vehicleKey}-${entry.soldAt}`}
-                          className="grid grid-cols-1 gap-1 border-b border-slate-100 py-1 last:border-b-0 md:grid-cols-[1.1fr_1.5fr_1fr_1fr]"
+                          className="grid grid-cols-1 gap-2 border-b border-slate-100 py-1.5 last:border-b-0 md:grid-cols-[1fr_1.4fr_1fr_1fr_auto]"
                         >
                           <p className="text-xs font-semibold text-slate-800">{entry.patent}</p>
                           <p className="line-clamp-1 text-xs text-slate-600">{entry.title}</p>
@@ -5946,11 +5997,37 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                           <p className="text-xs text-slate-500">
                             {new Date(entry.soldAt).toLocaleString("es-CL")}
                           </p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const confirmed =
+                                typeof window === "undefined"
+                                  ? false
+                                  : window.confirm(
+                                      `¿Revertir venta de ${entry.patent} para devolverla al inventario?`,
+                                    );
+                              if (!confirmed) return;
+                              revertVehicleSale(entry.vehicleKey);
+                              showSystemNotice(
+                                "success",
+                                "Venta revertida",
+                                `${entry.patent} volvió al inventario actual.`,
+                              );
+                            }}
+                            className="ui-focus inline-flex h-7 w-7 items-center justify-center self-center rounded border border-cyan-300 bg-cyan-50 text-cyan-700 transition hover:bg-cyan-100"
+                            aria-label={`Revertir venta ${entry.patent}`}
+                            title="Revertir venta"
+                          >
+                            <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                              <path d="M10 3a7 7 0 1 1-6.2 10.25.75.75 0 1 1 1.32-.72A5.5 5.5 0 1 0 4.5 10H6a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 10.75V7.5a.75.75 0 0 1 1.5 0v1.3A7 7 0 0 1 10 3Z" />
+                            </svg>
+                          </button>
                         </article>
                       ))}
                     </div>
                   )}
-                </div>
+                  </div>
+                ) : null}
               </>
             ) : null}
 

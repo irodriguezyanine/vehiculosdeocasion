@@ -2082,12 +2082,15 @@ export function CatalogHomeClient({ feed }: Props) {
 
   useEffect(() => {
     if (!showOfferModal) return;
-    if (selectedVehicleReferencePriceAmount <= 0) return;
+    const selectedKey = selectedVehicle ? getVehicleKey(selectedVehicle) : "";
+    const selectedPriceLabel = selectedKey ? formatPrice(config.vehiclePrices[selectedKey]) : null;
+    const selectedReferenceAmount = parseCurrencyAmount(selectedPriceLabel);
+    if (selectedReferenceAmount <= 0) return;
     setOfferForm((prev) => {
       if (prev.offerAmount.trim()) return prev;
-      return { ...prev, offerAmount: formatCurrencyAmount(selectedVehicleReferencePriceAmount) };
+      return { ...prev, offerAmount: formatCurrencyAmount(selectedReferenceAmount) };
     });
-  }, [showOfferModal, selectedVehicleReferencePriceAmount]);
+  }, [showOfferModal, selectedVehicle, config.vehiclePrices]);
 
   useEffect(() => {
     void (async () => {

@@ -2967,12 +2967,15 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       };
 
       const tableColumns = [
-        { key: "title" as const, label: "Publicación", width: usableWidth * 0.30 },
-        { key: "patent" as const, label: "Patente", width: usableWidth * 0.13 },
-        { key: "model" as const, label: "Modelo", width: usableWidth * 0.20 },
-        { key: "auctionLabel" as const, label: "Calendario", width: usableWidth * 0.22 },
-        { key: "priceLabel" as const, label: "Precio", width: usableWidth * 0.15 },
+        { key: "title" as const, label: "Publicación", width: Math.floor(usableWidth * 0.27), align: "left" as const },
+        { key: "patent" as const, label: "Patente", width: Math.floor(usableWidth * 0.12), align: "left" as const },
+        { key: "model" as const, label: "Modelo", width: Math.floor(usableWidth * 0.19), align: "left" as const },
+        { key: "auctionLabel" as const, label: "Calendario", width: Math.floor(usableWidth * 0.27), align: "left" as const },
+        { key: "priceLabel" as const, label: "Precio", width: 0, align: "right" as const },
       ];
+      tableColumns[4].width = Math.floor(
+        usableWidth - tableColumns[0].width - tableColumns[1].width - tableColumns[2].width - tableColumns[3].width,
+      );
 
       const drawTableHeader = () => {
         doc.setFillColor(...BRAND.navy);
@@ -2982,7 +2985,11 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         doc.setFontSize(8);
         doc.setTextColor(...BRAND.white);
         for (const column of tableColumns) {
-          doc.text(column.label, x + 6, y + 13);
+          if (column.align === "right") {
+            doc.text(column.label, x + column.width - 8, y + 13, { align: "right" });
+          } else {
+            doc.text(column.label, x + 8, y + 13);
+          }
           x += column.width;
         }
         y += 24;
@@ -3060,16 +3067,17 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
 
         drawTableHeader();
         for (const [rowIndex, row] of section.rows.entries()) {
-          const linePaddingY = 4;
-          const lineHeight = 9.5;
+          const linePaddingY = 5;
+          const lineHeight = 10;
+          const cellPaddingX = 8;
           const values = tableColumns.map((column) =>
             String(row[column.key] ?? "—"),
           );
           const linesByCol = values.map((value, index) =>
-            doc.splitTextToSize(value, tableColumns[index].width - 10),
+            doc.splitTextToSize(value, Math.max(24, tableColumns[index].width - cellPaddingX * 2)),
           );
           const maxLines = Math.max(1, ...linesByCol.map((lines) => lines.length));
-          const rowHeight = Math.max(22, maxLines * lineHeight + linePaddingY * 2);
+          const rowHeight = Math.max(24, maxLines * lineHeight + linePaddingY * 2);
 
           ensureSpace(rowHeight + 2, true);
           const rowFill = rowIndex % 2 === 0 ? BRAND.white : BRAND.cyanSoft;
@@ -3082,9 +3090,18 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           for (let i = 0; i < tableColumns.length; i += 1) {
             if (i > 0) doc.line(cellX, y, cellX, y + rowHeight);
             doc.setFont("helvetica", i === 0 ? "bold" : "normal");
-            doc.setFontSize(9.2);
+            doc.setFontSize(i === 3 ? 8.8 : 9.2);
             doc.setTextColor(...BRAND.slateText);
-            doc.text(linesByCol[i], cellX + 5, y + linePaddingY + 8);
+            if (tableColumns[i].align === "right") {
+              doc.text(
+                linesByCol[i],
+                cellX + tableColumns[i].width - cellPaddingX,
+                y + linePaddingY + 8,
+                { align: "right" },
+              );
+            } else {
+              doc.text(linesByCol[i], cellX + cellPaddingX, y + linePaddingY + 8);
+            }
             cellX += tableColumns[i].width;
           }
           y += rowHeight;

@@ -2897,22 +2897,33 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(11);
       doc.setTextColor(...BRAND.slateMuted);
-      doc.text(`Documento: ${exportFileName}`, pageWidth / 2, 282, { align: "center" });
+      const coverDate = now.toLocaleDateString("es-CL", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      });
+      const coverTime = now.toLocaleTimeString("es-CL", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      doc.text(`Actualizado ${coverDate} · ${coverTime}`, pageWidth / 2, 282, { align: "center" });
 
       const cardWidth = (usableWidth - 24) / 3;
       let cardX = marginX + 8;
       for (const stat of stats) {
         doc.setDrawColor(...BRAND.border);
         doc.setFillColor(...BRAND.cyanSoft);
-        doc.roundedRect(cardX, 322, cardWidth, 84, 8, 8, "FD");
+        doc.roundedRect(cardX, 322, cardWidth, 92, 8, 8, "FD");
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(9);
+        doc.setFontSize(10);
         doc.setTextColor(...BRAND.slateMuted);
-        doc.text(stat.label, cardX + 12, 346);
+        doc.text(stat.label, cardX + cardWidth / 2, 348, { align: "center" });
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(19);
+        const valueLines = doc.splitTextToSize(stat.value, cardWidth - 22);
+        const valueFontSize = stat.label === "Generado" ? 13 : 21;
+        doc.setFontSize(valueFontSize);
         doc.setTextColor(...BRAND.navy);
-        doc.text(stat.value, cardX + 12, 380);
+        doc.text(valueLines, cardX + cardWidth / 2, 382, { align: "center" });
         cardX += cardWidth + 12;
       }
 
@@ -2987,20 +2998,62 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
 
       drawPageHeader();
       for (const section of calendarPdfSections) {
-        ensureSpace(62);
-        doc.setFillColor(...BRAND.cyanSoft);
-        doc.roundedRect(marginX, y, usableWidth, 30, 6, 6, "F");
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(14);
-        doc.setTextColor(...BRAND.indigo);
-        doc.text(`${section.categoryTitle} (${section.rows.length})`, marginX + 10, y + 20);
-        y += 36;
+        const rawTitle = section.categoryTitle.trim();
+        const rematePrefix = "Remates disponibles - ";
+        const sectionTitlePrimary = rawTitle.startsWith(rematePrefix)
+          ? "Remates disponibles"
+          : rawTitle;
+        const sectionTitleSecondary = rawTitle.startsWith(rematePrefix)
+          ? rawTitle.slice(rematePrefix.length).trim()
+          : "";
+        const subtitle = section.categorySubtitle.trim();
+        const sectionDate = /^\d{2}-\d{2}-\d{4}$/.test(subtitle) ? subtitle : "";
+        const sectionSupportText = sectionDate ? "" : subtitle;
+        const headerHeight = sectionTitleSecondary ? 50 : 36;
 
-        if (section.categorySubtitle.trim()) {
+        ensureSpace(headerHeight + 26);
+        doc.setFillColor(...BRAND.cyanSoft);
+        doc.roundedRect(marginX, y, usableWidth, headerHeight, 6, 6, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(13);
+        doc.setTextColor(...BRAND.indigo);
+        doc.text(sectionTitlePrimary, marginX + 10, y + 19);
+        if (sectionTitleSecondary) {
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(12);
+          doc.setTextColor(...BRAND.navy);
+          doc.text(sectionTitleSecondary, marginX + 10, y + 37);
+        }
+
+        const countLabel = `${section.rows.length} pub.`;
+        const countWidth = Math.max(58, doc.getTextWidth(countLabel) + 16);
+        const countX = marginX + usableWidth - countWidth - 8;
+        doc.setFillColor(...BRAND.indigo);
+        doc.roundedRect(countX, y + 8, countWidth, 18, 5, 5, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(...BRAND.white);
+        doc.text(countLabel, countX + countWidth / 2, y + 20, { align: "center" });
+
+        if (sectionDate) {
+          const dateWidth = Math.max(84, doc.getTextWidth(sectionDate) + 14);
+          const dateX = marginX + usableWidth - dateWidth - 8;
+          doc.setFillColor(...BRAND.white);
+          doc.setDrawColor(...BRAND.border);
+          doc.roundedRect(dateX, y + headerHeight - 21, dateWidth, 16, 4, 4, "FD");
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(8.5);
+          doc.setTextColor(...BRAND.slateMuted);
+          doc.text(sectionDate, dateX + dateWidth / 2, y + headerHeight - 10, { align: "center" });
+        }
+
+        y += headerHeight + 8;
+
+        if (sectionSupportText) {
           doc.setFont("helvetica", "normal");
           doc.setFontSize(10);
           doc.setTextColor(...BRAND.slateMuted);
-          const subtitleLines = doc.splitTextToSize(section.categorySubtitle, usableWidth);
+          const subtitleLines = doc.splitTextToSize(sectionSupportText, usableWidth);
           ensureSpace(subtitleLines.length * 12 + 12);
           doc.text(subtitleLines, marginX, y);
           y += subtitleLines.length * 12 + 10;

@@ -2867,6 +2867,17 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         minute: "2-digit",
       });
       const totalRows = calendarPdfSections.reduce((acc, section) => acc + section.rows.length, 0);
+      const BRAND = {
+        navy: [12, 28, 61] as const,
+        indigo: [67, 56, 202] as const,
+        cyan: [8, 145, 178] as const,
+        cyanSoft: [236, 254, 255] as const,
+        slateText: [30, 41, 59] as const,
+        slateMuted: [71, 85, 105] as const,
+        border: [203, 213, 225] as const,
+        borderSoft: [226, 232, 240] as const,
+        white: [255, 255, 255] as const,
+      };
       const stats = [
         { label: "Categorías visibles", value: String(calendarPdfSections.length) },
         { label: "Publicaciones visibles", value: String(totalRows) },
@@ -2874,48 +2885,50 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       ];
 
       // Portada corporativa
-      doc.setFillColor(15, 23, 42);
+      doc.setFillColor(...BRAND.navy);
       doc.rect(0, 0, pageWidth, 152, "F");
+      doc.setFillColor(...BRAND.cyan);
+      doc.rect(0, 146, pageWidth, 6, "F");
       if (logoDataUrl) {
         doc.addImage(logoDataUrl, "PNG", marginX, 34, 138, 38);
       }
       doc.setFont("helvetica", "bold");
       doc.setFontSize(12);
-      doc.setTextColor(148, 163, 184);
+      doc.setTextColor(191, 219, 254);
       doc.text("CATALOGO CORPORATIVO", marginX, 102);
       doc.setFontSize(28);
-      doc.setTextColor(15, 23, 42);
+      doc.setTextColor(...BRAND.navy);
       doc.text("Catalogo Vedisa", marginX, 212);
       doc.setFontSize(14);
-      doc.setTextColor(30, 41, 59);
+      doc.setTextColor(...BRAND.indigo);
       doc.text("Publicaciones visibles por calendario y categorias", marginX, 238);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
-      doc.setTextColor(71, 85, 105);
+      doc.setTextColor(...BRAND.slateMuted);
       doc.text(`Documento: ${exportFileName}`, marginX, 262);
 
       const cardWidth = (usableWidth - 16) / 3;
       let cardX = marginX;
       for (const stat of stats) {
-        doc.setDrawColor(203, 213, 225);
-        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(...BRAND.border);
+        doc.setFillColor(...BRAND.cyanSoft);
         doc.roundedRect(cardX, 292, cardWidth, 68, 6, 6, "FD");
         doc.setFont("helvetica", "normal");
         doc.setFontSize(9);
-        doc.setTextColor(100, 116, 139);
+        doc.setTextColor(...BRAND.slateMuted);
         doc.text(stat.label, cardX + 10, 314);
         doc.setFont("helvetica", "bold");
         doc.setFontSize(14);
-        doc.setTextColor(15, 23, 42);
+        doc.setTextColor(...BRAND.navy);
         doc.text(stat.value, cardX + 10, 338);
         cardX += cardWidth + 8;
       }
 
-      doc.setDrawColor(226, 232, 240);
+      doc.setDrawColor(...BRAND.borderSoft);
       doc.line(marginX, 386, pageWidth - marginX, 386);
       doc.setFont("helvetica", "italic");
       doc.setFontSize(9);
-      doc.setTextColor(100, 116, 139);
+      doc.setTextColor(...BRAND.slateMuted);
       doc.text(
         "Este PDF incluye exclusivamente las publicaciones visibles al momento de la descarga.",
         marginX,
@@ -2927,20 +2940,22 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       let y = 42;
 
       const drawPageHeader = () => {
-        doc.setFillColor(248, 250, 252);
+        doc.setFillColor(...BRAND.cyanSoft);
         doc.rect(0, 0, pageWidth, 64, "F");
+        doc.setFillColor(...BRAND.cyan);
+        doc.rect(0, 60, pageWidth, 4, "F");
         if (logoDataUrl) {
           doc.addImage(logoDataUrl, "PNG", marginX, 14, 92, 25);
         }
         doc.setFont("helvetica", "bold");
         doc.setFontSize(12);
-        doc.setTextColor(15, 23, 42);
+        doc.setTextColor(...BRAND.navy);
         doc.text("Detalle de publicaciones visibles", marginX + (logoDataUrl ? 104 : 0), 31);
         doc.setFont("helvetica", "normal");
         doc.setFontSize(9);
-        doc.setTextColor(71, 85, 105);
+        doc.setTextColor(...BRAND.slateMuted);
         doc.text(todayLabel, pageWidth - marginX, 31, { align: "right" });
-        doc.setDrawColor(226, 232, 240);
+        doc.setDrawColor(...BRAND.borderSoft);
         doc.line(marginX, 64, pageWidth - marginX, 64);
         y = 82;
       };
@@ -2954,12 +2969,12 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       ];
 
       const drawTableHeader = () => {
-        doc.setFillColor(15, 23, 42);
+        doc.setFillColor(...BRAND.navy);
         doc.rect(marginX, y, usableWidth, 20, "F");
         let x = marginX;
         doc.setFont("helvetica", "bold");
         doc.setFontSize(8);
-        doc.setTextColor(255, 255, 255);
+        doc.setTextColor(...BRAND.white);
         for (const column of tableColumns) {
           doc.text(column.label, x + 6, y + 13);
           x += column.width;
@@ -2977,18 +2992,18 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       drawPageHeader();
       for (const section of calendarPdfSections) {
         ensureSpace(48);
-        doc.setFillColor(241, 245, 249);
+        doc.setFillColor(...BRAND.cyanSoft);
         doc.roundedRect(marginX, y, usableWidth, 24, 4, 4, "F");
         doc.setFont("helvetica", "bold");
         doc.setFontSize(11);
-        doc.setTextColor(15, 23, 42);
+        doc.setTextColor(...BRAND.indigo);
         doc.text(`${section.categoryTitle} (${section.rows.length})`, marginX + 8, y + 16);
         y += 28;
 
         if (section.categorySubtitle.trim()) {
           doc.setFont("helvetica", "normal");
           doc.setFontSize(9);
-          doc.setTextColor(71, 85, 105);
+          doc.setTextColor(...BRAND.slateMuted);
           const subtitleLines = doc.splitTextToSize(section.categorySubtitle, usableWidth);
           ensureSpace(subtitleLines.length * 10 + 8);
           doc.text(subtitleLines, marginX, y);
@@ -2996,7 +3011,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         }
 
         drawTableHeader();
-        for (const row of section.rows) {
+        for (const [rowIndex, row] of section.rows.entries()) {
           const linePaddingY = 4;
           const lineHeight = 9.5;
           const values = tableColumns.map((column) =>
@@ -3009,7 +3024,10 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           const rowHeight = Math.max(22, maxLines * lineHeight + linePaddingY * 2);
 
           ensureSpace(rowHeight + 2, true);
-          doc.setDrawColor(226, 232, 240);
+          const rowFill = rowIndex % 2 === 0 ? BRAND.white : BRAND.cyanSoft;
+          doc.setFillColor(rowFill[0], rowFill[1], rowFill[2]);
+          doc.rect(marginX, y, usableWidth, rowHeight, "F");
+          doc.setDrawColor(...BRAND.borderSoft);
           doc.rect(marginX, y, usableWidth, rowHeight);
 
           let cellX = marginX;
@@ -3017,7 +3035,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             if (i > 0) doc.line(cellX, y, cellX, y + rowHeight);
             doc.setFont("helvetica", i === 0 ? "bold" : "normal");
             doc.setFontSize(8.5);
-            doc.setTextColor(30, 41, 59);
+            doc.setTextColor(...BRAND.slateText);
             doc.text(linesByCol[i], cellX + 5, y + linePaddingY + 8);
             cellX += tableColumns[i].width;
           }
@@ -3031,7 +3049,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         doc.setPage(page);
         doc.setFont("helvetica", "normal");
         doc.setFontSize(8);
-        doc.setTextColor(100, 116, 139);
+        doc.setTextColor(...BRAND.slateMuted);
         doc.text(
           `CatalogoVedisa · Pagina ${page} de ${totalPages}`,
           pageWidth / 2,
@@ -6761,21 +6779,6 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               <span className="rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
                 {homeVisibleItems.length} resultado(s)
               </span>
-              <button
-                type="button"
-                onClick={() => {
-                  void downloadVisibleCalendarPdf();
-                }}
-                disabled={isDownloadingCalendarPdf}
-                className={`ui-focus rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
-                  isDownloadingCalendarPdf
-                    ? "cursor-wait border-slate-300 bg-slate-100 text-slate-500"
-                    : "border-cyan-300 bg-cyan-50 text-cyan-800 hover:bg-cyan-100"
-                }`}
-                title="Descargar PDF profesional del calendario visible"
-              >
-                {isDownloadingCalendarPdf ? "Generando PDF..." : "Descargar PDF calendario"}
-              </button>
               <span className="sr-only" aria-live="polite">
                 {homeVisibleItems.length} resultados encontrados en catálogo.
               </span>
@@ -6824,23 +6827,43 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             </div>
           </div>
           {config.homeLayout.showQuickFilters ? (
-          <div className="mt-3 flex items-center gap-2 overflow-x-auto border-t border-slate-200 pt-3 pb-1 whitespace-nowrap md:flex-wrap md:overflow-visible md:whitespace-normal">
-            {config.homeLayout.showQuickFilters ? (
-              Object.entries(QUICK_FILTER_LABELS).map(([id, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => toggleQuickFilter(id as QuickFilterId)}
-                  className={`ui-focus shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                    quickFilters.includes(id as QuickFilterId)
-                      ? "border-slate-700 bg-slate-800 text-white"
-                      : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))
-            ) : null}
+          <div className="mt-3 flex items-start gap-2 border-t border-slate-200 pt-3 pb-1">
+            <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto whitespace-nowrap md:flex-wrap md:overflow-visible md:whitespace-normal">
+              {config.homeLayout.showQuickFilters ? (
+                Object.entries(QUICK_FILTER_LABELS).map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => toggleQuickFilter(id as QuickFilterId)}
+                    className={`ui-focus shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                      quickFilters.includes(id as QuickFilterId)
+                        ? "border-slate-700 bg-slate-800 text-white"
+                        : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))
+              ) : null}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                void downloadVisibleCalendarPdf();
+              }}
+              disabled={isDownloadingCalendarPdf}
+              className={`ui-focus ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                isDownloadingCalendarPdf
+                  ? "cursor-wait border-slate-300 bg-slate-100 text-slate-500"
+                  : "border-cyan-300 bg-cyan-50 text-cyan-800 hover:bg-cyan-100"
+              }`}
+              title="Descargar PDF profesional del calendario visible"
+            >
+              <svg viewBox="0 0 20 20" fill="none" className="h-3.5 w-3.5" aria-hidden="true">
+                <path d="M10 3.5v8m0 0l-3-3m3 3l3-3M4.5 13.5v2h11v-2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {isDownloadingCalendarPdf ? "Generando PDF..." : "PDF Catalogo"}
+            </button>
           </div>
           ) : null}
           {config.homeLayout.showQuickFilters && quickFilters.length > 0 ? (

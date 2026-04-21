@@ -161,76 +161,6 @@ const BASE_HOME_SECTION_ORDER: SectionId[] = [
   "catalogo",
 ];
 
-const HOME_LAYOUT_PRESETS: Array<{
-  id: "balanced" | "conversion" | "minimal";
-  label: string;
-  description: string;
-  patch: Partial<EditorConfig["homeLayout"]>;
-}> = [
-  {
-    id: "balanced",
-    label: "Balanceado",
-    description: "Hero completo + búsqueda + bloques principales visibles.",
-    patch: {
-      heroAlignment: "left",
-      heroTheme: "cyan",
-      heroMaxWidth: "2xl",
-      showHeroChips: true,
-      showHeroCtas: true,
-      showSearchBar: true,
-      showQuickFilters: true,
-      showSortSelector: true,
-      showCommercialPanel: true,
-      showHowToSection: true,
-      showFavoritesSection: true,
-      showRecentPublications: true,
-      showFeaturedStrip: true,
-      sectionSpacing: "normal",
-    },
-  },
-  {
-    id: "conversion",
-    label: "Conversión",
-    description: "Enfoque en CTA y navegación rápida de inventario.",
-    patch: {
-      heroAlignment: "center",
-      heroTheme: "indigo",
-      showHeroChips: false,
-      showHeroCtas: true,
-      showSearchBar: true,
-      showQuickFilters: true,
-      showSortSelector: true,
-      showCommercialPanel: false,
-      showHowToSection: false,
-      showFavoritesSection: true,
-      showRecentPublications: false,
-      showFeaturedStrip: true,
-      sectionSpacing: "compact",
-    },
-  },
-  {
-    id: "minimal",
-    label: "Minimalista",
-    description: "Home limpia y liviana para performance y foco visual.",
-    patch: {
-      heroAlignment: "left",
-      heroTheme: "slate",
-      heroMaxWidth: "xl",
-      showHeroChips: false,
-      showHeroCtas: false,
-      showSearchBar: true,
-      showQuickFilters: false,
-      showSortSelector: true,
-      showCommercialPanel: false,
-      showHowToSection: false,
-      showFavoritesSection: false,
-      showRecentPublications: false,
-      showFeaturedStrip: false,
-      sectionSpacing: "airy",
-    },
-  },
-];
-
 function normalizeEditorConfigClient(
   value?: Partial<EditorConfig> | null,
 ): EditorConfig {
@@ -1892,7 +1822,6 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   const [serverAnalyticsEvents, setServerAnalyticsEvents] = useState<AnalyticsEventPayload[]>([]);
   const [analyticsSource, setAnalyticsSource] = useState<"local" | "server">("local");
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
-  const [layoutEditorMode, setLayoutEditorMode] = useState<"simple" | "advanced">("simple");
   const [analyticsViewMode, setAnalyticsViewMode] = useState<"simple" | "advanced">("simple");
   const [analyticsEventFilter, setAnalyticsEventFilter] = useState("all");
   const [analyticsSectionFilter, setAnalyticsSectionFilter] = useState("all");
@@ -1911,9 +1840,11 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   const [offersDateTo, setOffersDateTo] = useState("");
   const [showOffersFiltersMenu, setShowOffersFiltersMenu] = useState(false);
   const [draggedLayoutSectionId, setDraggedLayoutSectionId] = useState<HomeSectionOrderId | null>(null);
+  const [activeHeroRichEditor, setActiveHeroRichEditor] = useState<"title" | "subtitle">("subtitle");
   const [countdownNowMs, setCountdownNowMs] = useState(() => Date.now());
   const manualObservationsEditorRef = useRef<HTMLDivElement | null>(null);
-  const heroHtmlEditorRef = useRef<HTMLDivElement | null>(null);
+  const heroTitleEditorRef = useRef<HTMLDivElement | null>(null);
+  const heroSubtitleEditorRef = useRef<HTMLDivElement | null>(null);
   const [observationsTemplateHtml, setObservationsTemplateHtml] = useState(
     DEFAULT_OBSERVATIONS_TEMPLATE_HTML,
   );
@@ -2030,7 +1961,10 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   }, []);
 
   const runHeroHtmlCommand = useCallback((command: string, value?: string) => {
-    const editor = heroHtmlEditorRef.current;
+    const editor =
+      activeHeroRichEditor === "title"
+        ? heroTitleEditorRef.current
+        : heroSubtitleEditorRef.current;
     if (!editor || typeof document === "undefined") return;
     editor.focus();
     document.execCommand("styleWithCSS", false, "true");
@@ -2039,19 +1973,27 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       ...prev,
       homeLayout: {
         ...prev.homeLayout,
-        heroDescription: editor.innerHTML,
+        [activeHeroRichEditor === "title" ? "heroTitle" : "heroDescription"]: editor.innerHTML,
       },
     }));
-  }, []);
+  }, [activeHeroRichEditor]);
 
   useEffect(() => {
-    const editor = heroHtmlEditorRef.current;
-    if (!editor) return;
-    const normalized = formatHomeHeroHtml(config.homeLayout.heroDescription);
-    if (editor.innerHTML !== normalized) {
-      editor.innerHTML = normalized;
+    const titleEditor = heroTitleEditorRef.current;
+    if (titleEditor) {
+      const normalizedTitle = formatHomeHeroHtml(config.homeLayout.heroTitle);
+      if (titleEditor.innerHTML !== normalizedTitle) {
+        titleEditor.innerHTML = normalizedTitle;
+      }
     }
-  }, [config.homeLayout.heroDescription]);
+    const subtitleEditor = heroSubtitleEditorRef.current;
+    if (subtitleEditor) {
+      const normalizedSubtitle = formatHomeHeroHtml(config.homeLayout.heroDescription);
+      if (subtitleEditor.innerHTML !== normalizedSubtitle) {
+        subtitleEditor.innerHTML = normalizedSubtitle;
+      }
+    }
+  }, [config.homeLayout.heroTitle, config.homeLayout.heroDescription]);
 
   const rawItems = feed.items;
   const updateVehicleUrlParam = useCallback((vehicleKey?: string) => {
@@ -3871,21 +3813,6 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     }
   };
 
-  const applyHomeLayoutPreset = (
-    presetId: "balanced" | "conversion" | "minimal",
-  ) => {
-    const preset = HOME_LAYOUT_PRESETS.find((entry) => entry.id === presetId);
-    if (!preset) return;
-    setConfig((prev) => ({
-      ...prev,
-      homeLayout: {
-        ...prev.homeLayout,
-        ...preset.patch,
-      },
-    }));
-    showSystemNotice("success", "Preset aplicado", `Se aplicó el preset ${preset.label}.`);
-  };
-
   const resetHomeLayoutToDefault = () => {
     setConfig((prev) => ({
       ...prev,
@@ -5586,26 +5513,6 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <div className="inline-flex rounded-full border border-slate-300 bg-white p-1">
-                      <button
-                        type="button"
-                        onClick={() => setLayoutEditorMode("simple")}
-                        className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold ${
-                          layoutEditorMode === "simple" ? "bg-cyan-600 text-white" : "text-slate-700"
-                        }`}
-                      >
-                        Simple
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setLayoutEditorMode("advanced")}
-                        className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold ${
-                          layoutEditorMode === "advanced" ? "bg-cyan-600 text-white" : "text-slate-700"
-                        }`}
-                      >
-                        Avanzada
-                      </button>
-                    </div>
                     <button
                       type="button"
                       onClick={resetHomeLayoutToDefault}
@@ -5614,20 +5521,6 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       Restaurar base
                     </button>
                   </div>
-                </div>
-
-                <div className="mb-4 grid gap-2 md:grid-cols-3">
-                  {HOME_LAYOUT_PRESETS.map((preset) => (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      onClick={() => applyHomeLayoutPreset(preset.id)}
-                      className="ui-focus rounded-lg border border-cyan-200 bg-cyan-50/50 px-3 py-2 text-left transition hover:bg-cyan-100"
-                    >
-                      <p className="text-xs font-bold uppercase tracking-wide text-cyan-800">{preset.label}</p>
-                      <p className="mt-1 text-xs text-slate-600">{preset.description}</p>
-                    </button>
-                  ))}
                 </div>
 
                 <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-3">
@@ -5658,12 +5551,6 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                           value={config.homeLayout.heroKicker}
                           onChange={(event) => setHomeLayout("heroKicker", event.target.value)}
                           placeholder="Kicker"
-                          className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                        />
-                        <input
-                          value={config.homeLayout.heroTitle}
-                          onChange={(event) => setHomeLayout("heroTitle", event.target.value)}
-                          placeholder="Título principal"
                           className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
                         />
                         <div className="rounded-md border border-slate-300 bg-white p-2">
@@ -5725,84 +5612,97 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                             <button type="button" onClick={() => runHeroHtmlCommand("redo")} className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700">↷</button>
                             <button type="button" onClick={() => runHeroHtmlCommand("removeFormat")} className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700">Limpiar</button>
                           </div>
+                          <div className="mb-2 rounded-md border border-slate-200 bg-slate-50 p-2">
+                            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Título</p>
+                            <div
+                              ref={heroTitleEditorRef}
+                              contentEditable
+                              suppressContentEditableWarning
+                              onFocus={() => setActiveHeroRichEditor("title")}
+                              onInput={(event) => setHomeLayout("heroTitle", event.currentTarget.innerHTML)}
+                              className="ui-focus min-h-12 rounded-md border border-slate-300 bg-white px-3 py-2 text-3xl font-black leading-tight text-slate-900 md:text-[2rem] [&_a]:text-cyan-700 [&_a]:underline [&_b]:font-black [&_strong]:font-black [&_em]:italic [&_i]:italic [&_u]:underline"
+                            />
+                          </div>
+                          <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
+                            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Subtítulo</p>
                           <div
-                            ref={heroHtmlEditorRef}
+                            ref={heroSubtitleEditorRef}
                             contentEditable
                             suppressContentEditableWarning
+                            onFocus={() => setActiveHeroRichEditor("subtitle")}
                             onInput={(event) => setHomeLayout("heroDescription", event.currentTarget.innerHTML)}
-                            className="ui-focus min-h-24 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 [&_a]:text-cyan-700 [&_a]:underline [&_b]:font-bold [&_strong]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_p]:mb-2"
+                            className="ui-focus min-h-20 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm leading-relaxed text-slate-600 md:text-[15px] [&_a]:text-cyan-700 [&_a]:underline [&_b]:font-bold [&_strong]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_p]:mb-2"
                           />
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    {layoutEditorMode === "advanced" ? (
-                      <div className="rounded-lg border border-slate-200 bg-slate-50 p-2">
-                        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                          Configuración avanzada dentro de la simulación
-                        </p>
-                        <div className="grid gap-2 md:grid-cols-2">
-                          <select
-                            value={config.homeLayout.heroAlignment}
-                            onChange={(event) => setHomeLayout("heroAlignment", event.target.value)}
-                            className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                          >
-                            <option value="left">Hero alineado a la izquierda</option>
-                            <option value="center">Hero centrado</option>
-                          </select>
-                          <select
-                            value={config.homeLayout.heroTheme}
-                            onChange={(event) => setHomeLayout("heroTheme", event.target.value)}
-                            className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                          >
-                            <option value="cyan">Tema cyan</option>
-                            <option value="indigo">Tema indigo</option>
-                            <option value="slate">Tema slate</option>
-                          </select>
-                          <input
-                            value={config.homeLayout.heroPrimaryCtaLabel}
-                            onChange={(event) => setHomeLayout("heroPrimaryCtaLabel", event.target.value)}
-                            placeholder="Texto CTA principal"
-                            className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                          />
-                          <input
-                            value={config.homeLayout.heroPrimaryCtaHref}
-                            onChange={(event) => setHomeLayout("heroPrimaryCtaHref", event.target.value)}
-                            placeholder="Enlace CTA principal"
-                            className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                          />
-                          <input
-                            value={config.homeLayout.heroSecondaryCtaLabel}
-                            onChange={(event) => setHomeLayout("heroSecondaryCtaLabel", event.target.value)}
-                            placeholder="Texto CTA secundario"
-                            className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                          />
-                          <input
-                            value={config.homeLayout.heroSecondaryCtaHref}
-                            onChange={(event) => setHomeLayout("heroSecondaryCtaHref", event.target.value)}
-                            placeholder="Enlace CTA secundario"
-                            className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                          />
-                          <select
-                            value={config.homeLayout.defaultCardDensity}
-                            onChange={(event) => setHomeLayout("defaultCardDensity", event.target.value)}
-                            className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                          >
-                            <option value="detailed">Tarjeta detallada</option>
-                            <option value="compact">Tarjeta compacta</option>
-                          </select>
-                          <select
-                            value={config.homeLayout.sectionSpacing}
-                            onChange={(event) => setHomeLayout("sectionSpacing", event.target.value)}
-                            className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                          >
-                            <option value="compact">Espaciado compacto</option>
-                            <option value="normal">Espaciado normal</option>
-                            <option value="airy">Espaciado amplio</option>
-                          </select>
-                        </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-2">
+                      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                        Configuración avanzada dentro de la simulación
+                      </p>
+                      <div className="grid gap-2 md:grid-cols-2">
+                        <select
+                          value={config.homeLayout.heroAlignment}
+                          onChange={(event) => setHomeLayout("heroAlignment", event.target.value)}
+                          className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                        >
+                          <option value="left">Hero alineado a la izquierda</option>
+                          <option value="center">Hero centrado</option>
+                        </select>
+                        <select
+                          value={config.homeLayout.heroTheme}
+                          onChange={(event) => setHomeLayout("heroTheme", event.target.value)}
+                          className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                        >
+                          <option value="cyan">Tema cyan</option>
+                          <option value="indigo">Tema indigo</option>
+                          <option value="slate">Tema slate</option>
+                        </select>
+                        <input
+                          value={config.homeLayout.heroPrimaryCtaLabel}
+                          onChange={(event) => setHomeLayout("heroPrimaryCtaLabel", event.target.value)}
+                          placeholder="Texto CTA principal"
+                          className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                        />
+                        <input
+                          value={config.homeLayout.heroPrimaryCtaHref}
+                          onChange={(event) => setHomeLayout("heroPrimaryCtaHref", event.target.value)}
+                          placeholder="Enlace CTA principal"
+                          className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                        />
+                        <input
+                          value={config.homeLayout.heroSecondaryCtaLabel}
+                          onChange={(event) => setHomeLayout("heroSecondaryCtaLabel", event.target.value)}
+                          placeholder="Texto CTA secundario"
+                          className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                        />
+                        <input
+                          value={config.homeLayout.heroSecondaryCtaHref}
+                          onChange={(event) => setHomeLayout("heroSecondaryCtaHref", event.target.value)}
+                          placeholder="Enlace CTA secundario"
+                          className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                        />
+                        <select
+                          value={config.homeLayout.defaultCardDensity}
+                          onChange={(event) => setHomeLayout("defaultCardDensity", event.target.value)}
+                          className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                        >
+                          <option value="detailed">Tarjeta detallada</option>
+                          <option value="compact">Tarjeta compacta</option>
+                        </select>
+                        <select
+                          value={config.homeLayout.sectionSpacing}
+                          onChange={(event) => setHomeLayout("sectionSpacing", event.target.value)}
+                          className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                        >
+                          <option value="compact">Espaciado compacto</option>
+                          <option value="normal">Espaciado normal</option>
+                          <option value="airy">Espaciado amplio</option>
+                        </select>
                       </div>
-                    ) : null}
+                    </div>
 
                     <div className="rounded-lg border border-slate-200 bg-slate-50 p-2">
                       <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
@@ -6495,9 +6395,12 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   ? "text-slate-700"
                   : "text-cyan-700"
             }`}>{config.homeLayout.heroKicker}</p>
-            <h1 className="mt-2 text-3xl font-black leading-tight text-slate-900 md:text-[2.7rem]">
-              {config.homeLayout.heroTitle}
-            </h1>
+            <h1
+              className="mt-2 text-3xl font-black leading-tight text-slate-900 md:text-[2.7rem] [&_a]:text-cyan-700 [&_a]:underline [&_b]:font-black [&_strong]:font-black [&_em]:italic [&_i]:italic [&_u]:underline"
+              dangerouslySetInnerHTML={{
+                __html: formatHomeHeroHtml(config.homeLayout.heroTitle) || "Sin título",
+              }}
+            />
             <div
               className={`mt-3 text-sm leading-relaxed text-slate-600 md:text-[15px] [&_a]:text-cyan-700 [&_a]:underline [&_b]:font-bold [&_strong]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_p]:mb-2 ${
                 config.homeLayout.heroAlignment === "center"

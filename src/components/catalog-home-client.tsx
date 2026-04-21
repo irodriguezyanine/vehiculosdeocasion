@@ -876,6 +876,46 @@ function formatHomeHeroHtml(value?: string | null): string {
   return escapeHtml(normalized).replace(/\n/g, "<br />");
 }
 
+function normalizeCssColorToHex(value?: string | null): string {
+  const sample = String(value ?? "").trim();
+  if (!sample) return "#0f172a";
+  const hexMatch = sample.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (hexMatch) {
+    if (hexMatch[1].length === 3) {
+      const [r, g, b] = hexMatch[1].split("");
+      return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+    }
+    return sample.toLowerCase();
+  }
+  const rgbMatch = sample.match(
+    /^rgba?\(\s*(\d{1,3})[\s,]+(\d{1,3})[\s,]+(\d{1,3})(?:[\s,\/]+[\d.]+)?\s*\)$/i,
+  );
+  if (!rgbMatch) return "#0f172a";
+  const toHex = (raw: string) => {
+    const bounded = Math.max(0, Math.min(255, Number(raw)));
+    return bounded.toString(16).padStart(2, "0");
+  };
+  return `#${toHex(rgbMatch[1])}${toHex(rgbMatch[2])}${toHex(rgbMatch[3])}`;
+}
+
+function normalizeFontFamilyName(value?: string | null): string {
+  const normalized = String(value ?? "")
+    .replace(/["']/g, "")
+    .split(",")[0]
+    ?.trim()
+    .toLowerCase();
+  if (!normalized) return "Inter";
+  if (normalized.includes("inter")) return "Inter";
+  if (normalized.includes("arial")) return "Arial";
+  if (normalized.includes("georgia")) return "Georgia";
+  if (normalized.includes("times new roman")) return "Times New Roman";
+  if (normalized.includes("courier new")) return "Courier New";
+  return normalized
+    .split(/\s+/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 function stripHtmlToText(value: string): string {
   return value
     .replace(/<br\s*\/?>/gi, "\n")
@@ -1841,6 +1881,19 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   const [showOffersFiltersMenu, setShowOffersFiltersMenu] = useState(false);
   const [draggedLayoutSectionId, setDraggedLayoutSectionId] = useState<HomeSectionOrderId | null>(null);
   const [activeHeroRichEditor, setActiveHeroRichEditor] = useState<"title" | "subtitle">("subtitle");
+  const [heroToolbarState, setHeroToolbarState] = useState(() => ({
+    formatBlock: "p" as "p" | "h2" | "h3",
+    fontFamily: "Inter",
+    fontSize: "16px",
+    foreColor: "#0f172a",
+    hiliteColor: "#ffffff",
+    bold: false,
+    italic: false,
+    underline: false,
+    align: "left" as "left" | "center" | "right",
+    unorderedList: false,
+    orderedList: false,
+  }));
   const [countdownNowMs, setCountdownNowMs] = useState(() => Date.now());
   const manualObservationsEditorRef = useRef<HTMLDivElement | null>(null);
   const heroTitleEditorRef = useRef<HTMLDivElement | null>(null);
@@ -1960,11 +2013,78 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     }
   }, []);
 
+  const getActiveHeroEditor = useCallback(() => (
+    activeHeroRichEditor === "title"
+      ? heroTitleEditorRef.current
+      : heroSubtitleEditorRef.current
+  ), [activeHeroRichEditor]);
+
+  const syncHeroToolbarState = useCallback(() => {
+    if (typeof window === "undefined" || typeof document === "undefined") return;
+    const selection = window.getSelection();
+    const titleEditor = heroTitleEditorRef.current;
+    const subtitleEditor = heroSubtitleEditorRef.current;
+    const anchorNode = selection?.anchorNode ?? null;
+    const anchorElement =
+      anchorNode && anchorNode.nodeType === Node.ELEMENT_NODE
+        ? (anchorNode as Element)
+        : anchorNode?.parentElement ?? null;
+    const isInTitle = Boolean(titleEditor && anchorElement && titleEditor.contains(anchorElement));
+    const isInSubtitle = Boolean(subtitleEditor && anchorElement && subtitleEditor.contains(anchorElement));
+    if (isInTitle && activeHeroRichEditor !== "title") {
+      setActiveHeroRichEditor("title");
+    } else if (isInSubtitle && activeHeroRichEditor !== "subtitle") {
+      setActiveHeroRichEditor("subtitle");
+    }
+    const editor =
+      (isInTitle ? titleEditor : isInSubtitle ? subtitleEditor : getActiveHeroEditor()) ?? titleEditor;
+    if (!editor) return;
+    const styleTarget = (anchorElement && editor.contains(anchorElement))
+      ? anchorElement
+      : editor;
+    const computedStyle = window.getComputedStyle(styleTarget);
+    const formatBlockRaw = String(document.queryCommandValue("formatBlock") ?? "")
+      .replace(/[<>]/g, "")
+      .toLowerCase();
+    const formatBlock: "p" | "h2" | "h3" =
+      formatBlockRaw === "h2" || formatBlockRaw === "h3" ? formatBlockRaw : "p";
+    const align: "left" | "center" | "right" =
+      document.queryCommandState("justifyCenter")
+        ? "center"
+        : document.queryCommandState("justifyRight")
+          ? "right"
+          : "left";
+    const fontNameFromCommand = String(document.queryCommandValue("fontName") ?? "").trim();
+    const nextState = {
+      formatBlock,
+      fontFamily: normalizeFontFamilyName(fontNameFromCommand || computedStyle.fontFamily),
+      fontSize: computedStyle.fontSize || "16px",
+      foreColor: normalizeCssColorToHex(
+        String(document.queryCommandValue("foreColor") || computedStyle.color),
+      ),
+      hiliteColor: normalizeCssColorToHex(
+        String(
+          document.queryCommandValue("hiliteColor") ||
+          document.queryCommandValue("backColor") ||
+          computedStyle.backgroundColor ||
+          "#ffffff",
+        ),
+      ),
+      bold: Boolean(document.queryCommandState("bold")),
+      italic: Boolean(document.queryCommandState("italic")),
+      underline: Boolean(document.queryCommandState("underline")),
+      align,
+      unorderedList: Boolean(document.queryCommandState("insertUnorderedList")),
+      orderedList: Boolean(document.queryCommandState("insertOrderedList")),
+    };
+    setHeroToolbarState((prev) =>
+      JSON.stringify(prev) === JSON.stringify(nextState) ? prev : nextState,
+    );
+  }, [activeHeroRichEditor, getActiveHeroEditor]);
+
   const runHeroHtmlCommand = useCallback((command: string, value?: string) => {
     const editor =
-      activeHeroRichEditor === "title"
-        ? heroTitleEditorRef.current
-        : heroSubtitleEditorRef.current;
+      getActiveHeroEditor();
     if (!editor || typeof document === "undefined") return;
     editor.focus();
     document.execCommand("styleWithCSS", false, "true");
@@ -1976,7 +2096,17 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         [activeHeroRichEditor === "title" ? "heroTitle" : "heroDescription"]: editor.innerHTML,
       },
     }));
-  }, [activeHeroRichEditor]);
+    if (typeof window !== "undefined") {
+      window.requestAnimationFrame(() => syncHeroToolbarState());
+    }
+  }, [activeHeroRichEditor, getActiveHeroEditor, syncHeroToolbarState]);
+
+  useEffect(() => {
+    if (adminTab !== "layout" || typeof document === "undefined") return;
+    const handleSelectionChange = () => syncHeroToolbarState();
+    document.addEventListener("selectionchange", handleSelectionChange);
+    return () => document.removeEventListener("selectionchange", handleSelectionChange);
+  }, [adminTab, syncHeroToolbarState]);
 
   useEffect(() => {
     if (adminTab !== "layout") return;
@@ -1994,7 +2124,16 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         subtitleEditor.innerHTML = normalizedSubtitle;
       }
     }
-  }, [adminTab, config.homeLayout.heroTitle, config.homeLayout.heroDescription]);
+    syncHeroToolbarState();
+  }, [adminTab, config.homeLayout.heroTitle, config.homeLayout.heroDescription, syncHeroToolbarState]);
+
+  const heroToolbarButtonClass = useCallback((isActive: boolean) => (
+    `ui-focus rounded border px-2 py-1 text-xs font-semibold transition ${
+      isActive
+        ? "border-cyan-400 bg-cyan-100 text-cyan-800"
+        : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+    }`
+  ), []);
 
   const rawItems = feed.items;
   const updateVehicleUrlParam = useCallback((vehicleKey?: string) => {
@@ -5549,69 +5688,101 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       </p>
                       <div className="grid gap-2">
                         <div className="rounded-md border border-slate-300 bg-white p-2">
-                          <div className="mb-2 flex flex-wrap items-center gap-1.5">
-                            <select
-                              defaultValue="p"
-                              onChange={(event) => {
-                                const value = event.target.value;
-                                if (value === "p") runHeroHtmlCommand("formatBlock", "<p>");
-                                if (value === "h2") runHeroHtmlCommand("formatBlock", "<h2>");
-                                if (value === "h3") runHeroHtmlCommand("formatBlock", "<h3>");
-                              }}
-                              className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700"
-                            >
-                              <option value="p">Párrafo</option>
-                              <option value="h2">Título H2</option>
-                              <option value="h3">Subtítulo H3</option>
-                            </select>
-                            <button type="button" onClick={() => runHeroHtmlCommand("bold")} className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700" title="Negrita">B</button>
-                            <button type="button" onClick={() => runHeroHtmlCommand("italic")} className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700" title="Cursiva">I</button>
-                            <button type="button" onClick={() => runHeroHtmlCommand("underline")} className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700" title="Subrayado">U</button>
-                            <button type="button" onClick={() => runHeroHtmlCommand("justifyLeft")} className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700" title="Alinear izquierda">↤</button>
-                            <button type="button" onClick={() => runHeroHtmlCommand("justifyCenter")} className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700" title="Centrar">↔</button>
-                            <button type="button" onClick={() => runHeroHtmlCommand("justifyRight")} className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700" title="Alinear derecha">↦</button>
-                            <button type="button" onClick={() => runHeroHtmlCommand("insertUnorderedList")} className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700">Lista •</button>
-                            <button type="button" onClick={() => runHeroHtmlCommand("insertOrderedList")} className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700">Lista 1.</button>
-                            <label className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
-                              Color
-                              <input
-                                type="color"
-                                defaultValue="#1e293b"
-                                onChange={(event) => runHeroHtmlCommand("foreColor", event.target.value)}
-                                className="h-5 w-6 cursor-pointer border-0 bg-transparent p-0"
-                              />
-                            </label>
-                            <label className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
-                              Fondo
-                              <input
-                                type="color"
-                                defaultValue="#ffffff"
-                                onChange={(event) => runHeroHtmlCommand("hiliteColor", event.target.value)}
-                                className="h-5 w-6 cursor-pointer border-0 bg-transparent p-0"
-                              />
-                            </label>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const url = typeof window !== "undefined"
-                                  ? window.prompt("URL del enlace (https://...)")
-                                  : null;
-                                if (url?.trim()) runHeroHtmlCommand("createLink", url.trim());
-                              }}
-                              className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700"
-                            >
-                              Enlace
-                            </button>
-                            <button type="button" onClick={() => runHeroHtmlCommand("unlink")} className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700">Quitar enlace</button>
-                            <button type="button" onClick={() => runHeroHtmlCommand("undo")} className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700">↶</button>
-                            <button type="button" onClick={() => runHeroHtmlCommand("redo")} className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700">↷</button>
-                            <button type="button" onClick={() => runHeroHtmlCommand("removeFormat")} className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700">Limpiar</button>
+                          <div className="mb-2 space-y-2 rounded-md border border-slate-200 bg-slate-50 p-2">
+                            <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
+                              <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 font-semibold">
+                                Editor: {activeHeroRichEditor === "title" ? "Título" : "Subtítulo"}
+                              </span>
+                              <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 font-semibold">
+                                Fuente: {heroToolbarState.fontFamily}
+                              </span>
+                              <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 font-semibold">
+                                Tamaño: {heroToolbarState.fontSize}
+                              </span>
+                              <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 font-semibold">
+                                Formato: {heroToolbarState.formatBlock.toUpperCase()}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <select
+                                value={heroToolbarState.formatBlock}
+                                onChange={(event) => {
+                                  const value = event.target.value;
+                                  if (value === "p") runHeroHtmlCommand("formatBlock", "<p>");
+                                  if (value === "h2") runHeroHtmlCommand("formatBlock", "<h2>");
+                                  if (value === "h3") runHeroHtmlCommand("formatBlock", "<h3>");
+                                }}
+                                className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700"
+                                title="Tipo de bloque"
+                              >
+                                <option value="p">Párrafo</option>
+                                <option value="h2">Título H2</option>
+                                <option value="h3">Subtítulo H3</option>
+                              </select>
+                              <select
+                                value={heroToolbarState.fontFamily}
+                                onChange={(event) => runHeroHtmlCommand("fontName", event.target.value)}
+                                className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700"
+                                title="Fuente del texto"
+                              >
+                                {["Inter", "Arial", "Georgia", "Times New Roman", "Courier New"].includes(heroToolbarState.fontFamily) ? null : (
+                                  <option value={heroToolbarState.fontFamily}>{heroToolbarState.fontFamily}</option>
+                                )}
+                                <option value="Inter">Inter</option>
+                                <option value="Arial">Arial</option>
+                                <option value="Georgia">Georgia</option>
+                                <option value="Times New Roman">Times New Roman</option>
+                                <option value="Courier New">Courier New</option>
+                              </select>
+                              <button type="button" onClick={() => runHeroHtmlCommand("bold")} className={heroToolbarButtonClass(heroToolbarState.bold)} title="Negrita">B</button>
+                              <button type="button" onClick={() => runHeroHtmlCommand("italic")} className={heroToolbarButtonClass(heroToolbarState.italic)} title="Cursiva">I</button>
+                              <button type="button" onClick={() => runHeroHtmlCommand("underline")} className={heroToolbarButtonClass(heroToolbarState.underline)} title="Subrayado">U</button>
+                              <button type="button" onClick={() => runHeroHtmlCommand("justifyLeft")} className={heroToolbarButtonClass(heroToolbarState.align === "left")} title="Alinear izquierda">↤</button>
+                              <button type="button" onClick={() => runHeroHtmlCommand("justifyCenter")} className={heroToolbarButtonClass(heroToolbarState.align === "center")} title="Centrar">↔</button>
+                              <button type="button" onClick={() => runHeroHtmlCommand("justifyRight")} className={heroToolbarButtonClass(heroToolbarState.align === "right")} title="Alinear derecha">↦</button>
+                              <button type="button" onClick={() => runHeroHtmlCommand("insertUnorderedList")} className={heroToolbarButtonClass(heroToolbarState.unorderedList)}>Lista •</button>
+                              <button type="button" onClick={() => runHeroHtmlCommand("insertOrderedList")} className={heroToolbarButtonClass(heroToolbarState.orderedList)}>Lista 1.</button>
+                              <label className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
+                                Color
+                                <input
+                                  type="color"
+                                  value={heroToolbarState.foreColor}
+                                  onChange={(event) => runHeroHtmlCommand("foreColor", event.target.value)}
+                                  className="h-5 w-6 cursor-pointer border-0 bg-transparent p-0"
+                                />
+                              </label>
+                              <label className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
+                                Fondo
+                                <input
+                                  type="color"
+                                  value={heroToolbarState.hiliteColor}
+                                  onChange={(event) => runHeroHtmlCommand("hiliteColor", event.target.value)}
+                                  className="h-5 w-6 cursor-pointer border-0 bg-transparent p-0"
+                                />
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const url = typeof window !== "undefined"
+                                    ? window.prompt("URL del enlace (https://...)")
+                                    : null;
+                                  if (url?.trim()) runHeroHtmlCommand("createLink", url.trim());
+                                }}
+                                className={heroToolbarButtonClass(false)}
+                              >
+                                Enlace
+                              </button>
+                              <button type="button" onClick={() => runHeroHtmlCommand("unlink")} className={heroToolbarButtonClass(false)}>Quitar enlace</button>
+                              <button type="button" onClick={() => runHeroHtmlCommand("undo")} className={heroToolbarButtonClass(false)}>↶</button>
+                              <button type="button" onClick={() => runHeroHtmlCommand("redo")} className={heroToolbarButtonClass(false)}>↷</button>
+                              <button type="button" onClick={() => runHeroHtmlCommand("removeFormat")} className={heroToolbarButtonClass(false)}>Limpiar</button>
+                            </div>
                           </div>
                           <input
                             value={config.homeLayout.heroKicker}
                             onChange={(event) => setHomeLayout("heroKicker", event.target.value)}
                             placeholder="Kicker"
-                            className={`ui-focus mb-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] ${
+                            className={`ui-focus mb-2 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] ${
                               config.homeLayout.heroTheme === "indigo"
                                 ? "text-indigo-700"
                                 : config.homeLayout.heroTheme === "slate"
@@ -5625,9 +5796,15 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                               ref={heroTitleEditorRef}
                               contentEditable
                               suppressContentEditableWarning
-                              onFocus={() => setActiveHeroRichEditor("title")}
-                              onInput={(event) => setHomeLayout("heroTitle", event.currentTarget.innerHTML)}
-                              className="ui-focus min-h-12 rounded-md border border-slate-300 bg-white px-3 py-2 text-3xl font-black leading-tight text-slate-900 md:text-[2.7rem] [&_a]:text-cyan-700 [&_a]:underline [&_b]:font-black [&_strong]:font-black [&_em]:italic [&_i]:italic [&_u]:underline"
+                              onFocus={() => {
+                                setActiveHeroRichEditor("title");
+                                syncHeroToolbarState();
+                              }}
+                              onInput={(event) => {
+                                setHomeLayout("heroTitle", event.currentTarget.innerHTML);
+                                syncHeroToolbarState();
+                              }}
+                              className="ui-focus w-full min-h-12 rounded-md border border-slate-300 bg-white px-3 py-2 text-3xl font-black leading-tight text-slate-900 md:text-[2.7rem] [&_a]:text-cyan-700 [&_a]:underline [&_b]:font-black [&_strong]:font-black [&_em]:italic [&_i]:italic [&_u]:underline"
                             />
                           </div>
                           <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
@@ -5636,21 +5813,15 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                               ref={heroSubtitleEditorRef}
                               contentEditable
                               suppressContentEditableWarning
-                              onFocus={() => setActiveHeroRichEditor("subtitle")}
-                              onInput={(event) => setHomeLayout("heroDescription", event.currentTarget.innerHTML)}
-                              className={`ui-focus min-h-20 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm leading-relaxed text-slate-600 md:text-[15px] [&_a]:text-cyan-700 [&_a]:underline [&_b]:font-bold [&_strong]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_p]:mb-2 ${
-                                config.homeLayout.heroAlignment === "center"
-                                  ? config.homeLayout.heroMaxWidth === "xl"
-                                    ? "mx-auto max-w-xl"
-                                    : config.homeLayout.heroMaxWidth === "full"
-                                      ? "mx-auto max-w-full"
-                                      : "mx-auto max-w-2xl"
-                                  : config.homeLayout.heroMaxWidth === "xl"
-                                    ? "max-w-xl"
-                                    : config.homeLayout.heroMaxWidth === "full"
-                                      ? "max-w-full"
-                                      : "max-w-2xl"
-                              }`}
+                              onFocus={() => {
+                                setActiveHeroRichEditor("subtitle");
+                                syncHeroToolbarState();
+                              }}
+                              onInput={(event) => {
+                                setHomeLayout("heroDescription", event.currentTarget.innerHTML);
+                                syncHeroToolbarState();
+                              }}
+                              className="ui-focus w-full min-h-20 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm leading-relaxed text-slate-600 md:text-[15px] [&_a]:text-cyan-700 [&_a]:underline [&_b]:font-bold [&_strong]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_p]:mb-2"
                             />
                           </div>
                         </div>

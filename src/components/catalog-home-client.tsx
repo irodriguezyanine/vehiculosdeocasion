@@ -22,6 +22,7 @@ import {
   type HomeSectionOrderId,
   type ManagedCategory,
   type ManualPublication,
+  type SoldVehicleRecord,
   type UpcomingAuction,
   type SectionId,
   type VehicleTypeId,
@@ -228,6 +229,8 @@ function normalizeEditorConfigClient(
       catalogo: value?.sectionVehicleIds?.catalogo ?? defaults.sectionVehicleIds.catalogo,
     },
     hiddenVehicleIds: value?.hiddenVehicleIds ?? defaults.hiddenVehicleIds,
+    soldVehicleIds: value?.soldVehicleIds ?? defaults.soldVehicleIds,
+    soldVehicleHistory: value?.soldVehicleHistory ?? defaults.soldVehicleHistory,
     vehiclePrices: value?.vehiclePrices ?? defaults.vehiclePrices,
     vehicleDetails: value?.vehicleDetails ?? defaults.vehicleDetails,
     upcomingAuctions: value?.upcomingAuctions ?? defaults.upcomingAuctions,
@@ -1873,6 +1876,9 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   const [editingSectionTextId, setEditingSectionTextId] = useState<SectionId | null>(null);
   const [assignCategoryId, setAssignCategoryId] = useState<string | null>(null);
   const [assignSearchTerm, setAssignSearchTerm] = useState("");
+  const [finalizeAuctionId, setFinalizeAuctionId] = useState<string | null>(null);
+  const [finalizeAuctionSearchTerm, setFinalizeAuctionSearchTerm] = useState("");
+  const [finalizeSoldVehicleKeys, setFinalizeSoldVehicleKeys] = useState<string[]>([]);
   const [batchAssignTarget, setBatchAssignTarget] = useState<BatchAssignTarget | null>(null);
   const [batchAssignSearchTerm, setBatchAssignSearchTerm] = useState("");
   const [batchAssignSelectedKeys, setBatchAssignSelectedKeys] = useState<string[]>([]);
@@ -2455,6 +2461,11 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     return map;
   }, [items]);
 
+  const soldVehicleIdsSet = useMemo(
+    () => new Set(config.soldVehicleIds ?? []),
+    [config.soldVehicleIds],
+  );
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (itemsByKey.size === 0) return;
@@ -2471,15 +2482,23 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
 
   const mergedHiddenVehicleIds = useMemo(() => {
     const set = new Set(config.hiddenVehicleIds);
+    for (const soldVehicleId of config.soldVehicleIds ?? []) {
+      set.add(soldVehicleId);
+    }
     for (const manual of config.manualPublications ?? []) {
       if (!manual.visible) set.add(`manual-${manual.id}`);
     }
     return set;
-  }, [config.hiddenVehicleIds, config.manualPublications]);
+  }, [config.hiddenVehicleIds, config.manualPublications, config.soldVehicleIds]);
+
+  const activeInventoryItems = useMemo(
+    () => items.filter((item) => !soldVehicleIdsSet.has(getVehicleKey(item))),
+    [items, soldVehicleIdsSet],
+  );
 
   const visibleItems = useMemo(
-    () => items.filter((item) => !mergedHiddenVehicleIds.has(getVehicleKey(item))),
-    [items, mergedHiddenVehicleIds],
+    () => activeInventoryItems.filter((item) => !mergedHiddenVehicleIds.has(getVehicleKey(item))),
+    [activeInventoryItems, mergedHiddenVehicleIds],
   );
 
   const homeFilteredItems = useMemo(() => {
@@ -4103,7 +4122,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     const query = normalizeText(searchTerm);
     const patentTokens = extractPatentTokens(searchTerm);
     const source = query
-      ? items.filter((item) => {
+      ? activeInventoryItems.filter((item) => {
           if (patentTokens.length > 0) {
             const itemPatent = getPatent(item);
             if (itemPatent !== "—") {
@@ -4113,7 +4132,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           }
           return normalizeText(`${item.title} ${item.subtitle ?? ""}`).includes(query);
         })
-      : items;
+      : activeInventoryItems;
     const byGroup =
       editorGroupFilter === "all"
         ? source
@@ -4154,7 +4173,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         (config.vehicleUpcomingAuctionIds[getVehicleKey(item)] ?? "") === auctionFilterId,
     );
   }, [
-    items,
+    activeInventoryItems,
     searchTerm,
     auctionFilterId,
     editorGroupFilter,
@@ -4260,6 +4279,78 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       return { ...prev, hiddenVehicleIds: Array.from(set), manualPublications };
     });
   };
+
+  const buildSoldVehicleRecord = useCallback(
+    (
+      item: CatalogItem,
+      context?: {
+        auctionId?: string;
+        auctionName?: string;
+      },
+    ): SoldVehicleRecord => ({
+      vehicleKey: getVehicleKey(item),
+      patent: getPatent(item),
+      title: getModel(item),
+      soldAt: new Date().toISOString(),
+      auctionId: context?.auctionId,
+      auctionName: context?.auctionName,
+    }),
+    [],
+  );
+
+  const markVehicleAsSold = useCallback(
+    (
+      vehicleKey: string,
+      context?: {
+        auctionId?: string;
+        auctionName?: string;
+      },
+    ) => {
+      const item = itemsByKey.get(vehicleKey);
+      if (!item) return;
+      const soldRecord = buildSoldVehicleRecord(item, context);
+      setConfig((prev) => {
+        const soldSet = new Set(prev.soldVehicleIds ?? []);
+        soldSet.add(vehicleKey);
+
+        const hiddenSet = new Set(prev.hiddenVehicleIds ?? []);
+        hiddenSet.add(vehicleKey);
+
+        const nextAssignments = { ...prev.vehicleUpcomingAuctionIds };
+        delete nextAssignments[vehicleKey];
+
+        const nextSectionVehicleIds = {
+          "proximos-remates": (prev.sectionVehicleIds["proximos-remates"] ?? []).filter(
+            (id) => id !== vehicleKey,
+          ),
+          "ventas-directas": (prev.sectionVehicleIds["ventas-directas"] ?? []).filter(
+            (id) => id !== vehicleKey,
+          ),
+          novedades: (prev.sectionVehicleIds.novedades ?? []).filter((id) => id !== vehicleKey),
+          catalogo: (prev.sectionVehicleIds.catalogo ?? []).filter((id) => id !== vehicleKey),
+        };
+
+        const nextManagedCategories = (prev.managedCategories ?? []).map((category) => ({
+          ...category,
+          vehicleIds: (category.vehicleIds ?? []).filter((id) => id !== vehicleKey),
+        }));
+
+        const existingHistory = prev.soldVehicleHistory ?? [];
+        const nextHistory = [soldRecord, ...existingHistory.filter((entry) => entry.vehicleKey !== vehicleKey)];
+
+        return {
+          ...prev,
+          soldVehicleIds: Array.from(soldSet),
+          soldVehicleHistory: nextHistory,
+          hiddenVehicleIds: Array.from(hiddenSet),
+          vehicleUpcomingAuctionIds: nextAssignments,
+          sectionVehicleIds: nextSectionVehicleIds,
+          managedCategories: nextManagedCategories,
+        };
+      });
+    },
+    [buildSoldVehicleRecord, itemsByKey],
+  );
 
   const setPrice = (itemKey: string, value: string) => {
     setConfig((prev) => {
@@ -4803,6 +4894,81 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     });
   };
 
+  const finalizeUpcomingAuction = useCallback(
+    (auctionId: string, soldVehicleKeys: string[]) => {
+      const auction = (config.upcomingAuctions ?? []).find((entry) => entry.id === auctionId);
+      const assignedNow = Object.entries(config.vehicleUpcomingAuctionIds ?? {})
+        .filter(([, value]) => value === auctionId)
+        .map(([vehicleKey]) => vehicleKey);
+      const soldNowCount = assignedNow.filter((vehicleKey) => soldVehicleKeys.includes(vehicleKey)).length;
+      const unsoldNowCount = Math.max(0, assignedNow.length - soldNowCount);
+      const soldSetInput = new Set(soldVehicleKeys);
+      setConfig((prev) => {
+        const assignedVehicleKeys = Object.entries(prev.vehicleUpcomingAuctionIds)
+          .filter(([, value]) => value === auctionId)
+          .map(([vehicleKey]) => vehicleKey);
+        const assignedSet = new Set(assignedVehicleKeys);
+        const validSoldKeys = assignedVehicleKeys.filter((vehicleKey) => soldSetInput.has(vehicleKey));
+        const unsoldKeys = assignedVehicleKeys.filter((vehicleKey) => !soldSetInput.has(vehicleKey));
+
+        const soldSet = new Set(prev.soldVehicleIds ?? []);
+        const hiddenSet = new Set(prev.hiddenVehicleIds ?? []);
+        const nextAssignments = { ...prev.vehicleUpcomingAuctionIds };
+        const nextHistory = [...(prev.soldVehicleHistory ?? [])];
+
+        for (const vehicleKey of validSoldKeys) {
+          soldSet.add(vehicleKey);
+          hiddenSet.add(vehicleKey);
+          delete nextAssignments[vehicleKey];
+          const item = itemsByKey.get(vehicleKey);
+          if (item) {
+            const soldRecord = buildSoldVehicleRecord(item, {
+              auctionId,
+              auctionName: auction?.name ?? "Remate finalizado",
+            });
+            nextHistory.unshift(soldRecord);
+          }
+        }
+
+        for (const vehicleKey of unsoldKeys) {
+          hiddenSet.add(vehicleKey);
+          delete nextAssignments[vehicleKey];
+        }
+
+        const uniqueHistory = nextHistory.filter(
+          (entry, index, list) =>
+            list.findIndex((candidate) => candidate.vehicleKey === entry.vehicleKey) === index,
+        );
+
+        return {
+          ...prev,
+          upcomingAuctions: prev.upcomingAuctions.filter((entry) => entry.id !== auctionId),
+          soldVehicleIds: Array.from(soldSet),
+          soldVehicleHistory: uniqueHistory,
+          hiddenVehicleIds: Array.from(hiddenSet),
+          vehicleUpcomingAuctionIds: nextAssignments,
+          sectionVehicleIds: {
+            "proximos-remates": (prev.sectionVehicleIds["proximos-remates"] ?? []).filter(
+              (key) => !assignedSet.has(key),
+            ),
+            "ventas-directas": prev.sectionVehicleIds["ventas-directas"] ?? [],
+            novedades: prev.sectionVehicleIds.novedades ?? [],
+            catalogo: prev.sectionVehicleIds.catalogo ?? [],
+          },
+        };
+      });
+      setFinalizeAuctionId(null);
+      setFinalizeAuctionSearchTerm("");
+      setFinalizeSoldVehicleKeys([]);
+      showSystemNotice(
+        "success",
+        "Remate finalizado",
+        `${soldNowCount} unidad(es) vendidas y ${unsoldNowCount} unidad(es) ocultas sin venta.`,
+      );
+    },
+    [buildSoldVehicleRecord, config.upcomingAuctions, config.vehicleUpcomingAuctionIds, itemsByKey, showSystemNotice],
+  );
+
   const assignVehicleToUpcomingAuction = (itemKey: string, auctionId: string) => {
     setConfig((prev) => {
       const nextAssignments = { ...prev.vehicleUpcomingAuctionIds };
@@ -4995,6 +5161,38 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       (promoEnabled ? (config.vehiclePrices[managingVehicleKey] ?? "") : "");
     return { originalPrice, promoPrice, promoEnabled };
   }, [config.vehicleDetails, config.vehiclePrices, managingItem, managingVehicleKey]);
+  const finalizeAuction = useMemo(
+    () =>
+      finalizeAuctionId
+        ? (config.upcomingAuctions ?? []).find((auction) => auction.id === finalizeAuctionId) ?? null
+        : null,
+    [config.upcomingAuctions, finalizeAuctionId],
+  );
+  const finalizeAuctionItems = useMemo(() => {
+    if (!finalizeAuctionId) return [];
+    const baseItems = activeInventoryItems.filter(
+      (item) => (config.vehicleUpcomingAuctionIds[getVehicleKey(item)] ?? "") === finalizeAuctionId,
+    );
+    const query = normalizeText(finalizeAuctionSearchTerm);
+    if (!query) return baseItems;
+    return baseItems.filter((item) => {
+      const patent = normalizeText(getPatent(item));
+      const model = normalizeText(getModel(item));
+      return patent.includes(query) || model.includes(query);
+    });
+  }, [
+    activeInventoryItems,
+    config.vehicleUpcomingAuctionIds,
+    finalizeAuctionId,
+    finalizeAuctionSearchTerm,
+  ]);
+  const soldHistoryRows = useMemo(
+    () =>
+      [...(config.soldVehicleHistory ?? [])].sort(
+        (a, b) => new Date(b.soldAt).getTime() - new Date(a.soldAt).getTime(),
+      ),
+    [config.soldVehicleHistory],
+  );
   const analyticsBaseEvents = analyticsSource === "server" ? serverAnalyticsEvents : analyticsEvents;
 
   const offersVehicleOptions = useMemo(
@@ -5660,13 +5858,38 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                           <p className="line-clamp-1 font-semibold text-slate-700">{auctionLabel}</p>
                           <p className="line-clamp-1">{formatPrice(config.vehiclePrices[key]) ?? "Precio no definido"}</p>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => setManagingVehicleKey(key)}
-                          className="ui-focus rounded-md border border-cyan-300 bg-cyan-50 px-2.5 py-1 text-xs font-semibold text-cyan-700 transition hover:bg-cyan-100"
-                        >
-                          Gestionar unidad
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setManagingVehicleKey(key)}
+                            className="ui-focus inline-flex h-7 w-7 items-center justify-center rounded border border-cyan-300 bg-cyan-50 text-cyan-700 transition hover:bg-cyan-100"
+                            aria-label={`Gestionar unidad ${getPatent(item)}`}
+                            title="Gestionar unidad"
+                          >
+                            <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                              <path d="M13.586 2.586a2 2 0 0 1 2.828 2.828l-8.2 8.2a1 1 0 0 1-.475.264l-3 0.75a1 1 0 0 1-1.212-1.213l.75-3a1 1 0 0 1 .264-.474l8.2-8.2ZM12.172 4 5.24 10.932l-.39 1.56 1.56-.39L13.344 5.17 12.172 4Z" />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              markVehicleAsSold(key);
+                              setManagingVehicleKey(null);
+                              showSystemNotice(
+                                "success",
+                                "Unidad vendida",
+                                `${getPatent(item)} pasó a historial y dejó de estar visible en inventario/catálogo.`,
+                              );
+                            }}
+                            className="ui-focus inline-flex h-7 w-7 items-center justify-center rounded border border-amber-300 bg-amber-50 text-amber-700 transition hover:bg-amber-100"
+                            aria-label={`Marcar vendida ${getPatent(item)}`}
+                            title="Marcar vendida"
+                          >
+                            <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                              <path fillRule="evenodd" d="M16.704 5.29a1 1 0 0 1 .006 1.414l-7.2 7.25a1 1 0 0 1-1.42.001l-3-3.015a1 1 0 1 1 1.418-1.41l2.29 2.3 6.49-6.534a1 1 0 0 1 1.416-.006Z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+                        </div>
                       </article>
                     );
                   })}
@@ -5696,6 +5919,37 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       Siguiente
                     </button>
                   </div>
+                </div>
+                <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+                      Historial de unidades vendidas
+                    </p>
+                    <span className="rounded-full border border-amber-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                      {soldHistoryRows.length}
+                    </span>
+                  </div>
+                  {soldHistoryRows.length === 0 ? (
+                    <p className="text-xs text-slate-600">Aún no hay unidades marcadas como vendidas.</p>
+                  ) : (
+                    <div className="max-h-48 space-y-1 overflow-auto rounded-md border border-amber-100 bg-white p-2">
+                      {soldHistoryRows.slice(0, 60).map((entry) => (
+                        <article
+                          key={`${entry.vehicleKey}-${entry.soldAt}`}
+                          className="grid grid-cols-1 gap-1 border-b border-slate-100 py-1 last:border-b-0 md:grid-cols-[1.1fr_1.5fr_1fr_1fr]"
+                        >
+                          <p className="text-xs font-semibold text-slate-800">{entry.patent}</p>
+                          <p className="line-clamp-1 text-xs text-slate-600">{entry.title}</p>
+                          <p className="text-xs text-slate-500">
+                            {entry.auctionName ? `Remate: ${entry.auctionName}` : "Venta individual"}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {new Date(entry.soldAt).toLocaleString("es-CL")}
+                          </p>
+                        </article>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </>
             ) : null}
@@ -5991,6 +6245,21 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                               title="Agregar unidades"
                             >
                               +
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFinalizeAuctionId(auction.id);
+                                setFinalizeAuctionSearchTerm("");
+                                setFinalizeSoldVehicleKeys([]);
+                              }}
+                              className="ui-focus inline-flex h-7 w-7 items-center justify-center rounded border border-amber-300 bg-amber-50 text-amber-700"
+                              aria-label={`Finalizar remate ${auction.name}`}
+                              title="Finalizar remate"
+                            >
+                              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                                <path fillRule="evenodd" d="M16.704 5.29a1 1 0 0 1 .006 1.414l-7.2 7.25a1 1 0 0 1-1.42.001l-3-3.015a1 1 0 1 1 1.418-1.41l2.29 2.3 6.49-6.534a1 1 0 0 1 1.416-.006Z" clipRule="evenodd" />
+                              </svg>
                             </button>
                             <button
                               type="button"
@@ -8033,6 +8302,142 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         </div>
       ) : null}
 
+      {isAdmin && finalizeAuctionId && finalizeAuction ? (
+        <div
+          className="fixed inset-0 z-[74] flex items-center justify-center bg-slate-900/70 p-4"
+          onClick={() => setFinalizeAuctionId(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Finalizar remate"
+            className="max-h-[92vh] w-full max-w-3xl overflow-auto rounded-2xl bg-white p-5 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Finalizar remate</p>
+                <h3 className="text-lg font-bold text-slate-900">{finalizeAuction.name}</h3>
+                <p className="text-xs text-slate-500">
+                  Remate programado para {formatAuctionDateLabel(finalizeAuction.date)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFinalizeAuctionId(null)}
+                className="ui-focus rounded border border-slate-300 px-3 py-1 text-xs text-slate-600 transition hover:bg-slate-50"
+              >
+                Cerrar
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-3">
+                <p className="text-sm font-semibold text-slate-800">¿Qué unidades fueron vendidas?</p>
+                <p className="mt-1 text-xs text-slate-600">
+                  Las unidades marcadas como vendidas pasan a historial y salen del catálogo/inventario visible.
+                  Las no marcadas permanecen en inventario, pero quedan ocultas.
+                </p>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto_auto]">
+                <input
+                  value={finalizeAuctionSearchTerm}
+                  onChange={(event) => setFinalizeAuctionSearchTerm(event.target.value)}
+                  placeholder="Buscar por patente o modelo..."
+                  className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFinalizeSoldVehicleKeys((prev) => {
+                      const set = new Set(prev);
+                      for (const item of finalizeAuctionItems) {
+                        set.add(getVehicleKey(item));
+                      }
+                      return Array.from(set);
+                    })
+                  }
+                  className="ui-focus rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                >
+                  Seleccionar todos
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFinalizeSoldVehicleKeys((prev) =>
+                      prev.filter(
+                        (key) => !finalizeAuctionItems.some((item) => getVehicleKey(item) === key),
+                      ),
+                    )
+                  }
+                  className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  Limpiar marcados
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFinalizeSoldVehicleKeys([])}
+                  className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  Omitir
+                </button>
+              </div>
+              <div className="max-h-[48vh] space-y-2 overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-2">
+                {finalizeAuctionItems.length === 0 ? (
+                  <p className="px-2 py-3 text-sm text-slate-500">
+                    No hay unidades para este remate con el filtro actual.
+                  </p>
+                ) : (
+                  finalizeAuctionItems.map((item) => {
+                    const vehicleKey = getVehicleKey(item);
+                    const checked = finalizeSoldVehicleKeys.includes(vehicleKey);
+                    return (
+                      <label
+                        key={`finalize-auction-${vehicleKey}`}
+                        className={`flex items-center gap-3 rounded-md border px-3 py-2 text-sm ${
+                          checked
+                            ? "border-emerald-300 bg-emerald-50 text-emerald-900"
+                            : "border-slate-200 bg-white text-slate-700"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(event) =>
+                            setFinalizeSoldVehicleKeys((prev) =>
+                              event.target.checked
+                                ? Array.from(new Set([...prev, vehicleKey]))
+                                : prev.filter((key) => key !== vehicleKey),
+                            )
+                          }
+                        />
+                        <span className="min-w-20 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          {getPatent(item)}
+                        </span>
+                        <span className="line-clamp-1 flex-1">{getModel(item)}</span>
+                        <span className="text-xs text-slate-500">
+                          {formatPrice(config.vehiclePrices[vehicleKey]) ?? "Precio no definido"}
+                        </span>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+              <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    finalizeUpcomingAuction(finalizeAuctionId, finalizeSoldVehicleKeys);
+                  }}
+                  className="ui-focus rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+                >
+                  Confirmar y finalizar remate
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {showManualCreateModal ? (
         <div
           className="fixed inset-0 z-[75] flex items-center justify-center bg-slate-900/70 p-4"
@@ -8827,6 +9232,21 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
 
               <div className="flex flex-wrap justify-between gap-2 border-t border-slate-200 pt-3">
                 <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      markVehicleAsSold(managingVehicleKey);
+                      setManagingVehicleKey(null);
+                      showSystemNotice(
+                        "success",
+                        "Unidad vendida",
+                        `${getPatent(managingItem)} pasó a historial y dejó de estar visible en inventario/catálogo.`,
+                      );
+                    }}
+                    className="ui-focus rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700 transition hover:bg-amber-100"
+                  >
+                    Marcar como vendida
+                  </button>
                   <button
                     type="button"
                     onClick={() => {

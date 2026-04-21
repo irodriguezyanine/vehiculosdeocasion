@@ -1897,6 +1897,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   const [offersDateFrom, setOffersDateFrom] = useState("");
   const [offersDateTo, setOffersDateTo] = useState("");
   const [showOffersFiltersMenu, setShowOffersFiltersMenu] = useState(false);
+  const [draggedLayoutSectionId, setDraggedLayoutSectionId] = useState<HomeSectionOrderId | null>(null);
   const [countdownNowMs, setCountdownNowMs] = useState(() => Date.now());
   const manualObservationsEditorRef = useRef<HTMLDivElement | null>(null);
   const [observationsTemplateHtml, setObservationsTemplateHtml] = useState(
@@ -2530,6 +2531,10 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     () => new Map(managedCategoryOrderEntries.map((entry) => [entry.id, entry.name])),
     [managedCategoryOrderEntries],
   );
+  const managedCategoryCountById = useMemo(
+    () => new Map(managedCategorySections.map((section) => [`managed:${section.id}`, section.items.length])),
+    [managedCategorySections],
+  );
   const resolvedHomeSectionOrder = useMemo(() => {
     const managedIds = managedCategoryOrderEntries.map((entry) => entry.id);
     const validManagedIds = new Set(managedIds);
@@ -2550,6 +2555,25 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     }
     return unique;
   }, [config.homeLayout.sectionOrder, managedCategoryOrderEntries]);
+  const homeSectionCountById = useMemo(() => {
+    const map = new Map<HomeSectionOrderId, number>();
+    map.set("proximos-remates", hasUpcomingAuctionCategories ? upcomingAuctionGroups.reduce((acc, group) => acc + group.items.length, 0) : proximosRemates.length);
+    map.set("ventas-directas", ventasDirectas.length);
+    map.set("novedades", novedades.length);
+    map.set("catalogo", filteredCatalogItems.length);
+    for (const [managedId, count] of managedCategoryCountById.entries()) {
+      map.set(managedId as HomeSectionOrderId, count);
+    }
+    return map;
+  }, [
+    hasUpcomingAuctionCategories,
+    upcomingAuctionGroups,
+    proximosRemates.length,
+    ventasDirectas.length,
+    novedades.length,
+    filteredCatalogItems.length,
+    managedCategoryCountById,
+  ]);
 
   const featuredItems = useMemo(() => homeVisibleItems.slice(0, 16), [homeVisibleItems]);
 
@@ -3856,6 +3880,28 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       };
     });
   };
+
+  const reorderHomeSectionOrder = useCallback(
+    (fromSectionId: HomeSectionOrderId, toSectionId: HomeSectionOrderId) => {
+      if (fromSectionId === toSectionId) return;
+      setConfig((prev) => {
+        const order = [...resolvedHomeSectionOrder];
+        const fromIndex = order.indexOf(fromSectionId);
+        const toIndex = order.indexOf(toSectionId);
+        if (fromIndex < 0 || toIndex < 0) return prev;
+        const [dragged] = order.splice(fromIndex, 1);
+        order.splice(toIndex, 0, dragged);
+        return {
+          ...prev,
+          homeLayout: {
+            ...prev.homeLayout,
+            sectionOrder: order,
+          },
+        };
+      });
+    },
+    [resolvedHomeSectionOrder],
+  );
 
   const createUpcomingAuction = () => {
     const name = newAuctionName.trim();
@@ -5489,46 +5535,51 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
 
             {adminTab === "layout" ? (
               <div className="space-y-4">
-                <div className="rounded-xl border border-slate-200 bg-white p-3">
-                  <div className="mb-3 flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-3">
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        Presets y control avanzado
+                        Constructor del Home
                       </p>
-                      <p className="text-sm text-slate-600">
-                        Mejora rápida del home con presets + edición granular de layout.
+                      <h4 className="text-base font-bold text-slate-900">
+                        Simulación en vivo + edición automática
+                      </h4>
+                      <p className="mt-1 text-sm text-slate-600">
+                        Todo cambio se aplica al instante y se guarda automáticamente.
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={resetHomeLayoutToDefault}
-                      className="ui-focus rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
-                    >
-                      Restaurar layout base
-                    </button>
-                  </div>
-                  <div className="mb-3 inline-flex rounded-full border border-slate-300 bg-white p-1">
-                    <button
-                      type="button"
-                      onClick={() => setLayoutEditorMode("simple")}
-                      className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold ${
-                        layoutEditorMode === "simple" ? "bg-cyan-600 text-white" : "text-slate-700"
-                      }`}
-                    >
-                      Vista simple
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setLayoutEditorMode("advanced")}
-                      className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold ${
-                        layoutEditorMode === "advanced" ? "bg-cyan-600 text-white" : "text-slate-700"
-                      }`}
-                    >
-                      Vista avanzada
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="inline-flex rounded-full border border-slate-300 bg-white p-1">
+                        <button
+                          type="button"
+                          onClick={() => setLayoutEditorMode("simple")}
+                          className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold ${
+                            layoutEditorMode === "simple" ? "bg-cyan-600 text-white" : "text-slate-700"
+                          }`}
+                        >
+                          Simple
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setLayoutEditorMode("advanced")}
+                          className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold ${
+                            layoutEditorMode === "advanced" ? "bg-cyan-600 text-white" : "text-slate-700"
+                          }`}
+                        >
+                          Avanzada
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={resetHomeLayoutToDefault}
+                        className="ui-focus rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
+                      >
+                        Restaurar base
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="mb-3 grid gap-2 md:grid-cols-3">
+                  <div className="mb-4 grid gap-2 md:grid-cols-3">
                     {HOME_LAYOUT_PRESETS.map((preset) => (
                       <button
                         key={preset.id}
@@ -5542,286 +5593,249 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                     ))}
                   </div>
 
-                  <div className={`grid gap-4 ${layoutEditorMode === "advanced" ? "md:grid-cols-2" : ""}`}>
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Textos hero</p>
-                      <div className="grid gap-2">
-                        <input
-                          value={config.homeLayout.heroKicker}
-                          onChange={(event) => setHomeLayout("heroKicker", event.target.value)}
-                          placeholder="Kicker"
-                          className="ui-focus rounded-md border border-slate-200 px-3 py-2 text-sm"
-                        />
-                        <input
-                          value={config.homeLayout.heroTitle}
-                          onChange={(event) => setHomeLayout("heroTitle", event.target.value)}
-                          placeholder="Título principal"
-                          className="ui-focus rounded-md border border-slate-200 px-3 py-2 text-sm"
-                        />
-                        <textarea
-                          value={config.homeLayout.heroDescription}
-                          onChange={(event) => setHomeLayout("heroDescription", event.target.value)}
-                          placeholder="Descripción hero"
-                          className="ui-focus min-h-24 rounded-md border border-slate-200 px-3 py-2 text-sm"
-                        />
-                      </div>
-                    </div>
-
-                    {layoutEditorMode === "advanced" ? (
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Estilo del hero</p>
-                      <div className="grid gap-2">
-                        <select
-                          value={config.homeLayout.heroAlignment}
-                          onChange={(event) => setHomeLayout("heroAlignment", event.target.value)}
-                          className="ui-focus rounded-md border border-slate-200 px-3 py-2 text-sm"
-                        >
-                          <option value="left">Alineación izquierda</option>
-                          <option value="center">Alineación centrada</option>
-                        </select>
-                        <select
-                          value={config.homeLayout.heroTheme}
-                          onChange={(event) => setHomeLayout("heroTheme", event.target.value)}
-                          className="ui-focus rounded-md border border-slate-200 px-3 py-2 text-sm"
-                        >
-                          <option value="cyan">Tema Cian</option>
-                          <option value="indigo">Tema Índigo</option>
-                          <option value="slate">Tema Slate</option>
-                        </select>
-                        <select
-                          value={config.homeLayout.heroMaxWidth}
-                          onChange={(event) => setHomeLayout("heroMaxWidth", event.target.value)}
-                          className="ui-focus rounded-md border border-slate-200 px-3 py-2 text-sm"
-                        >
-                          <option value="xl">Ancho texto XL</option>
-                          <option value="2xl">Ancho texto 2XL</option>
-                          <option value="full">Ancho texto completo</option>
-                        </select>
-                        <label className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm">
+                  <div className="grid gap-4 xl:grid-cols-[390px_minmax(0,1fr)]">
+                    <div className="space-y-3">
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Contenido principal
+                        </p>
+                        <div className="grid gap-2">
                           <input
-                            type="checkbox"
-                            checked={config.homeLayout.showHeroChips}
-                            onChange={(event) => setHomeLayout("showHeroChips", event.target.checked)}
+                            value={config.homeLayout.heroKicker}
+                            onChange={(event) => setHomeLayout("heroKicker", event.target.value)}
+                            placeholder="Kicker"
+                            className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
                           />
-                          Mostrar chips del hero
-                        </label>
-                        <label className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm">
                           <input
-                            type="checkbox"
-                            checked={config.homeLayout.showHeroCtas}
-                            onChange={(event) => setHomeLayout("showHeroCtas", event.target.checked)}
+                            value={config.homeLayout.heroTitle}
+                            onChange={(event) => setHomeLayout("heroTitle", event.target.value)}
+                            placeholder="Título principal"
+                            className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
                           />
-                          Mostrar CTAs del hero
-                        </label>
+                          <textarea
+                            value={config.homeLayout.heroDescription}
+                            onChange={(event) => setHomeLayout("heroDescription", event.target.value)}
+                            placeholder="Descripción del hero"
+                            className="ui-focus min-h-20 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                          />
+                        </div>
                       </div>
-                    </div>
-                    ) : null}
-                  </div>
 
-                  <div className="mt-4 grid gap-4 md:grid-cols-2">
-                    {layoutEditorMode === "advanced" ? (
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Botones CTA Hero</p>
-                      <div className="grid gap-2">
-                        <input
-                          value={config.homeLayout.heroPrimaryCtaLabel}
-                          onChange={(event) => setHomeLayout("heroPrimaryCtaLabel", event.target.value)}
-                          placeholder="Texto CTA principal"
-                          className="ui-focus rounded-md border border-slate-200 px-3 py-2 text-sm"
-                        />
-                        <input
-                          value={config.homeLayout.heroPrimaryCtaHref}
-                          onChange={(event) => setHomeLayout("heroPrimaryCtaHref", event.target.value)}
-                          placeholder="URL CTA principal (ej: #catalogo)"
-                          className="ui-focus rounded-md border border-slate-200 px-3 py-2 text-sm"
-                        />
-                        <input
-                          value={config.homeLayout.heroSecondaryCtaLabel}
-                          onChange={(event) => setHomeLayout("heroSecondaryCtaLabel", event.target.value)}
-                          placeholder="Texto CTA secundario"
-                          className="ui-focus rounded-md border border-slate-200 px-3 py-2 text-sm"
-                        />
-                        <input
-                          value={config.homeLayout.heroSecondaryCtaHref}
-                          onChange={(event) => setHomeLayout("heroSecondaryCtaHref", event.target.value)}
-                          placeholder="URL CTA secundario (ej: #como-participar)"
-                          className="ui-focus rounded-md border border-slate-200 px-3 py-2 text-sm"
-                        />
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Bloques visibles
+                        </p>
+                        <div className="grid gap-2">
+                          {([
+                            ["showSearchBar", "Barra de búsqueda"],
+                            ["showQuickFilters", "Quick filters"],
+                            ["showSortSelector", "Selector de orden"],
+                            ["showFeaturedStrip", "Vitrina destacada"],
+                            ["showCommercialPanel", "Panel comercial"],
+                            ["showHowToSection", "Cómo participar"],
+                            ["showFavoritesSection", "Favoritos"],
+                            ["showRecentPublications", "Recién publicados"],
+                          ] as const).map(([field, label]) => (
+                            <button
+                              key={field}
+                              type="button"
+                              onClick={() => toggleHomeLayoutFlag(field, !config.homeLayout[field])}
+                              className={`ui-focus flex items-center justify-between rounded-md border px-3 py-2 text-sm ${
+                                config.homeLayout[field]
+                                  ? "border-cyan-600 bg-cyan-600 text-white"
+                                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                              }`}
+                            >
+                              <span>{label}</span>
+                              <span className="text-xs font-semibold">
+                                {config.homeLayout[field] ? "ON" : "OFF"}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                    ) : null}
 
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                      <details>
-                        <summary className="flex cursor-pointer list-none items-center justify-between gap-2">
-                          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                            Bloques y experiencia
-                          </span>
-                          <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700">
-                            {[
-                              config.homeLayout.showFeaturedStrip,
-                              config.homeLayout.showCommercialPanel,
-                              config.homeLayout.showHowToSection,
-                              config.homeLayout.showFavoritesSection,
-                              config.homeLayout.showRecentPublications,
-                              config.homeLayout.showSearchBar,
-                              config.homeLayout.showQuickFilters,
-                              config.homeLayout.showSortSelector,
-                            ].filter(Boolean).length} activos
-                          </span>
-                        </summary>
-                        <div className="mt-3 space-y-3">
-                          <div className="grid gap-2 md:grid-cols-2">
-                            {([
-                              ["showFeaturedStrip", "Vitrina destacada"],
-                              ["showCommercialPanel", "Panel comercial derecho"],
-                              ["showHowToSection", "Sección ¿Cómo participar?"],
-                              ["showFavoritesSection", "Sección favoritos"],
-                              ["showRecentPublications", "Recién publicados"],
-                            ] as const).map(([field, label]) => (
-                              <button
-                                key={field}
-                                type="button"
-                                onClick={() => toggleHomeLayoutFlag(field, !config.homeLayout[field])}
-                                className={`ui-focus flex items-center justify-between rounded-md border px-3 py-2 text-sm ${
-                                  config.homeLayout[field]
-                                    ? "border-slate-800 bg-slate-900 text-white"
-                                    : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                                }`}
-                              >
-                                <span>{label}</span>
-                                <span className="text-xs font-semibold">
-                                  {config.homeLayout[field] ? "ON" : "OFF"}
-                                </span>
-                              </button>
-                            ))}
-                          </div>
-
-                          <div className="rounded-md border border-slate-200 bg-white p-2">
-                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                              Controles de búsqueda
-                            </p>
-                            <div className="grid gap-2 md:grid-cols-2">
-                              {([
-                                ["showSearchBar", "Barra búsqueda superior"],
-                                ["showStickySearchBar", "Búsqueda sticky en móvil"],
-                                ["showQuickFilters", "Quick filters"],
-                                ["showSortSelector", "Selector de orden"],
-                              ] as const).map(([field, label]) => (
-                                <button
-                                  key={field}
-                                  type="button"
-                                  onClick={() => toggleHomeLayoutFlag(field, !config.homeLayout[field])}
-                                  className={`ui-focus flex items-center justify-between rounded-md border px-3 py-2 text-sm ${
-                                    config.homeLayout[field]
-                                      ? "border-cyan-600 bg-cyan-600 text-white"
-                                      : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                                  }`}
-                                >
-                                  <span>{label}</span>
-                                  <span className="text-xs font-semibold">
-                                    {config.homeLayout[field] ? "ON" : "OFF"}
-                                  </span>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          {layoutEditorMode === "advanced" ? (
-                            <div className="grid gap-2 md:grid-cols-2">
+                      {layoutEditorMode === "advanced" ? (
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            Estilo y CTA
+                          </p>
+                          <div className="grid gap-2">
+                            <select
+                              value={config.homeLayout.heroAlignment}
+                              onChange={(event) => setHomeLayout("heroAlignment", event.target.value)}
+                              className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                            >
+                              <option value="left">Hero alineado a la izquierda</option>
+                              <option value="center">Hero centrado</option>
+                            </select>
+                            <select
+                              value={config.homeLayout.heroTheme}
+                              onChange={(event) => setHomeLayout("heroTheme", event.target.value)}
+                              className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                            >
+                              <option value="cyan">Tema cyan</option>
+                              <option value="indigo">Tema indigo</option>
+                              <option value="slate">Tema slate</option>
+                            </select>
+                            <input
+                              value={config.homeLayout.heroPrimaryCtaLabel}
+                              onChange={(event) => setHomeLayout("heroPrimaryCtaLabel", event.target.value)}
+                              placeholder="Texto CTA principal"
+                              className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                            />
+                            <input
+                              value={config.homeLayout.heroPrimaryCtaHref}
+                              onChange={(event) => setHomeLayout("heroPrimaryCtaHref", event.target.value)}
+                              placeholder="Enlace CTA principal"
+                              className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                            />
+                            <input
+                              value={config.homeLayout.heroSecondaryCtaLabel}
+                              onChange={(event) => setHomeLayout("heroSecondaryCtaLabel", event.target.value)}
+                              placeholder="Texto CTA secundario"
+                              className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                            />
+                            <input
+                              value={config.homeLayout.heroSecondaryCtaHref}
+                              onChange={(event) => setHomeLayout("heroSecondaryCtaHref", event.target.value)}
+                              placeholder="Enlace CTA secundario"
+                              className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                            />
+                            <div className="grid grid-cols-2 gap-2">
                               <select
                                 value={config.homeLayout.defaultCardDensity}
                                 onChange={(event) => setHomeLayout("defaultCardDensity", event.target.value)}
-                                className="ui-focus rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
+                                className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
                               >
-                                <option value="detailed">Densidad por defecto: Detallada</option>
-                                <option value="compact">Densidad por defecto: Compacta</option>
+                                <option value="detailed">Tarjeta detallada</option>
+                                <option value="compact">Tarjeta compacta</option>
                               </select>
                               <select
                                 value={config.homeLayout.sectionSpacing}
                                 onChange={(event) => setHomeLayout("sectionSpacing", event.target.value)}
-                                className="ui-focus rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
+                                className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
                               >
-                                <option value="compact">Espaciado entre secciones: Compacto</option>
-                                <option value="normal">Espaciado entre secciones: Normal</option>
-                                <option value="airy">Espaciado entre secciones: Amplio</option>
+                                <option value="compact">Espaciado compacto</option>
+                                <option value="normal">Espaciado normal</option>
+                                <option value="airy">Espaciado amplio</option>
                               </select>
                             </div>
-                          ) : null}
-                        </div>
-                      </details>
-                    </div>
-                  </div>
-
-                  {layoutEditorMode === "advanced" ? (
-                  <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Vista previa ejecutiva del layout
-                    </p>
-                    <div className="grid gap-3 md:grid-cols-3">
-                      <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Hero</p>
-                        <p className="mt-1 text-sm font-semibold text-slate-900">{config.homeLayout.heroTitle || "Sin título"}</p>
-                        <p className="mt-1 text-xs text-slate-600">
-                          {config.homeLayout.heroAlignment === "center" ? "Centrado" : "Izquierda"} ·
-                          {" "}
-                          tema {config.homeLayout.heroTheme}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Controles visibles</p>
-                        <p className="mt-1 text-xs text-slate-700">
-                          {[
-                            config.homeLayout.showSearchBar ? "Búsqueda" : null,
-                            config.homeLayout.showQuickFilters ? "Quick filters" : null,
-                            config.homeLayout.showSortSelector ? "Orden" : null,
-                            config.homeLayout.showFeaturedStrip ? "Vitrina" : null,
-                          ]
-                            .filter(Boolean)
-                            .join(" · ") || "Modo minimal"}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Salud de configuración</p>
-                        <p className="mt-1 text-sm font-semibold text-slate-900">
-                          {config.homeLayout.heroTitle.trim() && config.homeLayout.heroDescription.trim() ? "Buena" : "Revisar textos"}
-                        </p>
-                        {!config.homeLayout.showHeroCtas ? (
-                          <p className="mt-1 text-[11px] text-amber-700">
-                            CTAs del hero desactivados.
-                          </p>
-                        ) : null}
-                        {config.homeLayout.showHeroCtas &&
-                        (!config.homeLayout.heroPrimaryCtaHref.trim() ||
-                          !config.homeLayout.heroSecondaryCtaHref.trim()) ? (
-                          <p className="mt-1 text-[11px] text-rose-700">
-                            Faltan enlaces en botones CTA.
-                          </p>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                  ) : null}
-                  <details className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-slate-600">
-                      Orden de secciones
-                    </summary>
-                    <div className="mt-2 space-y-2">
-                      {resolvedHomeSectionOrder.map((sectionId) => (
-                        <div key={sectionId} className="flex items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm">
-                          <span>
-                            {isBaseHomeSectionOrderId(sectionId)
-                              ? SECTION_LABELS[sectionId]
-                              : managedCategoryOrderLabelById.get(sectionId) ?? "Categoría personalizada"}
-                          </span>
-                          <div className="flex gap-2">
-                            <button type="button" onClick={() => moveSectionOrder(sectionId, "up")} className="ui-focus rounded border border-slate-300 px-2 py-1 text-xs">Subir</button>
-                            <button type="button" onClick={() => moveSectionOrder(sectionId, "down")} className="ui-focus rounded border border-slate-300 px-2 py-1 text-xs">Bajar</button>
                           </div>
                         </div>
-                      ))}
+                      ) : null}
                     </div>
-                  </details>
+
+                    <div className="space-y-3">
+                      <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-3">
+                        <div className="mb-2 flex items-center justify-between">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            Simulación del home (tiempo real)
+                          </p>
+                          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                            Auto guardado activo
+                          </span>
+                        </div>
+
+                        <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-3">
+                          {config.homeLayout.showSearchBar ? (
+                            <div className="rounded-lg border border-slate-200 bg-slate-50 p-2">
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                                Búsqueda visible
+                              </p>
+                              <div className="mt-1 h-8 rounded-md border border-slate-300 bg-white" />
+                            </div>
+                          ) : (
+                            <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-2 text-xs text-slate-500">
+                              Búsqueda oculta
+                            </div>
+                          )}
+
+                          <div
+                            className={`rounded-lg border p-3 ${
+                              config.homeLayout.heroTheme === "indigo"
+                                ? "border-indigo-200 bg-indigo-50"
+                                : config.homeLayout.heroTheme === "slate"
+                                  ? "border-slate-300 bg-slate-100"
+                                  : "border-cyan-200 bg-cyan-50"
+                            }`}
+                          >
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                              {config.homeLayout.heroKicker || "Kicker"}
+                            </p>
+                            <p className="mt-1 text-lg font-black text-slate-900">
+                              {config.homeLayout.heroTitle || "Título del hero"}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-600">
+                              {config.homeLayout.heroDescription || "Descripción del hero"}
+                            </p>
+                          </div>
+
+                          {resolvedHomeSectionOrder.map((sectionId) => {
+                            const label = isBaseHomeSectionOrderId(sectionId)
+                              ? SECTION_LABELS[sectionId]
+                              : managedCategoryOrderLabelById.get(sectionId) ?? "Categoría personalizada";
+                            const count = homeSectionCountById.get(sectionId) ?? 0;
+                            return (
+                              <div
+                                key={`layout-preview-${sectionId}`}
+                                className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                              >
+                                <span className="font-semibold text-slate-800">{label}</span>
+                                <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-slate-600">
+                                  {count} ítems
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Orden de secciones (arrastrar y soltar)
+                        </p>
+                        <div className="space-y-2">
+                          {resolvedHomeSectionOrder.map((sectionId) => {
+                            const label = isBaseHomeSectionOrderId(sectionId)
+                              ? SECTION_LABELS[sectionId]
+                              : managedCategoryOrderLabelById.get(sectionId) ?? "Categoría personalizada";
+                            const count = homeSectionCountById.get(sectionId) ?? 0;
+                            const isDragging = draggedLayoutSectionId === sectionId;
+                            return (
+                              <button
+                                key={`layout-sort-${sectionId}`}
+                                type="button"
+                                draggable
+                                onDragStart={() => setDraggedLayoutSectionId(sectionId)}
+                                onDragEnd={() => setDraggedLayoutSectionId(null)}
+                                onDragOver={(event) => event.preventDefault()}
+                                onDrop={(event) => {
+                                  event.preventDefault();
+                                  if (!draggedLayoutSectionId) return;
+                                  reorderHomeSectionOrder(draggedLayoutSectionId, sectionId);
+                                  setDraggedLayoutSectionId(null);
+                                }}
+                                className={`ui-focus flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition ${
+                                  isDragging
+                                    ? "border-cyan-400 bg-cyan-100 text-cyan-900"
+                                    : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                                }`}
+                              >
+                                <span className="inline-flex items-center gap-2">
+                                  <span aria-hidden="true" className="text-base leading-none text-slate-400">⋮⋮</span>
+                                  <span className="font-semibold">{label}</span>
+                                </span>
+                                <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold">
+                                  {count}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : null}

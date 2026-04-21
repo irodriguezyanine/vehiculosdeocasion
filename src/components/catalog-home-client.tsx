@@ -65,6 +65,7 @@ type OfferFormState = {
   offerAmount: string;
 };
 type OfferFilterField = "all" | "vehicleTitle" | "patent" | "customerName" | "customerEmail" | "customerPhone";
+type SoldFilterField = "all" | "patent" | "title" | "auctionName";
 type VehicleDetailTabId = "general" | "descripcion" | "tecnica" | "fotos";
 type CalendarPdfRow = {
   title: string;
@@ -344,6 +345,11 @@ function normalizeText(value?: string): string {
     .toLowerCase()
     .normalize("NFD")
     .replace(/\p{Diacritic}/gu, "");
+}
+
+function toCsvCell(value: unknown): string {
+  const text = String(value ?? "").replace(/"/g, "\"\"");
+  return `"${text}"`;
 }
 
 function isSubsequenceMatch(source: string, query: string): boolean {
@@ -1926,6 +1932,13 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   const [offersDateFrom, setOffersDateFrom] = useState("");
   const [offersDateTo, setOffersDateTo] = useState("");
   const [showOffersFiltersMenu, setShowOffersFiltersMenu] = useState(false);
+  const [soldSearch, setSoldSearch] = useState("");
+  const [soldSearchField, setSoldSearchField] = useState<SoldFilterField>("all");
+  const [soldAuctionFilter, setSoldAuctionFilter] = useState("all");
+  const [soldDateFrom, setSoldDateFrom] = useState("");
+  const [soldDateTo, setSoldDateTo] = useState("");
+  const [showSoldFiltersMenu, setShowSoldFiltersMenu] = useState(false);
+  const [pendingRevertSale, setPendingRevertSale] = useState<SoldVehicleRecord | null>(null);
   const [draggedLayoutSectionId, setDraggedLayoutSectionId] = useState<HomeSectionOrderId | null>(null);
   const [activeHeroRichEditor, setActiveHeroRichEditor] = useState<"title" | "subtitle">("subtitle");
   const [isDownloadingCalendarPdf, setIsDownloadingCalendarPdf] = useState(false);
@@ -2417,6 +2430,13 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       cancelled = true;
     };
   }, [isAdmin, adminView, adminTab]);
+
+  useEffect(() => {
+    if (adminTab !== "vehiculos" || inventorySubtab !== "vendidas") {
+      setShowSoldFiltersMenu(false);
+      setPendingRevertSale(null);
+    }
+  }, [adminTab, inventorySubtab]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -5220,6 +5240,89 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       ),
     [config.soldVehicleHistory],
   );
+  const soldAuctionOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          soldHistoryRows
+            .map((row) => row.auctionName?.trim() ?? "Venta individual")
+            .filter((value) => value.length > 0),
+        ),
+      ).sort((a, b) => a.localeCompare(b, "es-CL")),
+    [soldHistoryRows],
+  );
+  const soldFilteredRows = useMemo(() => {
+    const query = normalizeText(soldSearch);
+    const from = soldDateFrom ? new Date(`${soldDateFrom}T00:00:00`) : null;
+    const to = soldDateTo ? new Date(`${soldDateTo}T23:59:59`) : null;
+    const hasValidFrom = from && !Number.isNaN(from.getTime());
+    const hasValidTo = to && !Number.isNaN(to.getTime());
+
+    return soldHistoryRows.filter((row) => {
+      const auctionLabel = row.auctionName?.trim() || "Venta individual";
+      if (soldAuctionFilter !== "all" && auctionLabel !== soldAuctionFilter) return false;
+
+      const soldAtDate = new Date(row.soldAt);
+      if (hasValidFrom && !Number.isNaN(soldAtDate.getTime()) && soldAtDate < from!) return false;
+      if (hasValidTo && !Number.isNaN(soldAtDate.getTime()) && soldAtDate > to!) return false;
+
+      if (!query) return true;
+      const columns = {
+        patent: normalizeText(row.patent),
+        title: normalizeText(row.title),
+        auctionName: normalizeText(auctionLabel),
+      };
+      if (soldSearchField === "all") {
+        return Object.values(columns).some((value) => value.includes(query));
+      }
+      return columns[soldSearchField].includes(query);
+    });
+  }, [soldHistoryRows, soldSearch, soldSearchField, soldAuctionFilter, soldDateFrom, soldDateTo]);
+  const soldFiltersActiveCount = useMemo(() => {
+    let count = 0;
+    if (soldSearchField !== "all") count += 1;
+    if (soldAuctionFilter !== "all") count += 1;
+    if (soldDateFrom) count += 1;
+    if (soldDateTo) count += 1;
+    return count;
+  }, [soldSearchField, soldAuctionFilter, soldDateFrom, soldDateTo]);
+  const downloadSoldRowsExcel = useCallback(
+    (rows: SoldVehicleRecord[], scope: "filtrado" | "total") => {
+      if (rows.length === 0) {
+        showSystemNotice(
+          "info",
+          "Sin datos para exportar",
+          "No hay unidades vendidas que coincidan con los filtros actuales.",
+        );
+        return;
+      }
+      const header = ["Patente", "Modelo", "Origen", "Fecha venta", "ID vehículo"];
+      const lines = rows.map((row) => [
+        toCsvCell(row.patent),
+        toCsvCell(row.title),
+        toCsvCell(row.auctionName?.trim() || "Venta individual"),
+        toCsvCell(new Date(row.soldAt).toLocaleString("es-CL")),
+        toCsvCell(row.vehicleKey),
+      ]);
+      const csv = `\uFEFF${header.map(toCsvCell).join(",")}\n${lines.map((line) => line.join(",")).join("\n")}`;
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const dateTag = new Date().toISOString().slice(0, 10);
+      link.href = url;
+      link.download = `unidades-vendidas-${scope}-${dateTag}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      showSystemNotice(
+        "success",
+        "Exportación lista",
+        `Se descargó el archivo para Excel (${scope}) con ${rows.length} registro(s).`,
+      );
+    },
+    [showSystemNotice],
+  );
   const analyticsBaseEvents = analyticsSource === "server" ? serverAnalyticsEvents : analyticsEvents;
 
   const offersVehicleOptions = useMemo(
@@ -5972,60 +6075,175 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 ) : null}
                 {inventorySubtab === "vendidas" ? (
                   <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-3">
-                  <div className="mb-2 flex items-center justify-between gap-2">
                     <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">
-                      Unidades vendidas
+                      Unidades vendidas (tabla dinámica)
                     </p>
-                    <span className="rounded-full border border-amber-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-                      {soldHistoryRows.length}
-                    </span>
-                  </div>
-                  {soldHistoryRows.length === 0 ? (
-                    <p className="text-xs text-slate-600">Aún no hay unidades marcadas como vendidas.</p>
-                  ) : (
-                    <div className="max-h-48 space-y-1 overflow-auto rounded-md border border-amber-100 bg-white p-2">
-                      {soldHistoryRows.slice(0, 60).map((entry) => (
-                        <article
-                          key={`${entry.vehicleKey}-${entry.soldAt}`}
-                          className="grid grid-cols-1 gap-2 border-b border-slate-100 py-1.5 last:border-b-0 md:grid-cols-[1fr_1.4fr_1fr_1fr_auto]"
+                    <p className="mt-1 text-sm text-slate-600">
+                      Busca, filtra y exporta el historial de ventas. Puedes revertir una venta desde esta tabla.
+                    </p>
+                    <div className="relative mt-3 flex flex-wrap items-center gap-2">
+                      <input
+                        value={soldSearch}
+                        onChange={(event) => setSoldSearch(event.target.value)}
+                        placeholder="Buscar en tabla..."
+                        className="ui-focus min-w-[16rem] flex-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowSoldFiltersMenu((prev) => !prev)}
+                        className="ui-focus inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-50"
+                        aria-label="Abrir filtros de unidades vendidas"
+                        title="Filtros"
+                      >
+                        <svg
+                          viewBox="0 0 24 24"
+                          className="h-4 w-4"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          aria-hidden="true"
                         >
-                          <p className="text-xs font-semibold text-slate-800">{entry.patent}</p>
-                          <p className="line-clamp-1 text-xs text-slate-600">{entry.title}</p>
-                          <p className="text-xs text-slate-500">
-                            {entry.auctionName ? `Remate: ${entry.auctionName}` : "Venta individual"}
+                          <path d="M3 5h18M6 12h12M10 19h4" strokeLinecap="round" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => downloadSoldRowsExcel(soldFilteredRows, "filtrado")}
+                        className="ui-focus inline-flex h-9 w-9 items-center justify-center rounded-md border border-emerald-300 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100"
+                        aria-label="Descargar Excel filtrado de vendidas"
+                        title="Excel filtrado"
+                      >
+                        <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                          <path d="M10 2a1 1 0 0 1 1 1v6.59l1.3-1.3a1 1 0 1 1 1.4 1.42l-3 2.97a1 1 0 0 1-1.4 0l-3-2.97a1 1 0 0 1 1.4-1.42l1.3 1.3V3a1 1 0 0 1 1-1Z" />
+                          <path d="M3 13a1 1 0 0 1 1 1v1h12v-1a1 1 0 1 1 2 0v2a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1Z" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => downloadSoldRowsExcel(soldHistoryRows, "total")}
+                        className="ui-focus inline-flex h-9 w-9 items-center justify-center rounded-md border border-cyan-300 bg-cyan-50 text-cyan-700 transition hover:bg-cyan-100"
+                        aria-label="Descargar Excel completo de vendidas"
+                        title="Excel completo"
+                      >
+                        <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                          <path d="M10 2a1 1 0 0 1 1 1v6.59l1.3-1.3a1 1 0 1 1 1.4 1.42l-3 2.97a1 1 0 0 1-1.4 0l-3-2.97a1 1 0 0 1 1.4-1.42l1.3 1.3V3a1 1 0 0 1 1-1Z" />
+                          <path d="M3 13a1 1 0 0 1 1 1v1h12v-1a1 1 0 1 1 2 0v2a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1Z" />
+                        </svg>
+                      </button>
+                      <div className="inline-flex h-9 items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-700">
+                        {formatCompactNumber(soldFilteredRows.length)} resultado(s)
+                      </div>
+                      {showSoldFiltersMenu ? (
+                        <div className="absolute right-0 top-full z-20 mt-2 w-full max-w-3xl rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
+                          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            Filtros de unidades vendidas
                           </p>
-                          <p className="text-xs text-slate-500">
-                            {new Date(entry.soldAt).toLocaleString("es-CL")}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const confirmed =
-                                typeof window === "undefined"
-                                  ? false
-                                  : window.confirm(
-                                      `¿Revertir venta de ${entry.patent} para devolverla al inventario?`,
-                                    );
-                              if (!confirmed) return;
-                              revertVehicleSale(entry.vehicleKey);
-                              showSystemNotice(
-                                "success",
-                                "Venta revertida",
-                                `${entry.patent} volvió al inventario actual.`,
-                              );
-                            }}
-                            className="ui-focus inline-flex h-7 w-7 items-center justify-center self-center rounded border border-cyan-300 bg-cyan-50 text-cyan-700 transition hover:bg-cyan-100"
-                            aria-label={`Revertir venta ${entry.patent}`}
-                            title="Revertir venta"
-                          >
-                            <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
-                              <path d="M10 3a7 7 0 1 1-6.2 10.25.75.75 0 1 1 1.32-.72A5.5 5.5 0 1 0 4.5 10H6a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 10.75V7.5a.75.75 0 0 1 1.5 0v1.3A7 7 0 0 1 10 3Z" />
-                            </svg>
-                          </button>
-                        </article>
-                      ))}
+                          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                            <select
+                              value={soldSearchField}
+                              onChange={(event) => setSoldSearchField(event.target.value as SoldFilterField)}
+                              className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
+                            >
+                              <option value="all">Buscar en todas las columnas</option>
+                              <option value="patent">Patente</option>
+                              <option value="title">Modelo</option>
+                              <option value="auctionName">Origen de venta</option>
+                            </select>
+                            <select
+                              value={soldAuctionFilter}
+                              onChange={(event) => setSoldAuctionFilter(event.target.value)}
+                              className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
+                            >
+                              <option value="all">Todos los orígenes</option>
+                              {soldAuctionOptions.map((option) => (
+                                <option key={`sold-origin-${option}`} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                            <input
+                              type="date"
+                              value={soldDateFrom}
+                              onChange={(event) => setSoldDateFrom(event.target.value)}
+                              className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
+                            />
+                            <input
+                              type="date"
+                              value={soldDateTo}
+                              onChange={(event) => setSoldDateTo(event.target.value)}
+                              className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
+                            />
+                          </div>
+                          <div className="mt-2 flex flex-wrap justify-between gap-2">
+                            <span className="inline-flex items-center rounded-full border border-slate-300 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
+                              {soldFiltersActiveCount} filtro(s) activo(s)
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSoldSearchField("all");
+                                setSoldAuctionFilter("all");
+                                setSoldDateFrom("");
+                                setSoldDateTo("");
+                              }}
+                              className="ui-focus rounded-md border border-slate-300 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                            >
+                              Limpiar filtros
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
-                  )}
+
+                    <div className="mt-3 overflow-auto rounded-xl border border-slate-200 bg-white">
+                      {soldFilteredRows.length === 0 ? (
+                        <p className="p-4 text-sm text-slate-500">No hay unidades vendidas para los filtros actuales.</p>
+                      ) : (
+                        <table className="min-w-[980px] w-full text-left text-xs">
+                          <thead className="bg-slate-50 text-slate-600">
+                            <tr>
+                              {["Fecha venta", "Patente", "Modelo", "Origen", "ID vehículo", "Acciones"].map((label) => (
+                                <th key={`sold-col-${label}`} className="px-3 py-2 font-semibold uppercase tracking-wide">
+                                  {label}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {soldFilteredRows.map((entry) => (
+                              <tr key={`${entry.vehicleKey}-${entry.soldAt}`} className="border-b border-slate-100 align-top">
+                                <td className="whitespace-nowrap px-3 py-2 text-slate-700">
+                                  {new Date(entry.soldAt).toLocaleString("es-CL")}
+                                </td>
+                                <td className="whitespace-nowrap px-3 py-2 font-semibold text-slate-800">
+                                  {entry.patent}
+                                </td>
+                                <td className="px-3 py-2 text-slate-800">{entry.title}</td>
+                                <td className="px-3 py-2 text-slate-700">
+                                  {entry.auctionName?.trim() || "Venta individual"}
+                                </td>
+                                <td className="px-3 py-2 font-mono text-[11px] text-slate-500">
+                                  {entry.vehicleKey}
+                                </td>
+                                <td className="px-3 py-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => setPendingRevertSale(entry)}
+                                    className="ui-focus inline-flex h-7 w-7 items-center justify-center rounded border border-cyan-300 bg-cyan-50 text-cyan-700 transition hover:bg-cyan-100"
+                                    aria-label={`Revertir venta ${entry.patent}`}
+                                    title="Revertir venta"
+                                  >
+                                    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                                      <path d="M10 3a7 7 0 1 1-6.2 10.25.75.75 0 1 1 1.32-.72A5.5 5.5 0 1 0 4.5 10H6a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 10.75V7.5a.75.75 0 0 1 1.5 0v1.3A7 7 0 0 1 10 3Z" />
+                                    </svg>
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
                   </div>
                 ) : null}
               </>
@@ -8375,6 +8593,52 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 </table>
               </div>
             )}
+          </div>
+        </div>
+      ) : null}
+
+      {isAdmin && pendingRevertSale ? (
+        <div
+          className="fixed inset-0 z-[74] flex items-center justify-center bg-slate-900/70 p-4"
+          onClick={() => setPendingRevertSale(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Revertir venta"
+            className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p className="text-xs font-semibold uppercase tracking-wide text-cyan-700">Confirmación</p>
+            <h3 className="mt-1 text-lg font-bold text-slate-900">¿Revertir esta venta?</h3>
+            <p className="mt-2 text-sm text-slate-600">
+              La unidad <span className="font-semibold text-slate-900">{pendingRevertSale.patent}</span>{" "}
+              ({pendingRevertSale.title}) volverá al inventario actual.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setPendingRevertSale(null)}
+                className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  revertVehicleSale(pendingRevertSale.vehicleKey);
+                  showSystemNotice(
+                    "success",
+                    "Venta revertida",
+                    `${pendingRevertSale.patent} volvió al inventario actual.`,
+                  );
+                  setPendingRevertSale(null);
+                }}
+                className="ui-focus rounded-md bg-cyan-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500"
+              >
+                Sí, revertir
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

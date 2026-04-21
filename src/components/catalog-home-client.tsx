@@ -64,6 +64,18 @@ type OfferFormState = {
 };
 type OfferFilterField = "all" | "vehicleTitle" | "patent" | "customerName" | "customerEmail" | "customerPhone";
 type VehicleDetailTabId = "general" | "descripcion" | "tecnica" | "fotos";
+type CalendarPdfRow = {
+  title: string;
+  patent: string;
+  model: string;
+  auctionLabel: string;
+  priceLabel: string;
+};
+type CalendarPdfSection = {
+  categoryTitle: string;
+  categorySubtitle: string;
+  rows: CalendarPdfRow[];
+};
 type SystemNotice = {
   id: number;
   tone: "success" | "error" | "info";
@@ -417,6 +429,33 @@ function hasValue(value: unknown): boolean {
   if (typeof value === "string") return value.trim().length > 0;
   if (Array.isArray(value)) return value.length > 0;
   return true;
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === "string") resolve(reader.result);
+      else reject(new Error("No se pudo convertir el logo a DataURL."));
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("Error leyendo imagen."));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function loadLogoForPdfAsDataUrl(): Promise<string | null> {
+  const candidates = ["/vedisa-logo.png", "https://vedisaremates.vercel.app/vedisa-logo.png"];
+  for (const url of candidates) {
+    try {
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) continue;
+      const blob = await response.blob();
+      return await blobToDataUrl(blob);
+    } catch {
+      // intenta la siguiente URL sin interrumpir la descarga del PDF
+    }
+  }
+  return null;
 }
 
 function isBaseHomeSectionOrderId(value: string): value is SectionId {
@@ -1881,6 +1920,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   const [showOffersFiltersMenu, setShowOffersFiltersMenu] = useState(false);
   const [draggedLayoutSectionId, setDraggedLayoutSectionId] = useState<HomeSectionOrderId | null>(null);
   const [activeHeroRichEditor, setActiveHeroRichEditor] = useState<"title" | "subtitle">("subtitle");
+  const [isDownloadingCalendarPdf, setIsDownloadingCalendarPdf] = useState(false);
   const [heroToolbarState, setHeroToolbarState] = useState(() => ({
     formatBlock: "p" as "p" | "h2" | "h3",
     fontFamily: "Inter",
@@ -2695,12 +2735,332 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     managedCategoryCountById,
   ]);
 
+  const calendarPdfSections = useMemo<CalendarPdfSection[]>(() => {
+    const buildRow = (item: CatalogItem): CalendarPdfRow => {
+      const key = getVehicleKey(item);
+      return {
+        title: item.title?.trim() || "Vehículo sin título",
+        patent: getPatent(item),
+        model: getModel(item),
+        auctionLabel:
+          upcomingAuctionByVehicleKey[key] ??
+          formatAuctionDateLabel(item.auctionDate) ??
+          "Sin fecha de remate",
+        priceLabel: formatPrice(config.vehiclePrices[key]) ?? "Sin precio",
+      };
+    };
+
+    const sections: CalendarPdfSection[] = [];
+    for (const sectionId of resolvedHomeSectionOrder) {
+      if (sectionId.startsWith("managed:")) {
+        const managedCategoryId = sectionId.replace("managed:", "");
+        const category = managedCategorySections.find((entry) => entry.id === managedCategoryId);
+        if (!category || category.items.length === 0) continue;
+        sections.push({
+          categoryTitle: category.name,
+          categorySubtitle: category.description?.trim() || "Categoría personalizada visible en el home.",
+          rows: category.items.map(buildRow),
+        });
+        continue;
+      }
+
+      if (sectionId === "proximos-remates") {
+        if (hasUpcomingAuctionCategories) {
+          for (const group of upcomingAuctionGroups) {
+            if (group.items.length === 0) continue;
+            sections.push({
+              categoryTitle: `Próximos remates - ${group.auction.name}`,
+              categorySubtitle: formatAuctionDateLabel(group.auction.date) || "Fecha por confirmar",
+              rows: group.items.map(buildRow),
+            });
+          }
+        } else if (proximosRemates.length > 0) {
+          sections.push({
+            categoryTitle: config.sectionTexts["proximos-remates"].title,
+            categorySubtitle: config.sectionTexts["proximos-remates"].subtitle,
+            rows: proximosRemates.map(buildRow),
+          });
+        }
+        continue;
+      }
+
+      if (sectionId === "ventas-directas" && ventasDirectas.length > 0) {
+        sections.push({
+          categoryTitle: config.sectionTexts["ventas-directas"].title,
+          categorySubtitle: config.sectionTexts["ventas-directas"].subtitle,
+          rows: ventasDirectas.map(buildRow),
+        });
+        continue;
+      }
+
+      if (sectionId === "novedades" && novedades.length > 0) {
+        sections.push({
+          categoryTitle: config.sectionTexts.novedades.title,
+          categorySubtitle: config.sectionTexts.novedades.subtitle,
+          rows: novedades.map(buildRow),
+        });
+        continue;
+      }
+
+      if (sectionId === "catalogo" && filteredCatalogItems.length > 0) {
+        sections.push({
+          categoryTitle: config.sectionTexts.catalogo.title,
+          categorySubtitle: config.sectionTexts.catalogo.subtitle,
+          rows: filteredCatalogItems.map(buildRow),
+        });
+      }
+    }
+    return sections;
+  }, [
+    resolvedHomeSectionOrder,
+    managedCategorySections,
+    hasUpcomingAuctionCategories,
+    upcomingAuctionGroups,
+    proximosRemates,
+    ventasDirectas,
+    novedades,
+    filteredCatalogItems,
+    upcomingAuctionByVehicleKey,
+    config.vehiclePrices,
+    config.sectionTexts,
+  ]);
+
   const featuredItems = useMemo(() => homeVisibleItems.slice(0, 16), [homeVisibleItems]);
 
   const favoritesItems = useMemo(
     () => homeVisibleItems.filter((item) => favoriteKeys.includes(getVehicleKey(item))).slice(0, 12),
     [homeVisibleItems, favoriteKeys],
   );
+
+  const downloadVisibleCalendarPdf = useCallback(async () => {
+    if (isDownloadingCalendarPdf) return;
+    if (calendarPdfSections.length === 0) {
+      showSystemNotice(
+        "info",
+        "Sin publicaciones visibles",
+        "No hay publicaciones visibles para incluir en el PDF con los filtros actuales.",
+      );
+      return;
+    }
+    setIsDownloadingCalendarPdf(true);
+    try {
+      const [{ jsPDF }, logoDataUrl] = await Promise.all([
+        import("jspdf"),
+        loadLogoForPdfAsDataUrl(),
+      ]);
+      const doc = new jsPDF({ unit: "pt", format: "a4" });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const marginX = 40;
+      const usableWidth = pageWidth - marginX * 2;
+      const now = new Date();
+      const y2 = String(now.getFullYear()).slice(-2);
+      const m2 = String(now.getMonth() + 1).padStart(2, "0");
+      const d2 = String(now.getDate()).padStart(2, "0");
+      const filenameDate = `${y2}${m2}${d2}`;
+      const exportFileName = `${filenameDate} CatalogoVedisa.PDF`;
+      const todayLabel = now.toLocaleString("es-CL", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      const totalRows = calendarPdfSections.reduce((acc, section) => acc + section.rows.length, 0);
+      const stats = [
+        { label: "Categorías visibles", value: String(calendarPdfSections.length) },
+        { label: "Publicaciones visibles", value: String(totalRows) },
+        { label: "Generado", value: todayLabel },
+      ];
+
+      // Portada corporativa
+      doc.setFillColor(15, 23, 42);
+      doc.rect(0, 0, pageWidth, 152, "F");
+      if (logoDataUrl) {
+        doc.addImage(logoDataUrl, "PNG", marginX, 34, 138, 38);
+      }
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.setTextColor(148, 163, 184);
+      doc.text("CATALOGO CORPORATIVO", marginX, 102);
+      doc.setFontSize(28);
+      doc.setTextColor(15, 23, 42);
+      doc.text("Catalogo Vedisa", marginX, 212);
+      doc.setFontSize(14);
+      doc.setTextColor(30, 41, 59);
+      doc.text("Publicaciones visibles por calendario y categorias", marginX, 238);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(71, 85, 105);
+      doc.text(`Documento: ${exportFileName}`, marginX, 262);
+
+      const cardWidth = (usableWidth - 16) / 3;
+      let cardX = marginX;
+      for (const stat of stats) {
+        doc.setDrawColor(203, 213, 225);
+        doc.setFillColor(248, 250, 252);
+        doc.roundedRect(cardX, 292, cardWidth, 68, 6, 6, "FD");
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(100, 116, 139);
+        doc.text(stat.label, cardX + 10, 314);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        doc.setTextColor(15, 23, 42);
+        doc.text(stat.value, cardX + 10, 338);
+        cardX += cardWidth + 8;
+      }
+
+      doc.setDrawColor(226, 232, 240);
+      doc.line(marginX, 386, pageWidth - marginX, 386);
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text(
+        "Este PDF incluye exclusivamente las publicaciones visibles al momento de la descarga.",
+        marginX,
+        406,
+      );
+
+      // Seccion detallada
+      doc.addPage();
+      let y = 42;
+
+      const drawPageHeader = () => {
+        doc.setFillColor(248, 250, 252);
+        doc.rect(0, 0, pageWidth, 64, "F");
+        if (logoDataUrl) {
+          doc.addImage(logoDataUrl, "PNG", marginX, 14, 92, 25);
+        }
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.setTextColor(15, 23, 42);
+        doc.text("Detalle de publicaciones visibles", marginX + (logoDataUrl ? 104 : 0), 31);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(71, 85, 105);
+        doc.text(todayLabel, pageWidth - marginX, 31, { align: "right" });
+        doc.setDrawColor(226, 232, 240);
+        doc.line(marginX, 64, pageWidth - marginX, 64);
+        y = 82;
+      };
+
+      const tableColumns = [
+        { key: "title" as const, label: "Publicación", width: usableWidth * 0.30 },
+        { key: "patent" as const, label: "Patente", width: usableWidth * 0.13 },
+        { key: "model" as const, label: "Modelo", width: usableWidth * 0.20 },
+        { key: "auctionLabel" as const, label: "Calendario", width: usableWidth * 0.22 },
+        { key: "priceLabel" as const, label: "Precio", width: usableWidth * 0.15 },
+      ];
+
+      const drawTableHeader = () => {
+        doc.setFillColor(15, 23, 42);
+        doc.rect(marginX, y, usableWidth, 20, "F");
+        let x = marginX;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.setTextColor(255, 255, 255);
+        for (const column of tableColumns) {
+          doc.text(column.label, x + 6, y + 13);
+          x += column.width;
+        }
+        y += 24;
+      };
+
+      const ensureSpace = (requiredHeight: number, drawHeaderIfNewPage = false) => {
+        if (y + requiredHeight <= pageHeight - 52) return;
+        doc.addPage();
+        drawPageHeader();
+        if (drawHeaderIfNewPage) drawTableHeader();
+      };
+
+      drawPageHeader();
+      for (const section of calendarPdfSections) {
+        ensureSpace(48);
+        doc.setFillColor(241, 245, 249);
+        doc.roundedRect(marginX, y, usableWidth, 24, 4, 4, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.setTextColor(15, 23, 42);
+        doc.text(`${section.categoryTitle} (${section.rows.length})`, marginX + 8, y + 16);
+        y += 28;
+
+        if (section.categorySubtitle.trim()) {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(9);
+          doc.setTextColor(71, 85, 105);
+          const subtitleLines = doc.splitTextToSize(section.categorySubtitle, usableWidth);
+          ensureSpace(subtitleLines.length * 10 + 8);
+          doc.text(subtitleLines, marginX, y);
+          y += subtitleLines.length * 10 + 6;
+        }
+
+        drawTableHeader();
+        for (const row of section.rows) {
+          const linePaddingY = 4;
+          const lineHeight = 9.5;
+          const values = tableColumns.map((column) =>
+            String(row[column.key] ?? "—"),
+          );
+          const linesByCol = values.map((value, index) =>
+            doc.splitTextToSize(value, tableColumns[index].width - 10),
+          );
+          const maxLines = Math.max(1, ...linesByCol.map((lines) => lines.length));
+          const rowHeight = Math.max(22, maxLines * lineHeight + linePaddingY * 2);
+
+          ensureSpace(rowHeight + 2, true);
+          doc.setDrawColor(226, 232, 240);
+          doc.rect(marginX, y, usableWidth, rowHeight);
+
+          let cellX = marginX;
+          for (let i = 0; i < tableColumns.length; i += 1) {
+            if (i > 0) doc.line(cellX, y, cellX, y + rowHeight);
+            doc.setFont("helvetica", i === 0 ? "bold" : "normal");
+            doc.setFontSize(8.5);
+            doc.setTextColor(30, 41, 59);
+            doc.text(linesByCol[i], cellX + 5, y + linePaddingY + 8);
+            cellX += tableColumns[i].width;
+          }
+          y += rowHeight;
+        }
+        y += 10;
+      }
+
+      const totalPages = doc.getNumberOfPages();
+      for (let page = 1; page <= totalPages; page += 1) {
+        doc.setPage(page);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.text(
+          `CatalogoVedisa · Pagina ${page} de ${totalPages}`,
+          pageWidth / 2,
+          pageHeight - 18,
+          { align: "center" },
+        );
+      }
+
+      doc.save(exportFileName);
+      trackEvent("calendar_pdf_download", {
+        categories: calendarPdfSections.length,
+        publications: totalRows,
+        pages: doc.getNumberOfPages(),
+      });
+      showSystemNotice(
+        "success",
+        "PDF generado",
+        `Se descargó correctamente: ${exportFileName}`,
+      );
+    } catch {
+      showSystemNotice(
+        "error",
+        "No se pudo generar el PDF",
+        "Intenta nuevamente. Si el problema persiste, recarga la página.",
+      );
+    } finally {
+      setIsDownloadingCalendarPdf(false);
+    }
+  }, [calendarPdfSections, isDownloadingCalendarPdf, showSystemNotice]);
 
   const latestItems = useMemo(
     () =>
@@ -6401,6 +6761,21 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               <span className="rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
                 {homeVisibleItems.length} resultado(s)
               </span>
+              <button
+                type="button"
+                onClick={() => {
+                  void downloadVisibleCalendarPdf();
+                }}
+                disabled={isDownloadingCalendarPdf}
+                className={`ui-focus rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                  isDownloadingCalendarPdf
+                    ? "cursor-wait border-slate-300 bg-slate-100 text-slate-500"
+                    : "border-cyan-300 bg-cyan-50 text-cyan-800 hover:bg-cyan-100"
+                }`}
+                title="Descargar PDF profesional del calendario visible"
+              >
+                {isDownloadingCalendarPdf ? "Generando PDF..." : "Descargar PDF calendario"}
+              </button>
               <span className="sr-only" aria-live="polite">
                 {homeVisibleItems.length} resultados encontrados en catálogo.
               </span>

@@ -14,6 +14,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { CatalogCard } from "@/components/catalog-card";
 import type { CatalogFeed, CatalogItem } from "@/types/catalog";
+import type { OfferRecord } from "@/types/offers";
 import {
   DEFAULT_EDITOR_CONFIG,
   type EditorConfig,
@@ -31,7 +32,7 @@ const FAVORITES_STORAGE_KEY = "vedisa_client_favorites";
 const HOME_QUICK_FILTERS_STORAGE_KEY = "vedisa_home_quick_filters";
 const HOME_CARD_DENSITY_STORAGE_KEY = "vedisa_home_card_density";
 const EDITOR_PAGE_SIZE = 20;
-type AdminTabId = "vehiculos" | "categorias" | "layout" | "analytics";
+type AdminTabId = "vehiculos" | "categorias" | "layout" | "analytics" | "ofertas";
 type EditorGroupFilter = "all" | SectionId | `managed:${string}`;
 type EditorVisibilityFilter = "all" | "visible" | "hidden";
 type EditorVehicleCategoryFilter = "all" | "livianos" | "pesados" | "maquinaria" | "chatarra" | "otros";
@@ -55,6 +56,13 @@ type ClientLeadForm = {
   phone: string;
   interest: string;
 };
+type OfferFormState = {
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  offerAmount: string;
+};
+type OfferFilterField = "all" | "vehicleTitle" | "patent" | "customerName" | "customerEmail" | "customerPhone";
 type VehicleDetailTabId = "general" | "descripcion" | "tecnica" | "fotos";
 type SystemNotice = {
   id: number;
@@ -764,6 +772,50 @@ function parseAnalyticsTimestamp(value: unknown): Date | null {
 
 function formatCompactNumber(value: number): string {
   return new Intl.NumberFormat("es-CL").format(value);
+}
+
+function parseCurrencyAmount(value?: string | null): number {
+  if (!value?.trim()) return 0;
+  const digits = value.replace(/[^\d]/g, "");
+  const amount = Number(digits);
+  return Number.isFinite(amount) ? amount : 0;
+}
+
+function formatCurrencyAmount(value: number): string {
+  if (!Number.isFinite(value) || value < 0) return "";
+  return new Intl.NumberFormat("es-CL", {
+    style: "currency",
+    currency: "CLP",
+    maximumFractionDigits: 0,
+  }).format(Math.round(value));
+}
+
+function formatSignedCurrencyAmount(value: number): string {
+  if (!Number.isFinite(value)) return "";
+  const absolute = formatCurrencyAmount(Math.abs(value));
+  if (!absolute) return "";
+  if (value > 0) return `+${absolute}`;
+  if (value < 0) return `-${absolute}`;
+  return absolute;
+}
+
+function toCurrencyInput(value: string): string {
+  const amount = parseCurrencyAmount(value);
+  if (amount <= 0) return "";
+  return formatCurrencyAmount(amount);
+}
+
+function buildEmptyOfferForm(): OfferFormState {
+  return {
+    customerName: "",
+    customerEmail: "",
+    customerPhone: "",
+    offerAmount: "",
+  };
+}
+
+function isValidEmailAddress(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
 function getOrCreateAnalyticsIds(): { visitorId: string; sessionId: string } {
@@ -1829,6 +1881,18 @@ export function CatalogHomeClient({ feed }: Props) {
   const [analyticsEventFilter, setAnalyticsEventFilter] = useState("all");
   const [analyticsSectionFilter, setAnalyticsSectionFilter] = useState("all");
   const [analyticsVehicleQuery, setAnalyticsVehicleQuery] = useState("");
+  const [showOfferModal, setShowOfferModal] = useState(false);
+  const [offerForm, setOfferForm] = useState<OfferFormState>(buildEmptyOfferForm);
+  const [offerSending, setOfferSending] = useState(false);
+  const [offersRows, setOffersRows] = useState<OfferRecord[]>([]);
+  const [offersLoading, setOffersLoading] = useState(false);
+  const [offersError, setOffersError] = useState("");
+  const [offersSearch, setOffersSearch] = useState("");
+  const [offersSearchField, setOffersSearchField] = useState<OfferFilterField>("all");
+  const [offersVehicleFilter, setOffersVehicleFilter] = useState("all");
+  const [offersClientFilter, setOffersClientFilter] = useState("all");
+  const [offersDateFrom, setOffersDateFrom] = useState("");
+  const [offersDateTo, setOffersDateTo] = useState("");
   const [countdownNowMs, setCountdownNowMs] = useState(() => Date.now());
   const manualObservationsEditorRef = useRef<HTMLDivElement | null>(null);
   const [observationsTemplateHtml, setObservationsTemplateHtml] = useState(
@@ -2010,6 +2074,22 @@ export function CatalogHomeClient({ feed }: Props) {
   }, [selectedVehicle]);
 
   useEffect(() => {
+    if (selectedVehicle) return;
+    setShowOfferModal(false);
+    setOfferForm(buildEmptyOfferForm());
+    setOfferSending(false);
+  }, [selectedVehicle]);
+
+  useEffect(() => {
+    if (!showOfferModal) return;
+    if (selectedVehicleReferencePriceAmount <= 0) return;
+    setOfferForm((prev) => {
+      if (prev.offerAmount.trim()) return prev;
+      return { ...prev, offerAmount: formatCurrencyAmount(selectedVehicleReferencePriceAmount) };
+    });
+  }, [showOfferModal, selectedVehicleReferencePriceAmount]);
+
+  useEffect(() => {
     void (async () => {
       try {
         const local = localStorage.getItem(EDITOR_STORAGE_KEY);
@@ -2122,6 +2202,45 @@ export function CatalogHomeClient({ feed }: Props) {
       cancelled = true;
     };
   }, [isAdmin, adminView, adminTab, analyticsRangeDays]);
+
+  useEffect(() => {
+    const shouldLoadOffers = isAdmin && adminView === "editor" && adminTab === "ofertas";
+    if (!shouldLoadOffers) return;
+    let cancelled = false;
+    const fetchOffers = async () => {
+      setOffersLoading(true);
+      setOffersError("");
+      try {
+        const response = await fetch("/api/admin/offers?limit=5000", { cache: "no-store" });
+        const payload = (await response.json().catch(() => ({}))) as {
+          ok?: boolean;
+          offers?: OfferRecord[];
+          error?: string;
+        };
+        if (!response.ok || !payload.ok || !Array.isArray(payload.offers)) {
+          if (!cancelled) {
+            setOffersRows([]);
+            setOffersError(payload.error ?? "No se pudieron cargar las ofertas.");
+          }
+          return;
+        }
+        if (!cancelled) {
+          setOffersRows(payload.offers);
+        }
+      } catch {
+        if (!cancelled) {
+          setOffersRows([]);
+          setOffersError("No se pudieron cargar las ofertas.");
+        }
+      } finally {
+        if (!cancelled) setOffersLoading(false);
+      }
+    };
+    void fetchOffers();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin, adminView, adminTab]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -2521,6 +2640,10 @@ export function CatalogHomeClient({ feed }: Props) {
     () => (selectedVehicleKey ? formatPrice(config.vehiclePrices[selectedVehicleKey]) : null),
     [config.vehiclePrices, selectedVehicleKey],
   );
+  const selectedVehicleReferencePriceAmount = useMemo(
+    () => parseCurrencyAmount(selectedVehiclePriceLabel),
+    [selectedVehiclePriceLabel],
+  );
   const selectedVehiclePromoMeta = useMemo(() => {
     if (!selectedVehicle) return { promoEnabled: false, originalPriceLabel: null as string | null };
     const raw = selectedVehicle.raw as Record<string, unknown>;
@@ -2581,6 +2704,11 @@ export function CatalogHomeClient({ feed }: Props) {
     if (/no arranca|desarme/.test(sample)) return "Consultar condición y retiro";
     return "Quiero más información de esta unidad";
   }, [selectedVehicleConditionLabel]);
+
+  const selectedVehicleReferencePriceDisplay = useMemo(
+    () => formatCurrencyAmount(selectedVehicleReferencePriceAmount),
+    [selectedVehicleReferencePriceAmount],
+  );
 
   const selectedVehicleGalleryImages = useMemo(() => {
     if (!selectedVehicle) return [] as string[];
@@ -3210,6 +3338,104 @@ export function CatalogHomeClient({ feed }: Props) {
     setLeadMessage("Perfecto. Te estamos redirigiendo a WhatsApp para contacto inmediato.");
     window.open(leadWhatsappUrl, "_blank", "noreferrer");
   };
+
+  const openOfferModal = useCallback(() => {
+    if (!selectedVehicle) return;
+    if (selectedVehicleReferencePriceAmount <= 0) {
+      showSystemNotice(
+        "info",
+        "Precio no disponible",
+        "Este vehículo no tiene precio referencial cargado. Contáctanos por WhatsApp para ofertar.",
+      );
+      return;
+    }
+    setShowOfferModal(true);
+    trackEvent("offer_modal_open", { itemKey: selectedVehicleKey });
+  }, [selectedVehicle, selectedVehicleKey, selectedVehicleReferencePriceAmount, showSystemNotice]);
+
+  const closeOfferModal = useCallback(() => {
+    setShowOfferModal(false);
+    setOfferSending(false);
+    setOfferForm(buildEmptyOfferForm());
+  }, []);
+
+  const submitOffer = useCallback(async () => {
+    if (!selectedVehicle) return;
+    const customerName = offerForm.customerName.trim();
+    const customerEmail = offerForm.customerEmail.trim();
+    const customerPhone = offerForm.customerPhone.trim();
+    const offerAmount = parseCurrencyAmount(offerForm.offerAmount);
+
+    if (!customerName || !customerEmail || !customerPhone || offerAmount <= 0) {
+      showSystemNotice("error", "Campos obligatorios", "Completa nombre, mail, teléfono y oferta para enviar.");
+      trackEvent("offer_submit_invalid", { itemKey: selectedVehicleKey });
+      return;
+    }
+    if (!isValidEmailAddress(customerEmail)) {
+      showSystemNotice("error", "Correo inválido", "Ingresa un mail válido para contactarte.");
+      trackEvent("offer_submit_invalid_email", { itemKey: selectedVehicleKey });
+      return;
+    }
+    if (selectedVehicleReferencePriceAmount <= 0) {
+      showSystemNotice(
+        "error",
+        "Precio referencial no disponible",
+        "No podemos registrar la oferta porque falta el precio referencial de este vehículo.",
+      );
+      return;
+    }
+
+    setOfferSending(true);
+    try {
+      const response = await fetch("/api/offers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          itemKey: selectedVehicleKey,
+          vehicleTitle: getModel(selectedVehicle),
+          patent: getPatent(selectedVehicle),
+          referencePrice: selectedVehicleReferencePriceAmount,
+          offerAmount,
+          customerName,
+          customerEmail,
+          customerPhone,
+        }),
+      });
+      const payload = (await response.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (!response.ok || !payload.ok) {
+        showSystemNotice(
+          "error",
+          "No pudimos registrar tu oferta",
+          payload.error ?? "Intenta nuevamente en unos segundos.",
+        );
+        trackEvent("offer_submit_error", { itemKey: selectedVehicleKey });
+        return;
+      }
+      trackEvent("offer_submit_success", { itemKey: selectedVehicleKey, offerAmount });
+      showSystemNotice(
+        "success",
+        "Oferta recibida",
+        "Ya recibimos tu oferta y nos pondremos en contacto contigo en caso de adjudicarse.",
+      );
+      setOfferForm(buildEmptyOfferForm());
+      setShowOfferModal(false);
+    } catch {
+      showSystemNotice(
+        "error",
+        "No pudimos registrar tu oferta",
+        "Intenta nuevamente en unos segundos.",
+      );
+      trackEvent("offer_submit_error", { itemKey: selectedVehicleKey });
+    } finally {
+      setOfferSending(false);
+    }
+  }, [
+    offerForm,
+    selectedVehicle,
+    selectedVehicleKey,
+    selectedVehicleReferencePriceAmount,
+    showSystemNotice,
+  ]);
 
   const shareSelectedVehicle = useCallback(async () => {
     if (!selectedVehicle) return;
@@ -4164,6 +4390,66 @@ export function CatalogHomeClient({ feed }: Props) {
   }, [config.vehicleDetails, config.vehiclePrices, managingItem, managingVehicleKey]);
   const analyticsBaseEvents = analyticsSource === "server" ? serverAnalyticsEvents : analyticsEvents;
 
+  const offersVehicleOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          offersRows
+            .map((row) => row.vehicleTitle.trim())
+            .filter((value) => value.length > 0),
+        ),
+      ).sort((a, b) => a.localeCompare(b, "es-CL")),
+    [offersRows],
+  );
+  const offersClientOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          offersRows
+            .map((row) => row.customerName.trim())
+            .filter((value) => value.length > 0),
+        ),
+      ).sort((a, b) => a.localeCompare(b, "es-CL")),
+    [offersRows],
+  );
+  const offersFilteredRows = useMemo(() => {
+    const query = normalizeText(offersSearch);
+    const from = offersDateFrom ? new Date(`${offersDateFrom}T00:00:00`) : null;
+    const to = offersDateTo ? new Date(`${offersDateTo}T23:59:59`) : null;
+    const hasValidFrom = from && !Number.isNaN(from.getTime());
+    const hasValidTo = to && !Number.isNaN(to.getTime());
+
+    return offersRows.filter((row) => {
+      if (offersVehicleFilter !== "all" && row.vehicleTitle !== offersVehicleFilter) return false;
+      if (offersClientFilter !== "all" && row.customerName !== offersClientFilter) return false;
+
+      const createdAtDate = new Date(row.createdAt);
+      if (hasValidFrom && !Number.isNaN(createdAtDate.getTime()) && createdAtDate < from!) return false;
+      if (hasValidTo && !Number.isNaN(createdAtDate.getTime()) && createdAtDate > to!) return false;
+
+      if (!query) return true;
+      const columns = {
+        vehicleTitle: normalizeText(row.vehicleTitle),
+        patent: normalizeText(row.patent),
+        customerName: normalizeText(row.customerName),
+        customerEmail: normalizeText(row.customerEmail),
+        customerPhone: normalizeText(row.customerPhone),
+      };
+      if (offersSearchField === "all") {
+        return Object.values(columns).some((value) => value.includes(query));
+      }
+      return columns[offersSearchField].includes(query);
+    });
+  }, [
+    offersRows,
+    offersSearch,
+    offersSearchField,
+    offersVehicleFilter,
+    offersClientFilter,
+    offersDateFrom,
+    offersDateTo,
+  ]);
+
   const analyticsFilteredEvents = useMemo(() => {
     if (analyticsSource === "server") return analyticsBaseEvents;
     const now = Date.now();
@@ -4524,6 +4810,7 @@ export function CatalogHomeClient({ feed }: Props) {
                 ["categorias", "2. Editar categorías"],
                 ["layout", "3. Editar layout home"],
                 ["analytics", "4. Dashboard analytics"],
+                ["ofertas", "5. Ofertas recibidas"],
               ] as Array<[AdminTabId, string]>).map(([tabId, label]) => (
                 <button
                   key={tabId}
@@ -5772,6 +6059,154 @@ export function CatalogHomeClient({ feed }: Props) {
                 </details>
               </div>
             ) : null}
+
+            {adminTab === "ofertas" ? (
+              <div className="space-y-4">
+                <div className="rounded-xl border border-slate-200 bg-white p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Ofertas recibidas
+                  </p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Tabla dinámica con filtros por vehículo, cliente y fecha. Puedes buscar en cualquier columna.
+                  </p>
+                  <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                    <input
+                      value={offersSearch}
+                      onChange={(event) => setOffersSearch(event.target.value)}
+                      placeholder="Buscar en tabla..."
+                      className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
+                    />
+                    <select
+                      value={offersSearchField}
+                      onChange={(event) => setOffersSearchField(event.target.value as OfferFilterField)}
+                      className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
+                    >
+                      <option value="all">Buscar en todas las columnas</option>
+                      <option value="vehicleTitle">Vehículo</option>
+                      <option value="patent">Patente</option>
+                      <option value="customerName">Cliente</option>
+                      <option value="customerEmail">Mail</option>
+                      <option value="customerPhone">Teléfono</option>
+                    </select>
+                    <select
+                      value={offersVehicleFilter}
+                      onChange={(event) => setOffersVehicleFilter(event.target.value)}
+                      className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
+                    >
+                      <option value="all">Todos los vehículos</option>
+                      {offersVehicleOptions.map((vehicle) => (
+                        <option key={`offer-vehicle-${vehicle}`} value={vehicle}>
+                          {vehicle}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={offersClientFilter}
+                      onChange={(event) => setOffersClientFilter(event.target.value)}
+                      className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
+                    >
+                      <option value="all">Todos los clientes</option>
+                      {offersClientOptions.map((client) => (
+                        <option key={`offer-client-${client}`} value={client}>
+                          {client}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="date"
+                      value={offersDateFrom}
+                      onChange={(event) => setOffersDateFrom(event.target.value)}
+                      className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
+                    />
+                    <input
+                      type="date"
+                      value={offersDateTo}
+                      onChange={(event) => setOffersDateTo(event.target.value)}
+                      className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOffersSearch("");
+                        setOffersSearchField("all");
+                        setOffersVehicleFilter("all");
+                        setOffersClientFilter("all");
+                        setOffersDateFrom("");
+                        setOffersDateTo("");
+                      }}
+                      className="ui-focus rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700"
+                    >
+                      Limpiar filtros
+                    </button>
+                    <div className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700">
+                      {formatCompactNumber(offersFilteredRows.length)} resultado(s)
+                    </div>
+                  </div>
+                </div>
+
+                <div className="overflow-auto rounded-xl border border-slate-200 bg-white">
+                  {offersLoading ? (
+                    <p className="p-4 text-sm text-slate-500">Cargando ofertas...</p>
+                  ) : offersError ? (
+                    <p className="p-4 text-sm text-rose-700">{offersError}</p>
+                  ) : offersFilteredRows.length === 0 ? (
+                    <p className="p-4 text-sm text-slate-500">No hay ofertas para los filtros actuales.</p>
+                  ) : (
+                    <table className="min-w-full text-left text-xs">
+                      <thead className="bg-slate-50 text-slate-600">
+                        <tr>
+                          {[
+                            "Fecha",
+                            "Patente",
+                            "Vehículo",
+                            "Cliente",
+                            "Mail",
+                            "Teléfono",
+                            "Oferta",
+                            "Referencial",
+                            "Diferencia",
+                          ].map((label) => (
+                            <th key={`offers-head-${label}`} className="whitespace-nowrap border-b border-slate-200 px-3 py-2 font-semibold">
+                              {label}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {offersFilteredRows.map((row) => {
+                          const diff = row.offerAmount - row.referencePrice;
+                          return (
+                            <tr key={row.id} className="border-b border-slate-100 align-top">
+                              <td className="whitespace-nowrap px-3 py-2 text-slate-700">
+                                {row.createdAt ? new Date(row.createdAt).toLocaleString("es-CL") : "—"}
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-2 font-semibold text-slate-800">{row.patent || "—"}</td>
+                              <td className="min-w-64 px-3 py-2 text-slate-800">{row.vehicleTitle || "—"}</td>
+                              <td className="whitespace-nowrap px-3 py-2 text-slate-700">{row.customerName || "—"}</td>
+                              <td className="whitespace-nowrap px-3 py-2 text-slate-700">{row.customerEmail || "—"}</td>
+                              <td className="whitespace-nowrap px-3 py-2 text-slate-700">{row.customerPhone || "—"}</td>
+                              <td className="whitespace-nowrap px-3 py-2 font-semibold text-cyan-700">
+                                {formatCurrencyAmount(row.offerAmount)}
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-2 text-slate-700">
+                                {formatCurrencyAmount(row.referencePrice)}
+                              </td>
+                              <td
+                                className={`whitespace-nowrap px-3 py-2 font-semibold ${
+                                  diff >= 0 ? "text-emerald-700" : "text-rose-700"
+                                }`}
+                              >
+                                {formatSignedCurrencyAmount(diff)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            ) : null}
           </div>
         </section>
       ) : null}
@@ -6509,6 +6944,20 @@ export function CatalogHomeClient({ feed }: Props) {
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 max-md:w-full">
+                  <button
+                    type="button"
+                    onClick={openOfferModal}
+                    disabled={selectedVehicleReferencePriceAmount <= 0}
+                    className="ui-focus inline-flex h-9 items-center justify-center rounded-full border border-cyan-300 bg-cyan-50 px-3 text-xs font-semibold text-cyan-700 transition hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    aria-label="Enviar mi precio"
+                    title={
+                      selectedVehicleReferencePriceAmount > 0
+                        ? "Enviar mi precio"
+                        : "No hay precio referencial disponible"
+                    }
+                  >
+                    Enviar mi precio
+                  </button>
                   <button
                     type="button"
                     onClick={() => toggleFavorite(selectedVehicleKey)}
@@ -7262,6 +7711,117 @@ export function CatalogHomeClient({ feed }: Props) {
                   Crear publicación manual
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showOfferModal && selectedVehicle ? (
+        <div
+          className="fixed inset-0 z-[78] flex items-center justify-center bg-slate-900/70 p-4"
+          onClick={closeOfferModal}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Enviar mi precio"
+            className="max-h-[92vh] w-full max-w-lg overflow-auto rounded-2xl bg-white p-5 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-cyan-700">Enviar mi precio</p>
+                <h3 className="text-lg font-bold text-slate-900">{getModel(selectedVehicle)}</h3>
+                <p className="text-xs text-slate-500">Patente {getPatent(selectedVehicle)}</p>
+              </div>
+              <button
+                type="button"
+                onClick={closeOfferModal}
+                className="ui-focus rounded border border-slate-300 px-3 py-1 text-xs text-slate-600 transition hover:bg-slate-50"
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <div className="rounded-lg border border-cyan-100 bg-cyan-50/70 p-3">
+              <p className="text-xs uppercase tracking-wide text-cyan-800">Precio referencial</p>
+              <p className="mt-1 text-xl font-black text-slate-900">
+                {selectedVehicleReferencePriceDisplay || selectedVehiclePriceLabel || "No informado"}
+              </p>
+              <p className="mt-1 text-xs text-slate-600">
+                Este valor NO incluye gastos de transferencia ni impuestos.
+              </p>
+            </div>
+
+            <div className="mt-4 space-y-2">
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold text-slate-600">Nombre *</span>
+                <input
+                  value={offerForm.customerName}
+                  onChange={(event) =>
+                    setOfferForm((prev) => ({ ...prev, customerName: event.target.value }))
+                  }
+                  placeholder="Tu nombre"
+                  className="ui-focus w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold text-slate-600">Mail *</span>
+                <input
+                  type="email"
+                  value={offerForm.customerEmail}
+                  onChange={(event) =>
+                    setOfferForm((prev) => ({ ...prev, customerEmail: event.target.value }))
+                  }
+                  placeholder="correo@ejemplo.com"
+                  className="ui-focus w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold text-slate-600">Número de teléfono *</span>
+                <input
+                  value={offerForm.customerPhone}
+                  onChange={(event) =>
+                    setOfferForm((prev) => ({ ...prev, customerPhone: event.target.value }))
+                  }
+                  placeholder="+56 9 1234 5678"
+                  className="ui-focus w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold text-slate-600">Oferta *</span>
+                <input
+                  value={offerForm.offerAmount}
+                  onChange={(event) =>
+                    setOfferForm((prev) => ({
+                      ...prev,
+                      offerAmount: toCurrencyInput(event.target.value),
+                    }))
+                  }
+                  placeholder="$0"
+                  className="ui-focus w-full rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold"
+                />
+              </label>
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeOfferModal}
+                className="ui-focus rounded border border-slate-300 px-4 py-2 text-sm text-slate-700 transition hover:bg-slate-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void submitOffer();
+                }}
+                disabled={offerSending}
+                className="ui-focus rounded-md bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500 disabled:opacity-60"
+              >
+                {offerSending ? "Enviando..." : "Enviar oferta"}
+              </button>
             </div>
           </div>
         </div>

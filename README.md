@@ -31,6 +31,7 @@ Campos principales:
 - `AWS_*`: inventario DynamoDB (misma lógica que Tasaciones).
 - `GLO3D_API_USERNAME` / `GLO3D_API_PASSWORD`: visores 3D.
 - `ADMIN_EDITOR_EMAIL` / `ADMIN_EDITOR_PASSWORD`: acceso al modo editor.
+- `CATALOG_OFFERS_TABLE`: tabla para registrar ofertas de clientes (por defecto `catalogo_vehicle_offers`).
 
 ## Modo editor administrador
 
@@ -50,6 +51,27 @@ create table if not exists public.catalogo_editor_config (
   config jsonb not null default '{}'::jsonb,
   updated_by text,
   updated_at timestamptz default now()
+);
+```
+
+## Ofertas de clientes
+
+El botón **Enviar mi precio** registra ofertas en Supabase y luego las muestra en el panel admin, pestaña **5. Ofertas recibidas**.
+
+SQL sugerido:
+
+```sql
+create table if not exists public.catalogo_vehicle_offers (
+  id uuid primary key default gen_random_uuid(),
+  item_key text not null,
+  vehicle_title text not null,
+  patent text not null,
+  reference_price numeric not null,
+  offer_amount numeric not null,
+  customer_name text not null,
+  customer_email text not null,
+  customer_phone text not null,
+  created_at timestamptz not null default now()
 );
 ```
 

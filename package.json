@@ -12,6 +12,7 @@
     "@aws-sdk/client-dynamodb": "^3.1030.0",
     "@aws-sdk/lib-dynamodb": "^3.1030.0",
     "@supabase/supabase-js": "^2.103.0",
+    "jspdf": "^4.2.1",
     "next": "16.2.3",
     "react": "19.2.4",
     "react-dom": "19.2.4"

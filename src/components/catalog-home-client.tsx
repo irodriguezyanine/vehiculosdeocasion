@@ -1979,6 +1979,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   }, [activeHeroRichEditor]);
 
   useEffect(() => {
+    if (adminTab !== "layout") return;
     const titleEditor = heroTitleEditorRef.current;
     if (titleEditor) {
       const normalizedTitle = formatHomeHeroHtml(config.homeLayout.heroTitle);
@@ -1993,7 +1994,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         subtitleEditor.innerHTML = normalizedSubtitle;
       }
     }
-  }, [config.homeLayout.heroTitle, config.homeLayout.heroDescription]);
+  }, [adminTab, config.homeLayout.heroTitle, config.homeLayout.heroDescription]);
 
   const rawItems = feed.items;
   const updateVehicleUrlParam = useCallback((vehicleKey?: string) => {
@@ -5547,12 +5548,6 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                         Hero editable (admite HTML)
                       </p>
                       <div className="grid gap-2">
-                        <input
-                          value={config.homeLayout.heroKicker}
-                          onChange={(event) => setHomeLayout("heroKicker", event.target.value)}
-                          placeholder="Kicker"
-                          className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                        />
                         <div className="rounded-md border border-slate-300 bg-white p-2">
                           <div className="mb-2 flex flex-wrap items-center gap-1.5">
                             <select
@@ -5612,6 +5607,18 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                             <button type="button" onClick={() => runHeroHtmlCommand("redo")} className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700">↷</button>
                             <button type="button" onClick={() => runHeroHtmlCommand("removeFormat")} className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700">Limpiar</button>
                           </div>
+                          <input
+                            value={config.homeLayout.heroKicker}
+                            onChange={(event) => setHomeLayout("heroKicker", event.target.value)}
+                            placeholder="Kicker"
+                            className={`ui-focus mb-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] ${
+                              config.homeLayout.heroTheme === "indigo"
+                                ? "text-indigo-700"
+                                : config.homeLayout.heroTheme === "slate"
+                                  ? "text-slate-700"
+                                  : "text-cyan-700"
+                            }`}
+                          />
                           <div className="mb-2 rounded-md border border-slate-200 bg-slate-50 p-2">
                             <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Título</p>
                             <div
@@ -5620,87 +5627,33 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                               suppressContentEditableWarning
                               onFocus={() => setActiveHeroRichEditor("title")}
                               onInput={(event) => setHomeLayout("heroTitle", event.currentTarget.innerHTML)}
-                              className="ui-focus min-h-12 rounded-md border border-slate-300 bg-white px-3 py-2 text-3xl font-black leading-tight text-slate-900 md:text-[2rem] [&_a]:text-cyan-700 [&_a]:underline [&_b]:font-black [&_strong]:font-black [&_em]:italic [&_i]:italic [&_u]:underline"
+                              className="ui-focus min-h-12 rounded-md border border-slate-300 bg-white px-3 py-2 text-3xl font-black leading-tight text-slate-900 md:text-[2.7rem] [&_a]:text-cyan-700 [&_a]:underline [&_b]:font-black [&_strong]:font-black [&_em]:italic [&_i]:italic [&_u]:underline"
                             />
                           </div>
                           <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
                             <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Subtítulo</p>
-                          <div
-                            ref={heroSubtitleEditorRef}
-                            contentEditable
-                            suppressContentEditableWarning
-                            onFocus={() => setActiveHeroRichEditor("subtitle")}
-                            onInput={(event) => setHomeLayout("heroDescription", event.currentTarget.innerHTML)}
-                            className="ui-focus min-h-20 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm leading-relaxed text-slate-600 md:text-[15px] [&_a]:text-cyan-700 [&_a]:underline [&_b]:font-bold [&_strong]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_p]:mb-2"
-                          />
+                            <div
+                              ref={heroSubtitleEditorRef}
+                              contentEditable
+                              suppressContentEditableWarning
+                              onFocus={() => setActiveHeroRichEditor("subtitle")}
+                              onInput={(event) => setHomeLayout("heroDescription", event.currentTarget.innerHTML)}
+                              className={`ui-focus min-h-20 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm leading-relaxed text-slate-600 md:text-[15px] [&_a]:text-cyan-700 [&_a]:underline [&_b]:font-bold [&_strong]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_p]:mb-2 ${
+                                config.homeLayout.heroAlignment === "center"
+                                  ? config.homeLayout.heroMaxWidth === "xl"
+                                    ? "mx-auto max-w-xl"
+                                    : config.homeLayout.heroMaxWidth === "full"
+                                      ? "mx-auto max-w-full"
+                                      : "mx-auto max-w-2xl"
+                                  : config.homeLayout.heroMaxWidth === "xl"
+                                    ? "max-w-xl"
+                                    : config.homeLayout.heroMaxWidth === "full"
+                                      ? "max-w-full"
+                                      : "max-w-2xl"
+                              }`}
+                            />
                           </div>
                         </div>
-                      </div>
-                    </div>
-
-                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-2">
-                      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                        Configuración avanzada dentro de la simulación
-                      </p>
-                      <div className="grid gap-2 md:grid-cols-2">
-                        <select
-                          value={config.homeLayout.heroAlignment}
-                          onChange={(event) => setHomeLayout("heroAlignment", event.target.value)}
-                          className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                        >
-                          <option value="left">Hero alineado a la izquierda</option>
-                          <option value="center">Hero centrado</option>
-                        </select>
-                        <select
-                          value={config.homeLayout.heroTheme}
-                          onChange={(event) => setHomeLayout("heroTheme", event.target.value)}
-                          className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                        >
-                          <option value="cyan">Tema cyan</option>
-                          <option value="indigo">Tema indigo</option>
-                          <option value="slate">Tema slate</option>
-                        </select>
-                        <input
-                          value={config.homeLayout.heroPrimaryCtaLabel}
-                          onChange={(event) => setHomeLayout("heroPrimaryCtaLabel", event.target.value)}
-                          placeholder="Texto CTA principal"
-                          className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                        />
-                        <input
-                          value={config.homeLayout.heroPrimaryCtaHref}
-                          onChange={(event) => setHomeLayout("heroPrimaryCtaHref", event.target.value)}
-                          placeholder="Enlace CTA principal"
-                          className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                        />
-                        <input
-                          value={config.homeLayout.heroSecondaryCtaLabel}
-                          onChange={(event) => setHomeLayout("heroSecondaryCtaLabel", event.target.value)}
-                          placeholder="Texto CTA secundario"
-                          className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                        />
-                        <input
-                          value={config.homeLayout.heroSecondaryCtaHref}
-                          onChange={(event) => setHomeLayout("heroSecondaryCtaHref", event.target.value)}
-                          placeholder="Enlace CTA secundario"
-                          className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                        />
-                        <select
-                          value={config.homeLayout.defaultCardDensity}
-                          onChange={(event) => setHomeLayout("defaultCardDensity", event.target.value)}
-                          className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                        >
-                          <option value="detailed">Tarjeta detallada</option>
-                          <option value="compact">Tarjeta compacta</option>
-                        </select>
-                        <select
-                          value={config.homeLayout.sectionSpacing}
-                          onChange={(event) => setHomeLayout("sectionSpacing", event.target.value)}
-                          className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                        >
-                          <option value="compact">Espaciado compacto</option>
-                          <option value="normal">Espaciado normal</option>
-                          <option value="airy">Espaciado amplio</option>
-                        </select>
                       </div>
                     </div>
 

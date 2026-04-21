@@ -1893,6 +1893,7 @@ export function CatalogHomeClient({ feed }: Props) {
   const [offersClientFilter, setOffersClientFilter] = useState("all");
   const [offersDateFrom, setOffersDateFrom] = useState("");
   const [offersDateTo, setOffersDateTo] = useState("");
+  const [showOffersFiltersMenu, setShowOffersFiltersMenu] = useState(false);
   const [countdownNowMs, setCountdownNowMs] = useState(() => Date.now());
   const manualObservationsEditorRef = useRef<HTMLDivElement | null>(null);
   const [observationsTemplateHtml, setObservationsTemplateHtml] = useState(
@@ -4452,6 +4453,21 @@ export function CatalogHomeClient({ feed }: Props) {
     offersDateFrom,
     offersDateTo,
   ]);
+  const offersFiltersActiveCount = useMemo(() => {
+    let count = 0;
+    if (offersSearchField !== "all") count += 1;
+    if (offersVehicleFilter !== "all") count += 1;
+    if (offersClientFilter !== "all") count += 1;
+    if (offersDateFrom) count += 1;
+    if (offersDateTo) count += 1;
+    return count;
+  }, [
+    offersSearchField,
+    offersVehicleFilter,
+    offersClientFilter,
+    offersDateFrom,
+    offersDateTo,
+  ]);
 
   const analyticsFilteredEvents = useMemo(() => {
     if (analyticsSource === "server") return analyticsBaseEvents;
@@ -6072,78 +6088,122 @@ export function CatalogHomeClient({ feed }: Props) {
                   <p className="mt-1 text-sm text-slate-600">
                     Tabla dinámica con filtros por vehículo, cliente y fecha. Puedes buscar en cualquier columna.
                   </p>
-                  <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                  <div className="relative mt-3 flex flex-wrap items-center gap-2">
                     <input
                       value={offersSearch}
                       onChange={(event) => setOffersSearch(event.target.value)}
                       placeholder="Buscar en tabla..."
-                      className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
-                    />
-                    <select
-                      value={offersSearchField}
-                      onChange={(event) => setOffersSearchField(event.target.value as OfferFilterField)}
-                      className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
-                    >
-                      <option value="all">Buscar en todas las columnas</option>
-                      <option value="vehicleTitle">Vehículo</option>
-                      <option value="patent">Patente</option>
-                      <option value="customerName">Cliente</option>
-                      <option value="customerEmail">Mail</option>
-                      <option value="customerPhone">Teléfono</option>
-                    </select>
-                    <select
-                      value={offersVehicleFilter}
-                      onChange={(event) => setOffersVehicleFilter(event.target.value)}
-                      className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
-                    >
-                      <option value="all">Todos los vehículos</option>
-                      {offersVehicleOptions.map((vehicle) => (
-                        <option key={`offer-vehicle-${vehicle}`} value={vehicle}>
-                          {vehicle}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      value={offersClientFilter}
-                      onChange={(event) => setOffersClientFilter(event.target.value)}
-                      className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
-                    >
-                      <option value="all">Todos los clientes</option>
-                      {offersClientOptions.map((client) => (
-                        <option key={`offer-client-${client}`} value={client}>
-                          {client}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      type="date"
-                      value={offersDateFrom}
-                      onChange={(event) => setOffersDateFrom(event.target.value)}
-                      className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
-                    />
-                    <input
-                      type="date"
-                      value={offersDateTo}
-                      onChange={(event) => setOffersDateTo(event.target.value)}
-                      className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
+                      className="ui-focus min-w-[16rem] flex-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
                     />
                     <button
                       type="button"
-                      onClick={() => {
-                        setOffersSearch("");
-                        setOffersSearchField("all");
-                        setOffersVehicleFilter("all");
-                        setOffersClientFilter("all");
-                        setOffersDateFrom("");
-                        setOffersDateTo("");
-                      }}
-                      className="ui-focus rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700"
+                      onClick={() => setShowOffersFiltersMenu((prev) => !prev)}
+                      className="ui-focus inline-flex h-9 items-center justify-center gap-1 rounded-md border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                      aria-label="Abrir filtros de ofertas"
+                      title="Filtros"
                     >
-                      Limpiar filtros
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        aria-hidden="true"
+                      >
+                        <path d="M3 5h18M6 12h12M10 19h4" strokeLinecap="round" />
+                      </svg>
+                      <span>Filtros</span>
+                      {offersFiltersActiveCount > 0 ? (
+                        <span className="rounded-full bg-cyan-600 px-1.5 py-0.5 text-[10px] text-white">
+                          {offersFiltersActiveCount}
+                        </span>
+                      ) : null}
                     </button>
-                    <div className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700">
+                    <div className="inline-flex h-9 items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-700">
                       {formatCompactNumber(offersFilteredRows.length)} resultado(s)
                     </div>
+                    {showOffersFiltersMenu ? (
+                      <div className="absolute right-0 top-full z-20 mt-2 w-full max-w-3xl rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Filtros avanzados
+                        </p>
+                        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                          <select
+                            value={offersSearchField}
+                            onChange={(event) =>
+                              setOffersSearchField(event.target.value as OfferFilterField)
+                            }
+                            className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
+                          >
+                            <option value="all">Buscar en todas las columnas</option>
+                            <option value="vehicleTitle">Vehículo</option>
+                            <option value="patent">Patente</option>
+                            <option value="customerName">Cliente</option>
+                            <option value="customerEmail">Mail</option>
+                            <option value="customerPhone">Teléfono</option>
+                          </select>
+                          <select
+                            value={offersVehicleFilter}
+                            onChange={(event) => setOffersVehicleFilter(event.target.value)}
+                            className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
+                          >
+                            <option value="all">Todos los vehículos</option>
+                            {offersVehicleOptions.map((vehicle) => (
+                              <option key={`offer-vehicle-${vehicle}`} value={vehicle}>
+                                {vehicle}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            value={offersClientFilter}
+                            onChange={(event) => setOffersClientFilter(event.target.value)}
+                            className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
+                          >
+                            <option value="all">Todos los clientes</option>
+                            {offersClientOptions.map((client) => (
+                              <option key={`offer-client-${client}`} value={client}>
+                                {client}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            type="date"
+                            value={offersDateFrom}
+                            onChange={(event) => setOffersDateFrom(event.target.value)}
+                            className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
+                          />
+                          <input
+                            type="date"
+                            value={offersDateTo}
+                            onChange={(event) => setOffersDateTo(event.target.value)}
+                            className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
+                          />
+                        </div>
+                        <div className="mt-3 flex flex-wrap justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOffersSearch("");
+                              setOffersSearchField("all");
+                              setOffersVehicleFilter("all");
+                              setOffersClientFilter("all");
+                              setOffersDateFrom("");
+                              setOffersDateTo("");
+                            }}
+                            className="ui-focus rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700"
+                          >
+                            Limpiar filtros
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowOffersFiltersMenu(false)}
+                            className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+                          >
+                            Cerrar
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
 
@@ -6155,7 +6215,7 @@ export function CatalogHomeClient({ feed }: Props) {
                   ) : offersFilteredRows.length === 0 ? (
                     <p className="p-4 text-sm text-slate-500">No hay ofertas para los filtros actuales.</p>
                   ) : (
-                    <table className="min-w-full text-left text-xs">
+                    <table className="min-w-[1280px] w-full text-left text-xs">
                       <thead className="bg-slate-50 text-slate-600">
                         <tr>
                           {[

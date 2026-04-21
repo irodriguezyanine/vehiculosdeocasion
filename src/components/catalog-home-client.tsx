@@ -2859,7 +2859,6 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       const stats = [
         { label: "Categorías visibles", value: String(calendarPdfSections.length) },
         { label: "Publicaciones visibles", value: String(totalRows) },
-        { label: "Generado", value: todayLabel },
       ];
 
       // Portada corporativa premium
@@ -2908,7 +2907,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       });
       doc.text(`Actualizado ${coverDate} · ${coverTime}`, pageWidth / 2, 282, { align: "center" });
 
-      const cardWidth = (usableWidth - 24) / 3;
+      const cardGap = 12;
+      const cardWidth = (usableWidth - cardGap * (stats.length - 1) - 16) / stats.length;
       let cardX = marginX + 8;
       for (const stat of stats) {
         doc.setDrawColor(...BRAND.border);
@@ -2920,11 +2920,10 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         doc.text(stat.label, cardX + cardWidth / 2, 348, { align: "center" });
         doc.setFont("helvetica", "bold");
         const valueLines = doc.splitTextToSize(stat.value, cardWidth - 22);
-        const valueFontSize = stat.label === "Generado" ? 13 : 21;
-        doc.setFontSize(valueFontSize);
+        doc.setFontSize(21);
         doc.setTextColor(...BRAND.navy);
         doc.text(valueLines, cardX + cardWidth / 2, 382, { align: "center" });
-        cardX += cardWidth + 12;
+        cardX += cardWidth + cardGap;
       }
 
       doc.setDrawColor(...BRAND.borderSoft);

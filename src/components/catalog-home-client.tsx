@@ -6108,22 +6108,21 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       </button>
                       <button
                         type="button"
-                        onClick={() => downloadSoldRowsExcel(soldFilteredRows, "filtrado")}
+                        onClick={() =>
+                          downloadSoldRowsExcel(
+                            soldFilteredRows,
+                            soldSearch.trim().length > 0 || soldFiltersActiveCount > 0
+                              ? "filtrado"
+                              : "total",
+                          )
+                        }
                         className="ui-focus inline-flex h-9 w-9 items-center justify-center rounded-md border border-emerald-300 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100"
-                        aria-label="Descargar Excel filtrado de vendidas"
-                        title="Excel filtrado"
-                      >
-                        <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
-                          <path d="M10 2a1 1 0 0 1 1 1v6.59l1.3-1.3a1 1 0 1 1 1.4 1.42l-3 2.97a1 1 0 0 1-1.4 0l-3-2.97a1 1 0 0 1 1.4-1.42l1.3 1.3V3a1 1 0 0 1 1-1Z" />
-                          <path d="M3 13a1 1 0 0 1 1 1v1h12v-1a1 1 0 1 1 2 0v2a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1Z" />
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => downloadSoldRowsExcel(soldHistoryRows, "total")}
-                        className="ui-focus inline-flex h-9 w-9 items-center justify-center rounded-md border border-cyan-300 bg-cyan-50 text-cyan-700 transition hover:bg-cyan-100"
-                        aria-label="Descargar Excel completo de vendidas"
-                        title="Excel completo"
+                        aria-label="Descargar Excel de unidades vendidas"
+                        title={
+                          soldSearch.trim().length > 0 || soldFiltersActiveCount > 0
+                            ? "Descargar Excel filtrado"
+                            : "Descargar Excel completo"
+                        }
                       >
                         <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
                           <path d="M10 2a1 1 0 0 1 1 1v6.59l1.3-1.3a1 1 0 1 1 1.4 1.42l-3 2.97a1 1 0 0 1-1.4 0l-3-2.97a1 1 0 0 1 1.4-1.42l1.3 1.3V3a1 1 0 0 1 1-1Z" />

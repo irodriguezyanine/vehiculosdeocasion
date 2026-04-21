@@ -2751,75 +2751,53 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     };
 
     const sections: CalendarPdfSection[] = [];
-    for (const sectionId of resolvedHomeSectionOrder) {
-      if (sectionId.startsWith("managed:")) {
-        const managedCategoryId = sectionId.replace("managed:", "");
-        const category = managedCategorySections.find((entry) => entry.id === managedCategoryId);
-        if (!category || category.items.length === 0) continue;
-        sections.push({
-          categoryTitle: category.name,
-          categorySubtitle: category.description?.trim() || "Categoría personalizada visible en el home.",
-          rows: category.items.map(buildRow),
-        });
-        continue;
-      }
 
-      if (sectionId === "proximos-remates") {
-        if (hasUpcomingAuctionCategories) {
-          for (const group of upcomingAuctionGroups) {
-            if (group.items.length === 0) continue;
-            sections.push({
-              categoryTitle: `Próximos remates - ${group.auction.name}`,
-              categorySubtitle: formatAuctionDateLabel(group.auction.date) || "Fecha por confirmar",
-              rows: group.items.map(buildRow),
-            });
-          }
-        } else if (proximosRemates.length > 0) {
-          sections.push({
-            categoryTitle: config.sectionTexts["proximos-remates"].title,
-            categorySubtitle: config.sectionTexts["proximos-remates"].subtitle,
-            rows: proximosRemates.map(buildRow),
-          });
-        }
-        continue;
-      }
-
-      if (sectionId === "ventas-directas" && ventasDirectas.length > 0) {
+    if (hasUpcomingAuctionCategories) {
+      for (const group of upcomingAuctionGroups) {
+        if (group.items.length === 0) continue;
         sections.push({
-          categoryTitle: config.sectionTexts["ventas-directas"].title,
-          categorySubtitle: config.sectionTexts["ventas-directas"].subtitle,
-          rows: ventasDirectas.map(buildRow),
-        });
-        continue;
-      }
-
-      if (sectionId === "novedades" && novedades.length > 0) {
-        sections.push({
-          categoryTitle: config.sectionTexts.novedades.title,
-          categorySubtitle: config.sectionTexts.novedades.subtitle,
-          rows: novedades.map(buildRow),
-        });
-        continue;
-      }
-
-      if (sectionId === "catalogo" && filteredCatalogItems.length > 0) {
-        sections.push({
-          categoryTitle: config.sectionTexts.catalogo.title,
-          categorySubtitle: config.sectionTexts.catalogo.subtitle,
-          rows: filteredCatalogItems.map(buildRow),
+          categoryTitle: `Remates disponibles - ${group.auction.name}`,
+          categorySubtitle: formatAuctionDateLabel(group.auction.date) || "Fecha por confirmar",
+          rows: group.items.map(buildRow),
         });
       }
+    } else if (proximosRemates.length > 0) {
+      sections.push({
+        categoryTitle: "Remates disponibles",
+        categorySubtitle: "Vehículos activos en próximos remates.",
+        rows: proximosRemates.map(buildRow),
+      });
+    }
+
+    if (ventasDirectas.length > 0) {
+      sections.push({
+        categoryTitle: "Ventas directas",
+        categorySubtitle: config.sectionTexts["ventas-directas"].subtitle || "Stock disponible para cierre rápido.",
+        rows: ventasDirectas.map(buildRow),
+      });
+    }
+
+    const excludedKeys = new Set([
+      ...proximosRemates.map((item) => getVehicleKey(item)),
+      ...ventasDirectas.map((item) => getVehicleKey(item)),
+    ]);
+    const otrosRematesItems = homeVisibleItems.filter((item) => (
+      inferVehicleType(item) === "otros" && !excludedKeys.has(getVehicleKey(item))
+    ));
+    if (otrosRematesItems.length > 0) {
+      sections.push({
+        categoryTitle: "Otros remates",
+        categorySubtitle: "Publicaciones activas clasificadas como otros remates.",
+        rows: otrosRematesItems.map(buildRow),
+      });
     }
     return sections;
   }, [
-    resolvedHomeSectionOrder,
-    managedCategorySections,
     hasUpcomingAuctionCategories,
     upcomingAuctionGroups,
     proximosRemates,
     ventasDirectas,
-    novedades,
-    filteredCatalogItems,
+    homeVisibleItems,
     upcomingAuctionByVehicleKey,
     config.vehiclePrices,
     config.sectionTexts,
@@ -2884,79 +2862,97 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         { label: "Generado", value: todayLabel },
       ];
 
-      // Portada corporativa
+      // Portada corporativa premium
       doc.setFillColor(...BRAND.navy);
-      doc.rect(0, 0, pageWidth, 152, "F");
+      doc.rect(0, 0, pageWidth, pageHeight, "F");
       doc.setFillColor(...BRAND.cyan);
-      doc.rect(0, 146, pageWidth, 6, "F");
-      if (logoDataUrl) {
-        doc.addImage(logoDataUrl, "PNG", marginX, 34, 138, 38);
-      }
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(12);
-      doc.setTextColor(191, 219, 254);
-      doc.text("CATALOGO CORPORATIVO", marginX, 102);
-      doc.setFontSize(28);
-      doc.setTextColor(...BRAND.navy);
-      doc.text("Catalogo Vedisa", marginX, 212);
-      doc.setFontSize(14);
-      doc.setTextColor(...BRAND.indigo);
-      doc.text("Publicaciones visibles por calendario y categorias", marginX, 238);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      doc.setTextColor(...BRAND.slateMuted);
-      doc.text(`Documento: ${exportFileName}`, marginX, 262);
+      doc.rect(0, 0, pageWidth, 14, "F");
+      doc.setFillColor(...BRAND.indigo);
+      doc.rect(0, pageHeight - 14, pageWidth, 14, "F");
 
-      const cardWidth = (usableWidth - 16) / 3;
-      let cardX = marginX;
+      doc.setDrawColor(36, 86, 167);
+      doc.setFillColor(255, 255, 255);
+      doc.roundedRect(marginX, 72, usableWidth, pageHeight - 160, 14, 14, "FD");
+
+      if (logoDataUrl) {
+        const logoWidth = 210;
+        const logoHeight = 58;
+        doc.addImage(
+          logoDataUrl,
+          "PNG",
+          (pageWidth - logoWidth) / 2,
+          110,
+          logoWidth,
+          logoHeight,
+        );
+      }
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(30);
+      doc.setTextColor(...BRAND.navy);
+      doc.text("Catalogo Vedisa", pageWidth / 2, 230, { align: "center" });
+      doc.setFontSize(15);
+      doc.setTextColor(...BRAND.indigo);
+      doc.text("Reporte corporativo de publicaciones", pageWidth / 2, 258, { align: "center" });
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
+      doc.setTextColor(...BRAND.slateMuted);
+      doc.text(`Documento: ${exportFileName}`, pageWidth / 2, 282, { align: "center" });
+
+      const cardWidth = (usableWidth - 24) / 3;
+      let cardX = marginX + 8;
       for (const stat of stats) {
         doc.setDrawColor(...BRAND.border);
         doc.setFillColor(...BRAND.cyanSoft);
-        doc.roundedRect(cardX, 292, cardWidth, 68, 6, 6, "FD");
+        doc.roundedRect(cardX, 322, cardWidth, 84, 8, 8, "FD");
         doc.setFont("helvetica", "normal");
         doc.setFontSize(9);
         doc.setTextColor(...BRAND.slateMuted);
-        doc.text(stat.label, cardX + 10, 314);
+        doc.text(stat.label, cardX + 12, 346);
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(14);
+        doc.setFontSize(19);
         doc.setTextColor(...BRAND.navy);
-        doc.text(stat.value, cardX + 10, 338);
-        cardX += cardWidth + 8;
+        doc.text(stat.value, cardX + 12, 380);
+        cardX += cardWidth + 12;
       }
 
       doc.setDrawColor(...BRAND.borderSoft);
-      doc.line(marginX, 386, pageWidth - marginX, 386);
+      doc.line(marginX + 20, 442, pageWidth - marginX - 20, 442);
       doc.setFont("helvetica", "italic");
-      doc.setFontSize(9);
+      doc.setFontSize(10);
       doc.setTextColor(...BRAND.slateMuted);
       doc.text(
-        "Este PDF incluye exclusivamente las publicaciones visibles al momento de la descarga.",
-        marginX,
-        406,
+        "Incluye exclusivamente: remates disponibles, ventas directas y otros remates visibles.",
+        pageWidth / 2,
+        464,
+        { align: "center" },
       );
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(...BRAND.indigo);
+      doc.text("VEDISA REMATES", pageWidth / 2, pageHeight - 54, { align: "center" });
 
       // Seccion detallada
       doc.addPage();
       let y = 42;
 
       const drawPageHeader = () => {
-        doc.setFillColor(...BRAND.cyanSoft);
+        doc.setFillColor(...BRAND.navy);
         doc.rect(0, 0, pageWidth, 64, "F");
         doc.setFillColor(...BRAND.cyan);
-        doc.rect(0, 60, pageWidth, 4, "F");
+        doc.rect(0, 58, pageWidth, 6, "F");
         if (logoDataUrl) {
-          doc.addImage(logoDataUrl, "PNG", marginX, 14, 92, 25);
+          doc.addImage(logoDataUrl, "PNG", marginX, 16, 84, 22);
         }
         doc.setFont("helvetica", "bold");
         doc.setFontSize(12);
-        doc.setTextColor(...BRAND.navy);
-        doc.text("Detalle de publicaciones visibles", marginX + (logoDataUrl ? 104 : 0), 31);
+        doc.setTextColor(...BRAND.white);
+        doc.text("Detalle de publicaciones visibles", marginX + (logoDataUrl ? 96 : 0), 31);
         doc.setFont("helvetica", "normal");
         doc.setFontSize(9);
-        doc.setTextColor(...BRAND.slateMuted);
+        doc.setTextColor(191, 219, 254);
         doc.text(todayLabel, pageWidth - marginX, 31, { align: "right" });
-        doc.setDrawColor(...BRAND.borderSoft);
-        doc.line(marginX, 64, pageWidth - marginX, 64);
         y = 82;
       };
 
@@ -2991,23 +2987,23 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
 
       drawPageHeader();
       for (const section of calendarPdfSections) {
-        ensureSpace(48);
+        ensureSpace(62);
         doc.setFillColor(...BRAND.cyanSoft);
-        doc.roundedRect(marginX, y, usableWidth, 24, 4, 4, "F");
+        doc.roundedRect(marginX, y, usableWidth, 30, 6, 6, "F");
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(11);
+        doc.setFontSize(14);
         doc.setTextColor(...BRAND.indigo);
-        doc.text(`${section.categoryTitle} (${section.rows.length})`, marginX + 8, y + 16);
-        y += 28;
+        doc.text(`${section.categoryTitle} (${section.rows.length})`, marginX + 10, y + 20);
+        y += 36;
 
         if (section.categorySubtitle.trim()) {
           doc.setFont("helvetica", "normal");
-          doc.setFontSize(9);
+          doc.setFontSize(10);
           doc.setTextColor(...BRAND.slateMuted);
           const subtitleLines = doc.splitTextToSize(section.categorySubtitle, usableWidth);
-          ensureSpace(subtitleLines.length * 10 + 8);
+          ensureSpace(subtitleLines.length * 12 + 12);
           doc.text(subtitleLines, marginX, y);
-          y += subtitleLines.length * 10 + 6;
+          y += subtitleLines.length * 12 + 10;
         }
 
         drawTableHeader();
@@ -3034,14 +3030,14 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           for (let i = 0; i < tableColumns.length; i += 1) {
             if (i > 0) doc.line(cellX, y, cellX, y + rowHeight);
             doc.setFont("helvetica", i === 0 ? "bold" : "normal");
-            doc.setFontSize(8.5);
+            doc.setFontSize(9.2);
             doc.setTextColor(...BRAND.slateText);
             doc.text(linesByCol[i], cellX + 5, y + linePaddingY + 8);
             cellX += tableColumns[i].width;
           }
           y += rowHeight;
         }
-        y += 10;
+        y += 16;
       }
 
       const totalPages = doc.getNumberOfPages();

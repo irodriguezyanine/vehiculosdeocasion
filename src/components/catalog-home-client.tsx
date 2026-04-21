@@ -5534,305 +5534,275 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             ) : null}
 
             {adminTab === "layout" ? (
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        Constructor del Home
-                      </p>
-                      <h4 className="text-base font-bold text-slate-900">
-                        Simulación en vivo + edición automática
-                      </h4>
-                      <p className="mt-1 text-sm text-slate-600">
-                        Todo cambio se aplica al instante y se guarda automáticamente.
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="inline-flex rounded-full border border-slate-300 bg-white p-1">
-                        <button
-                          type="button"
-                          onClick={() => setLayoutEditorMode("simple")}
-                          className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold ${
-                            layoutEditorMode === "simple" ? "bg-cyan-600 text-white" : "text-slate-700"
-                          }`}
-                        >
-                          Simple
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setLayoutEditorMode("advanced")}
-                          className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold ${
-                            layoutEditorMode === "advanced" ? "bg-cyan-600 text-white" : "text-slate-700"
-                          }`}
-                        >
-                          Avanzada
-                        </button>
-                      </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Constructor del Home
+                    </p>
+                    <h4 className="text-base font-bold text-slate-900">
+                      Simulación del home (edición directa)
+                    </h4>
+                    <p className="mt-1 text-sm text-slate-600">
+                      Todo se edita desde esta única vista: textos HTML, visibilidad de bloques y orden de secciones.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="inline-flex rounded-full border border-slate-300 bg-white p-1">
                       <button
                         type="button"
-                        onClick={resetHomeLayoutToDefault}
-                        className="ui-focus rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
+                        onClick={() => setLayoutEditorMode("simple")}
+                        className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold ${
+                          layoutEditorMode === "simple" ? "bg-cyan-600 text-white" : "text-slate-700"
+                        }`}
                       >
-                        Restaurar base
+                        Simple
                       </button>
-                    </div>
-                  </div>
-
-                  <div className="mb-4 grid gap-2 md:grid-cols-3">
-                    {HOME_LAYOUT_PRESETS.map((preset) => (
                       <button
-                        key={preset.id}
                         type="button"
-                        onClick={() => applyHomeLayoutPreset(preset.id)}
-                        className="ui-focus rounded-lg border border-cyan-200 bg-cyan-50/50 px-3 py-2 text-left transition hover:bg-cyan-100"
+                        onClick={() => setLayoutEditorMode("advanced")}
+                        className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold ${
+                          layoutEditorMode === "advanced" ? "bg-cyan-600 text-white" : "text-slate-700"
+                        }`}
                       >
-                        <p className="text-xs font-bold uppercase tracking-wide text-cyan-800">{preset.label}</p>
-                        <p className="mt-1 text-xs text-slate-600">{preset.description}</p>
+                        Avanzada
                       </button>
-                    ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={resetHomeLayoutToDefault}
+                      className="ui-focus rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
+                    >
+                      Restaurar base
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mb-4 grid gap-2 md:grid-cols-3">
+                  {HOME_LAYOUT_PRESETS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => applyHomeLayoutPreset(preset.id)}
+                      className="ui-focus rounded-lg border border-cyan-200 bg-cyan-50/50 px-3 py-2 text-left transition hover:bg-cyan-100"
+                    >
+                      <p className="text-xs font-bold uppercase tracking-wide text-cyan-800">{preset.label}</p>
+                      <p className="mt-1 text-xs text-slate-600">{preset.description}</p>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Simulación del home (tiempo real)
+                    </p>
+                    <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                      Auto guardado activo
+                    </span>
                   </div>
 
-                  <div className="grid gap-4 xl:grid-cols-[390px_minmax(0,1fr)]">
-                    <div className="space-y-3">
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          Contenido principal
+                  <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-3">
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-2">
+                      <div className="mb-2 flex items-center justify-between">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                          Barra de búsqueda
                         </p>
-                        <div className="grid gap-2">
-                          <input
-                            value={config.homeLayout.heroKicker}
-                            onChange={(event) => setHomeLayout("heroKicker", event.target.value)}
-                            placeholder="Kicker"
-                            className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                          />
-                          <input
-                            value={config.homeLayout.heroTitle}
-                            onChange={(event) => setHomeLayout("heroTitle", event.target.value)}
-                            placeholder="Título principal"
-                            className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                          />
-                          <textarea
-                            value={config.homeLayout.heroDescription}
-                            onChange={(event) => setHomeLayout("heroDescription", event.target.value)}
-                            placeholder="Descripción del hero"
-                            className="ui-focus min-h-20 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                          />
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => toggleHomeLayoutFlag("showSearchBar", !config.homeLayout.showSearchBar)}
+                          className={`ui-focus rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                            config.homeLayout.showSearchBar ? "bg-cyan-600 text-white" : "bg-slate-200 text-slate-700"
+                          }`}
+                        >
+                          {config.homeLayout.showSearchBar ? "Visible" : "Oculta"}
+                        </button>
                       </div>
-
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          Bloques visibles
-                        </p>
-                        <div className="grid gap-2">
-                          {([
-                            ["showSearchBar", "Barra de búsqueda"],
-                            ["showQuickFilters", "Quick filters"],
-                            ["showSortSelector", "Selector de orden"],
-                            ["showFeaturedStrip", "Vitrina destacada"],
-                            ["showCommercialPanel", "Panel comercial"],
-                            ["showHowToSection", "Cómo participar"],
-                            ["showFavoritesSection", "Favoritos"],
-                            ["showRecentPublications", "Recién publicados"],
-                          ] as const).map(([field, label]) => (
-                            <button
-                              key={field}
-                              type="button"
-                              onClick={() => toggleHomeLayoutFlag(field, !config.homeLayout[field])}
-                              className={`ui-focus flex items-center justify-between rounded-md border px-3 py-2 text-sm ${
-                                config.homeLayout[field]
-                                  ? "border-cyan-600 bg-cyan-600 text-white"
-                                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                              }`}
-                            >
-                              <span>{label}</span>
-                              <span className="text-xs font-semibold">
-                                {config.homeLayout[field] ? "ON" : "OFF"}
-                              </span>
-                            </button>
-                          ))}
+                      {config.homeLayout.showSearchBar ? (
+                        <div className="h-8 rounded-md border border-slate-300 bg-white" />
+                      ) : (
+                        <div className="rounded-md border border-dashed border-slate-300 bg-slate-100 p-2 text-xs text-slate-500">
+                          Bloque oculto
                         </div>
-                      </div>
-
-                      {layoutEditorMode === "advanced" ? (
-                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                            Estilo y CTA
-                          </p>
-                          <div className="grid gap-2">
-                            <select
-                              value={config.homeLayout.heroAlignment}
-                              onChange={(event) => setHomeLayout("heroAlignment", event.target.value)}
-                              className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                            >
-                              <option value="left">Hero alineado a la izquierda</option>
-                              <option value="center">Hero centrado</option>
-                            </select>
-                            <select
-                              value={config.homeLayout.heroTheme}
-                              onChange={(event) => setHomeLayout("heroTheme", event.target.value)}
-                              className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                            >
-                              <option value="cyan">Tema cyan</option>
-                              <option value="indigo">Tema indigo</option>
-                              <option value="slate">Tema slate</option>
-                            </select>
-                            <input
-                              value={config.homeLayout.heroPrimaryCtaLabel}
-                              onChange={(event) => setHomeLayout("heroPrimaryCtaLabel", event.target.value)}
-                              placeholder="Texto CTA principal"
-                              className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                            />
-                            <input
-                              value={config.homeLayout.heroPrimaryCtaHref}
-                              onChange={(event) => setHomeLayout("heroPrimaryCtaHref", event.target.value)}
-                              placeholder="Enlace CTA principal"
-                              className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                            />
-                            <input
-                              value={config.homeLayout.heroSecondaryCtaLabel}
-                              onChange={(event) => setHomeLayout("heroSecondaryCtaLabel", event.target.value)}
-                              placeholder="Texto CTA secundario"
-                              className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                            />
-                            <input
-                              value={config.homeLayout.heroSecondaryCtaHref}
-                              onChange={(event) => setHomeLayout("heroSecondaryCtaHref", event.target.value)}
-                              placeholder="Enlace CTA secundario"
-                              className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                            />
-                            <div className="grid grid-cols-2 gap-2">
-                              <select
-                                value={config.homeLayout.defaultCardDensity}
-                                onChange={(event) => setHomeLayout("defaultCardDensity", event.target.value)}
-                                className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                              >
-                                <option value="detailed">Tarjeta detallada</option>
-                                <option value="compact">Tarjeta compacta</option>
-                              </select>
-                              <select
-                                value={config.homeLayout.sectionSpacing}
-                                onChange={(event) => setHomeLayout("sectionSpacing", event.target.value)}
-                                className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                              >
-                                <option value="compact">Espaciado compacto</option>
-                                <option value="normal">Espaciado normal</option>
-                                <option value="airy">Espaciado amplio</option>
-                              </select>
-                            </div>
-                          </div>
-                        </div>
-                      ) : null}
+                      )}
                     </div>
 
-                    <div className="space-y-3">
-                      <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-3">
-                        <div className="mb-2 flex items-center justify-between">
-                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                            Simulación del home (tiempo real)
-                          </p>
-                          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
-                            Auto guardado activo
-                          </span>
-                        </div>
+                    <div
+                      className={`rounded-lg border p-3 ${
+                        config.homeLayout.heroTheme === "indigo"
+                          ? "border-indigo-200 bg-indigo-50"
+                          : config.homeLayout.heroTheme === "slate"
+                            ? "border-slate-300 bg-slate-100"
+                            : "border-cyan-200 bg-cyan-50"
+                      }`}
+                    >
+                      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                        Hero editable (admite HTML)
+                      </p>
+                      <div className="grid gap-2">
+                        <input
+                          value={config.homeLayout.heroKicker}
+                          onChange={(event) => setHomeLayout("heroKicker", event.target.value)}
+                          placeholder="Kicker"
+                          className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                        />
+                        <input
+                          value={config.homeLayout.heroTitle}
+                          onChange={(event) => setHomeLayout("heroTitle", event.target.value)}
+                          placeholder="Título principal"
+                          className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                        />
+                        <textarea
+                          value={config.homeLayout.heroDescription}
+                          onChange={(event) => setHomeLayout("heroDescription", event.target.value)}
+                          placeholder="Descripción del hero (puedes pegar HTML)"
+                          className="ui-focus min-h-20 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                        />
+                      </div>
+                    </div>
 
-                        <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-3">
-                          {config.homeLayout.showSearchBar ? (
-                            <div className="rounded-lg border border-slate-200 bg-slate-50 p-2">
-                              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                                Búsqueda visible
-                              </p>
-                              <div className="mt-1 h-8 rounded-md border border-slate-300 bg-white" />
-                            </div>
-                          ) : (
-                            <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-2 text-xs text-slate-500">
-                              Búsqueda oculta
-                            </div>
-                          )}
-
-                          <div
-                            className={`rounded-lg border p-3 ${
-                              config.homeLayout.heroTheme === "indigo"
-                                ? "border-indigo-200 bg-indigo-50"
-                                : config.homeLayout.heroTheme === "slate"
-                                  ? "border-slate-300 bg-slate-100"
-                                  : "border-cyan-200 bg-cyan-50"
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-2">
+                      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                        Bloques del home (visibilidad)
+                      </p>
+                      <div className="grid gap-2 md:grid-cols-2">
+                        {([
+                          ["showQuickFilters", "Quick filters"],
+                          ["showSortSelector", "Selector de orden"],
+                          ["showFeaturedStrip", "Vitrina destacada"],
+                          ["showCommercialPanel", "Panel comercial"],
+                          ["showHowToSection", "Cómo participar"],
+                          ["showFavoritesSection", "Favoritos"],
+                          ["showRecentPublications", "Recién publicados"],
+                        ] as const).map(([field, label]) => (
+                          <button
+                            key={field}
+                            type="button"
+                            onClick={() => toggleHomeLayoutFlag(field, !config.homeLayout[field])}
+                            className={`ui-focus flex items-center justify-between rounded-md border px-3 py-2 text-sm ${
+                              config.homeLayout[field]
+                                ? "border-cyan-600 bg-cyan-600 text-white"
+                                : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
                             }`}
                           >
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                              {config.homeLayout.heroKicker || "Kicker"}
-                            </p>
-                            <p className="mt-1 text-lg font-black text-slate-900">
-                              {config.homeLayout.heroTitle || "Título del hero"}
-                            </p>
-                            <p className="mt-1 text-xs text-slate-600">
-                              {config.homeLayout.heroDescription || "Descripción del hero"}
-                            </p>
-                          </div>
+                            <span>{label}</span>
+                            <span className="text-xs font-semibold">
+                              {config.homeLayout[field] ? "ON" : "OFF"}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
 
-                          {resolvedHomeSectionOrder.map((sectionId) => {
-                            const label = isBaseHomeSectionOrderId(sectionId)
-                              ? SECTION_LABELS[sectionId]
-                              : managedCategoryOrderLabelById.get(sectionId) ?? "Categoría personalizada";
-                            const count = homeSectionCountById.get(sectionId) ?? 0;
-                            return (
-                              <div
-                                key={`layout-preview-${sectionId}`}
-                                className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
-                              >
-                                <span className="font-semibold text-slate-800">{label}</span>
-                                <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-slate-600">
-                                  {count} ítems
-                                </span>
-                              </div>
-                            );
-                          })}
+                    {layoutEditorMode === "advanced" ? (
+                      <div className="rounded-lg border border-slate-200 bg-slate-50 p-2">
+                        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                          Configuración avanzada dentro de la simulación
+                        </p>
+                        <div className="grid gap-2 md:grid-cols-2">
+                          <select
+                            value={config.homeLayout.heroAlignment}
+                            onChange={(event) => setHomeLayout("heroAlignment", event.target.value)}
+                            className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                          >
+                            <option value="left">Hero alineado a la izquierda</option>
+                            <option value="center">Hero centrado</option>
+                          </select>
+                          <select
+                            value={config.homeLayout.heroTheme}
+                            onChange={(event) => setHomeLayout("heroTheme", event.target.value)}
+                            className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                          >
+                            <option value="cyan">Tema cyan</option>
+                            <option value="indigo">Tema indigo</option>
+                            <option value="slate">Tema slate</option>
+                          </select>
+                          <input
+                            value={config.homeLayout.heroPrimaryCtaLabel}
+                            onChange={(event) => setHomeLayout("heroPrimaryCtaLabel", event.target.value)}
+                            placeholder="Texto CTA principal"
+                            className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                          />
+                          <input
+                            value={config.homeLayout.heroPrimaryCtaHref}
+                            onChange={(event) => setHomeLayout("heroPrimaryCtaHref", event.target.value)}
+                            placeholder="Enlace CTA principal"
+                            className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                          />
+                          <input
+                            value={config.homeLayout.heroSecondaryCtaLabel}
+                            onChange={(event) => setHomeLayout("heroSecondaryCtaLabel", event.target.value)}
+                            placeholder="Texto CTA secundario"
+                            className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                          />
+                          <input
+                            value={config.homeLayout.heroSecondaryCtaHref}
+                            onChange={(event) => setHomeLayout("heroSecondaryCtaHref", event.target.value)}
+                            placeholder="Enlace CTA secundario"
+                            className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                          />
+                          <select
+                            value={config.homeLayout.defaultCardDensity}
+                            onChange={(event) => setHomeLayout("defaultCardDensity", event.target.value)}
+                            className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                          >
+                            <option value="detailed">Tarjeta detallada</option>
+                            <option value="compact">Tarjeta compacta</option>
+                          </select>
+                          <select
+                            value={config.homeLayout.sectionSpacing}
+                            onChange={(event) => setHomeLayout("sectionSpacing", event.target.value)}
+                            className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                          >
+                            <option value="compact">Espaciado compacto</option>
+                            <option value="normal">Espaciado normal</option>
+                            <option value="airy">Espaciado amplio</option>
+                          </select>
                         </div>
                       </div>
+                    ) : null}
 
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          Orden de secciones (arrastrar y soltar)
-                        </p>
-                        <div className="space-y-2">
-                          {resolvedHomeSectionOrder.map((sectionId) => {
-                            const label = isBaseHomeSectionOrderId(sectionId)
-                              ? SECTION_LABELS[sectionId]
-                              : managedCategoryOrderLabelById.get(sectionId) ?? "Categoría personalizada";
-                            const count = homeSectionCountById.get(sectionId) ?? 0;
-                            const isDragging = draggedLayoutSectionId === sectionId;
-                            return (
-                              <button
-                                key={`layout-sort-${sectionId}`}
-                                type="button"
-                                draggable
-                                onDragStart={() => setDraggedLayoutSectionId(sectionId)}
-                                onDragEnd={() => setDraggedLayoutSectionId(null)}
-                                onDragOver={(event) => event.preventDefault()}
-                                onDrop={(event) => {
-                                  event.preventDefault();
-                                  if (!draggedLayoutSectionId) return;
-                                  reorderHomeSectionOrder(draggedLayoutSectionId, sectionId);
-                                  setDraggedLayoutSectionId(null);
-                                }}
-                                className={`ui-focus flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition ${
-                                  isDragging
-                                    ? "border-cyan-400 bg-cyan-100 text-cyan-900"
-                                    : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
-                                }`}
-                              >
-                                <span className="inline-flex items-center gap-2">
-                                  <span aria-hidden="true" className="text-base leading-none text-slate-400">⋮⋮</span>
-                                  <span className="font-semibold">{label}</span>
-                                </span>
-                                <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold">
-                                  {count}
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-2">
+                      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                        Orden de secciones (arrastrar y soltar)
+                      </p>
+                      <div className="space-y-2">
+                        {resolvedHomeSectionOrder.map((sectionId) => {
+                          const label = isBaseHomeSectionOrderId(sectionId)
+                            ? SECTION_LABELS[sectionId]
+                            : managedCategoryOrderLabelById.get(sectionId) ?? "Categoría personalizada";
+                          const count = homeSectionCountById.get(sectionId) ?? 0;
+                          const isDragging = draggedLayoutSectionId === sectionId;
+                          return (
+                            <button
+                              key={`layout-sort-${sectionId}`}
+                              type="button"
+                              draggable
+                              onDragStart={() => setDraggedLayoutSectionId(sectionId)}
+                              onDragEnd={() => setDraggedLayoutSectionId(null)}
+                              onDragOver={(event) => event.preventDefault()}
+                              onDrop={(event) => {
+                                event.preventDefault();
+                                if (!draggedLayoutSectionId) return;
+                                reorderHomeSectionOrder(draggedLayoutSectionId, sectionId);
+                                setDraggedLayoutSectionId(null);
+                              }}
+                              className={`ui-focus flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition ${
+                                isDragging
+                                  ? "border-cyan-400 bg-cyan-100 text-cyan-900"
+                                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                              }`}
+                            >
+                              <span className="inline-flex items-center gap-2">
+                                <span aria-hidden="true" className="text-base leading-none text-slate-400">⋮⋮</span>
+                                <span className="font-semibold">{label}</span>
+                              </span>
+                              <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold">
+                                {count}
+                              </span>
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>

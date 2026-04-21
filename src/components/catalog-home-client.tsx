@@ -1870,7 +1870,7 @@ export function CatalogHomeClient({ feed }: Props) {
   const [detailEditorTab, setDetailEditorTab] = useState<DetailEditorTabId>("general");
   const [selectedVehicleTab, setSelectedVehicleTab] = useState<VehicleDetailTabId>("general");
   const [revalidating, setRevalidating] = useState(false);
-  const [isBootstrapping, setIsBootstrapping] = useState(true);
+  const [isBootstrapping, setIsBootstrapping] = useState(false);
   const [analyticsRangeDays, setAnalyticsRangeDays] = useState<7 | 30 | 90>(30);
   const [analyticsEvents, setAnalyticsEvents] = useState<AnalyticsEventPayload[]>([]);
   const [serverAnalyticsEvents, setServerAnalyticsEvents] = useState<AnalyticsEventPayload[]>([]);

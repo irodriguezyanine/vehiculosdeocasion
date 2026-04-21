@@ -22,6 +22,15 @@ export type ManagedCategory = {
   visible: boolean;
 };
 
+export type SoldVehicleRecord = {
+  vehicleKey: string;
+  patent: string;
+  title: string;
+  soldAt: string;
+  auctionId?: string;
+  auctionName?: string;
+};
+
 export type HomeLayoutConfig = {
   heroKicker: string;
   heroTitle: string;
@@ -135,6 +144,8 @@ export type EditorVehicleDetails = {
 export type EditorConfig = {
   sectionVehicleIds: Record<SectionId, string[]>;
   hiddenVehicleIds: string[];
+  soldVehicleIds: string[];
+  soldVehicleHistory: SoldVehicleRecord[];
   vehiclePrices: Record<string, string>;
   vehicleDetails: Record<string, EditorVehicleDetails>;
   upcomingAuctions: UpcomingAuction[];
@@ -153,6 +164,8 @@ export const DEFAULT_EDITOR_CONFIG: EditorConfig = {
     catalogo: [],
   },
   hiddenVehicleIds: [],
+  soldVehicleIds: [],
+  soldVehicleHistory: [],
   vehiclePrices: {},
   vehicleDetails: {},
   upcomingAuctions: [],

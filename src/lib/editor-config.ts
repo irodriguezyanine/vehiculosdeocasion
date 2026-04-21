@@ -59,6 +59,8 @@ function normalizeConfig(config?: Partial<EditorConfig> | null): EditorConfig {
       catalogo: config?.sectionVehicleIds?.catalogo ?? defaults.sectionVehicleIds.catalogo,
     },
     hiddenVehicleIds: config?.hiddenVehicleIds ?? defaults.hiddenVehicleIds,
+    soldVehicleIds: config?.soldVehicleIds ?? defaults.soldVehicleIds,
+    soldVehicleHistory: config?.soldVehicleHistory ?? defaults.soldVehicleHistory,
     vehiclePrices: config?.vehiclePrices ?? defaults.vehiclePrices,
     vehicleDetails: config?.vehicleDetails ?? defaults.vehicleDetails,
     upcomingAuctions: config?.upcomingAuctions ?? defaults.upcomingAuctions,

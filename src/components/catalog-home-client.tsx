@@ -1775,10 +1775,13 @@ function UpcomingAuctionsSection({
 
 type Props = {
   feed: CatalogFeed;
+  initialConfig: EditorConfig;
 };
 
-export function CatalogHomeClient({ feed }: Props) {
-  const [config, setConfig] = useState<EditorConfig>(DEFAULT_EDITOR_CONFIG);
+export function CatalogHomeClient({ feed, initialConfig }: Props) {
+  const [config, setConfig] = useState<EditorConfig>(() =>
+    normalizeEditorConfigClient(initialConfig),
+  );
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminView, setAdminView] = useState<"editor" | "home">("home");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -2494,7 +2497,13 @@ export function CatalogHomeClient({ feed }: Props) {
   const ventasDirectas = getSectionItems("ventas-directas");
   const novedades = getSectionItems("novedades");
   const catalogoItems = getSectionItems("catalogo");
-  const filteredCatalogItems = catalogoItems.filter((item) => inferVehicleType(item) === activeTypeTab);
+  const hasHomePreFilter =
+    homeSearchTerm.trim().length > 0 ||
+    quickFilters.length > 0 ||
+    topSectionFilter !== "all";
+  const filteredCatalogItems = hasHomePreFilter
+    ? catalogoItems
+    : catalogoItems.filter((item) => inferVehicleType(item) === activeTypeTab);
   const managedCategorySections = useMemo(
     () =>
       (config.managedCategories ?? [])
@@ -6831,19 +6840,21 @@ export function CatalogHomeClient({ feed }: Props) {
                     {config.sectionTexts.catalogo.subtitle} Usa filtros y comparación para decidir más rápido.
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {(["livianos", "pesados", "maquinaria", "otros"] as VehicleTypeId[]).map((type) => (
-                    <button
-                      key={type}
-                      onClick={() => setActiveTypeTab(type)}
-                      className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold transition ${
-                        activeTypeTab === type ? "bg-cyan-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                      }`}
-                    >
-                      {type === "livianos" ? "Vehiculos livianos" : type === "pesados" ? "Vehiculos pesados" : type === "maquinaria" ? "Maquinaria" : "Otros"}
-                    </button>
-                  ))}
-                </div>
+                {hasHomePreFilter ? null : (
+                  <div className="flex flex-wrap gap-2">
+                    {(["livianos", "pesados", "maquinaria", "otros"] as VehicleTypeId[]).map((type) => (
+                      <button
+                        key={type}
+                        onClick={() => setActiveTypeTab(type)}
+                        className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold transition ${
+                          activeTypeTab === type ? "bg-cyan-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                        }`}
+                      >
+                        {type === "livianos" ? "Vehiculos livianos" : type === "pesados" ? "Vehiculos pesados" : type === "maquinaria" ? "Maquinaria" : "Otros"}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </header>
               {filteredCatalogItems.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500">

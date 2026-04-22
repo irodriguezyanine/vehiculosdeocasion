@@ -1941,11 +1941,6 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   const [showAnalyticsScopeMenu, setShowAnalyticsScopeMenu] = useState(false);
   const [showAnalyticsChartMenu, setShowAnalyticsChartMenu] = useState(false);
   const [analyticsChartZoom, setAnalyticsChartZoom] = useState(1);
-  const [analyticsChartPan, setAnalyticsChartPan] = useState(0);
-  const [analyticsChartDragStart, setAnalyticsChartDragStart] = useState<{
-    clientX: number;
-    pan: number;
-  } | null>(null);
   const [showOfferModal, setShowOfferModal] = useState(false);
   const [offerForm, setOfferForm] = useState<OfferFormState>(buildEmptyOfferForm);
   const [offerSending, setOfferSending] = useState(false);
@@ -1986,7 +1981,6 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   const manualObservationsEditorRef = useRef<HTMLDivElement | null>(null);
   const heroTitleEditorRef = useRef<HTMLDivElement | null>(null);
   const heroSubtitleEditorRef = useRef<HTMLDivElement | null>(null);
-  const analyticsChartViewportRef = useRef<HTMLDivElement | null>(null);
   const [observationsTemplateHtml, setObservationsTemplateHtml] = useState(
     DEFAULT_OBSERVATIONS_TEMPLATE_HTML,
   );
@@ -2472,12 +2466,6 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       setShowAnalyticsChartMenu(false);
     }
   }, [adminTab]);
-
-  useEffect(() => {
-    if (analyticsChartZoom <= 1 && analyticsChartPan !== 0) {
-      setAnalyticsChartPan(0);
-    }
-  }, [analyticsChartZoom, analyticsChartPan]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -5729,18 +5717,72 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     [analyticsTimeline, analyticsDateFrom, analyticsDateTo],
   );
 
-  const analyticsChartRows = useMemo(
-    () =>
-      analyticsTimelineFiltered.map((row) => {
-        let value = row.total;
-        if (analyticsTimelineMetric === "visitas") value = row.visits;
-        else if (analyticsTimelineMetric === "detalle") value = row.detailOpens;
-        else if (analyticsTimelineMetric === "whatsapp") value = row.whatsappClicks;
-        else if (analyticsTimelineMetric === "leads") value = row.leads;
-        return { ...row, value };
-      }),
-    [analyticsTimelineFiltered, analyticsTimelineMetric],
-  );
+  const analyticsChartRows = useMemo(() => {
+    const addDaysIso = (iso: string, days: number): string => {
+      const date = new Date(`${iso}T00:00:00Z`);
+      if (Number.isNaN(date.getTime())) return iso;
+      date.setUTCDate(date.getUTCDate() + days);
+      return date.toISOString().slice(0, 10);
+    };
+    const diffDaysInclusive = (startIso: string, endIso: string): number => {
+      const start = new Date(`${startIso}T00:00:00Z`);
+      const end = new Date(`${endIso}T00:00:00Z`);
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 1;
+      const diff = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+      return Math.max(1, diff + 1);
+    };
+
+    const sourceMap = new Map(analyticsTimelineFiltered.map((row) => [row.date, row]));
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const lastKnownIso =
+      analyticsTimelineFiltered.length > 0
+        ? analyticsTimelineFiltered[analyticsTimelineFiltered.length - 1]?.date ?? todayIso
+        : analyticsDateTo || todayIso;
+    const firstKnownIso =
+      analyticsTimelineFiltered.length > 0
+        ? analyticsTimelineFiltered[0]?.date ?? addDaysIso(lastKnownIso, -6)
+        : analyticsDateFrom || addDaysIso(lastKnownIso, -6);
+
+    let startIso = analyticsDateFrom || firstKnownIso;
+    let endIso = analyticsDateTo || lastKnownIso;
+    if (startIso > endIso) {
+      const tmp = startIso;
+      startIso = endIso;
+      endIso = tmp;
+    }
+    const rangeDays = diffDaysInclusive(startIso, endIso);
+    if (rangeDays < 7) {
+      startIso = addDaysIso(endIso, -6);
+    }
+
+    const horizonRows: AnalyticsTimelineRow[] = [];
+    let cursorIso = startIso;
+    let safety = 0;
+    while (cursorIso <= endIso && safety < 400) {
+      const existing = sourceMap.get(cursorIso);
+      horizonRows.push(
+        existing ?? {
+          date: cursorIso,
+          total: 0,
+          visits: 0,
+          detailOpens: 0,
+          whatsappClicks: 0,
+          leads: 0,
+        },
+      );
+      cursorIso = addDaysIso(cursorIso, 1);
+      safety += 1;
+    }
+
+    return horizonRows.map((row) => {
+      let value = row.total;
+      if (analyticsTimelineMetric === "visitas") value = row.visits;
+      else if (analyticsTimelineMetric === "detalle") value = row.detailOpens;
+      else if (analyticsTimelineMetric === "whatsapp") value = row.whatsappClicks;
+      else if (analyticsTimelineMetric === "leads") value = row.leads;
+      return { ...row, value };
+    });
+  }, [analyticsTimelineFiltered, analyticsTimelineMetric, analyticsDateFrom, analyticsDateTo]);
 
   const analyticsChartMax = useMemo(
     () => analyticsChartRows.reduce((max, row) => Math.max(max, row.value), 0),
@@ -5827,65 +5869,31 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
 
   const analyticsChartPoints = useMemo(() => {
     const total = analyticsChartRows.length;
+    const zoomFactor = Math.max(1, analyticsChartZoom);
+    const compressedWidth = total <= 1 ? 0 : 920 / zoomFactor;
+    const xStart = total <= 1 ? 500 : 40 + (920 - compressedWidth) / 2;
     return analyticsChartRows.map((row, index) => {
-      const x = total <= 1 ? 500 : 40 + (index * 920) / (total - 1);
+      const x = total <= 1 ? 500 : xStart + (index * compressedWidth) / (total - 1);
       const y = 220 - (analyticsChartMax > 0 ? (row.value / analyticsChartMax) * 170 : 0);
       return { ...row, x, y };
     });
-  }, [analyticsChartRows, analyticsChartMax]);
+  }, [analyticsChartRows, analyticsChartMax, analyticsChartZoom]);
 
   const analyticsChartLabelStep = useMemo(
     () => Math.max(1, Math.ceil(analyticsChartPoints.length / 12)),
     [analyticsChartPoints.length],
   );
 
-  const analyticsChartViewBox = useMemo(() => {
-    const fullWidth = 1000;
-    const viewportWidth = fullWidth / analyticsChartZoom;
-    const startX = (fullWidth - viewportWidth) * analyticsChartPan;
-    return `${startX} 0 ${viewportWidth} 260`;
-  }, [analyticsChartZoom, analyticsChartPan]);
-
   const handleAnalyticsChartWheel = useCallback(
     (event: ReactWheelEvent<HTMLDivElement>) => {
       if (analyticsChartPoints.length === 0) return;
       event.preventDefault();
       const direction = event.deltaY < 0 ? 1 : -1;
-      setAnalyticsChartZoom((prev) => {
-        const next = Math.min(6, Math.max(1, Number((prev + direction * 0.2).toFixed(2))));
-        if (next <= 1) setAnalyticsChartPan(0);
-        return next;
-      });
+      setAnalyticsChartZoom((prev) =>
+        Math.min(6, Math.max(1, Number((prev + direction * 0.2).toFixed(2)))),
+      );
     },
     [analyticsChartPoints.length],
-  );
-
-  const handleAnalyticsChartMouseDown = useCallback(
-    (event: MouseEvent<HTMLDivElement>) => {
-      if (analyticsChartZoom <= 1) return;
-      setAnalyticsChartDragStart({
-        clientX: event.clientX,
-        pan: analyticsChartPan,
-      });
-    },
-    [analyticsChartPan, analyticsChartZoom],
-  );
-
-  const handleAnalyticsChartMouseMove = useCallback(
-    (event: MouseEvent<HTMLDivElement>) => {
-      if (!analyticsChartDragStart || analyticsChartZoom <= 1) return;
-      const width = analyticsChartViewportRef.current?.getBoundingClientRect().width ?? 0;
-      if (!width) return;
-      const deltaX = event.clientX - analyticsChartDragStart.clientX;
-      const denominator = width * (analyticsChartZoom - 1);
-      if (!Number.isFinite(denominator) || denominator <= 0) return;
-      const nextPan = Math.min(
-        1,
-        Math.max(0, analyticsChartDragStart.pan - deltaX / denominator),
-      );
-      setAnalyticsChartPan(nextPan);
-    },
-    [analyticsChartDragStart, analyticsChartZoom],
   );
 
   return (
@@ -6083,11 +6091,11 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             </div>
             <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
               {([
-                ["vehiculos", "1. Inventario"],
-                ["categorias", "2. Editar categorías"],
-                ["layout", "3. Editar layout home"],
+                ["vehiculos", "Inventario"],
+                ["categorias", "Categorías"],
+                ["layout", "Editar Home"],
                 ["analytics", "Analytics"],
-                ["ofertas", "5. Ofertas recibidas"],
+                ["ofertas", "Ofertas recibidas"],
               ] as Array<[AdminTabId, string]>).map(([tabId, label]) => (
                 <button
                   key={tabId}
@@ -7357,13 +7365,9 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       Vista avanzada
                     </button>
                   </div>
-                  <p className="mt-2 text-xs text-slate-500">
-                    Fuente actual: {analyticsSource === "server" ? "Supabase (todos los visitantes)" : "Navegador local"}.
-                    {analyticsLoading ? " Actualizando..." : ""}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Visitas = sesiones con evento <span className="font-semibold">page_view_home</span>. Eventos = todas las acciones registradas.
-                  </p>
+                  {analyticsLoading ? (
+                    <p className="mt-2 text-xs text-slate-500">Actualizando datos...</p>
+                  ) : null}
                   <div className="relative mt-3 flex flex-wrap items-center gap-2">
                     <input
                       value={analyticsVehicleQuery}
@@ -7495,7 +7499,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                           Actividad diaria
                         </p>
                         <p className="mt-1 text-xs text-slate-500">
-                          Horizonte completo visible. Usa rueda del mouse para zoom y arrastra para desplazarte.
+                          Horizonte mínimo de 7 días siempre visible. Usa rueda del mouse para ajustar zoom temporal.
                         </p>
                       </div>
                       <div className="relative">
@@ -7603,7 +7607,6 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                                     setAnalyticsTimelineMetric("eventos");
                                     setAnalyticsChartType("bar");
                                     setAnalyticsChartZoom(1);
-                                    setAnalyticsChartPan(0);
                                   }}
                                   className="ui-focus inline-flex h-9 items-center justify-center rounded-md border border-slate-300 bg-slate-50 px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
                                 >
@@ -7624,22 +7627,12 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                           ({analyticsChartRows.length} registros).
                         </p>
                         <div
-                          ref={analyticsChartViewportRef}
-                          className={`rounded-md border border-slate-200 bg-slate-50 p-2 ${
-                            analyticsChartZoom > 1 ? "cursor-grab" : "cursor-default"
-                          } ${analyticsChartDragStart ? "cursor-grabbing" : ""}`}
+                          className="rounded-md border border-slate-200 bg-slate-50 p-2"
                           onWheel={handleAnalyticsChartWheel}
-                          onMouseDown={handleAnalyticsChartMouseDown}
-                          onMouseMove={handleAnalyticsChartMouseMove}
-                          onMouseUp={() => setAnalyticsChartDragStart(null)}
-                          onMouseLeave={() => setAnalyticsChartDragStart(null)}
-                          onDoubleClick={() => {
-                            setAnalyticsChartZoom(1);
-                            setAnalyticsChartPan(0);
-                          }}
+                          onDoubleClick={() => setAnalyticsChartZoom(1)}
                         >
                           <svg
-                            viewBox={analyticsChartViewBox}
+                            viewBox="0 0 1000 260"
                             className="h-72 w-full"
                             aria-label={`${analyticsChartType === "line" ? "Línea" : analyticsChartType === "area" ? "Área" : "Barras"} de ${analyticsChartMetricLabel}`}
                           >
@@ -7741,7 +7734,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                             Zoom: <span className="font-semibold text-slate-800">{Math.round(analyticsChartZoom * 100)}%</span>
                           </span>
                           <span>
-                            Vista: <span className="font-semibold text-slate-800">100% del horizonte temporal</span>
+                            Horizonte: <span className="font-semibold text-slate-800">{analyticsChartRows.length} día(s)</span>
                           </span>
                           <span className="text-slate-500">
                             Doble clic para resetear zoom

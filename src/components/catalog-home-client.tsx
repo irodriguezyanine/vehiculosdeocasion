@@ -185,6 +185,9 @@ const BASE_HOME_SECTION_ORDER: SectionId[] = [
   "novedades",
   "catalogo",
 ];
+const sectionCategoryKey = (sectionId: SectionId) => `section:${sectionId}` as const;
+const auctionCategoryKey = (auctionId: string) => `auction:${auctionId}`;
+const managedCategoryKey = (categoryId: string) => `managed:${categoryId}`;
 
 function normalizeEditorConfigClient(
   value?: Partial<EditorConfig> | null,
@@ -241,6 +244,7 @@ function normalizeEditorConfigClient(
       catalogo: value?.sectionVehicleIds?.catalogo ?? defaults.sectionVehicleIds.catalogo,
     },
     hiddenVehicleIds: value?.hiddenVehicleIds ?? defaults.hiddenVehicleIds,
+    hiddenCategoryIds: value?.hiddenCategoryIds ?? defaults.hiddenCategoryIds,
     soldVehicleIds: value?.soldVehicleIds ?? defaults.soldVehicleIds,
     soldVehicleHistory: value?.soldVehicleHistory ?? defaults.soldVehicleHistory,
     vehiclePrices: value?.vehiclePrices ?? defaults.vehiclePrices,
@@ -1934,6 +1938,13 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     useState<AnalyticsTimelineMetric>("eventos");
   const [analyticsDateFrom, setAnalyticsDateFrom] = useState("");
   const [analyticsDateTo, setAnalyticsDateTo] = useState("");
+  const [showAnalyticsChartMenu, setShowAnalyticsChartMenu] = useState(false);
+  const [analyticsChartZoom, setAnalyticsChartZoom] = useState(1);
+  const [analyticsChartPan, setAnalyticsChartPan] = useState(0);
+  const [analyticsChartDragStart, setAnalyticsChartDragStart] = useState<{
+    clientX: number;
+    pan: number;
+  } | null>(null);
   const [showOfferModal, setShowOfferModal] = useState(false);
   const [offerForm, setOfferForm] = useState<OfferFormState>(buildEmptyOfferForm);
   const [offerSending, setOfferSending] = useState(false);
@@ -1974,6 +1985,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   const manualObservationsEditorRef = useRef<HTMLDivElement | null>(null);
   const heroTitleEditorRef = useRef<HTMLDivElement | null>(null);
   const heroSubtitleEditorRef = useRef<HTMLDivElement | null>(null);
+  const analyticsChartViewportRef = useRef<HTMLDivElement | null>(null);
   const [observationsTemplateHtml, setObservationsTemplateHtml] = useState(
     DEFAULT_OBSERVATIONS_TEMPLATE_HTML,
   );
@@ -2454,6 +2466,18 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   }, [adminTab, inventorySubtab]);
 
   useEffect(() => {
+    if (adminTab !== "analytics") {
+      setShowAnalyticsChartMenu(false);
+    }
+  }, [adminTab]);
+
+  useEffect(() => {
+    if (analyticsChartZoom <= 1 && analyticsChartPan !== 0) {
+      setAnalyticsChartPan(0);
+    }
+  }, [analyticsChartZoom, analyticsChartPan]);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
     const hasPersistedDensity = window.localStorage.getItem(HOME_CARD_DENSITY_STORAGE_KEY);
     if (hasPersistedDensity) return;
@@ -2660,6 +2684,10 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     () => new Set(homeVisibleItems.map((item) => getVehicleKey(item))),
     [homeVisibleItems],
   );
+  const hiddenHomeCategoryIds = useMemo(
+    () => new Set(config.hiddenCategoryIds ?? []),
+    [config.hiddenCategoryIds],
+  );
 
   const getSectionItems = (sectionId: SectionId): CatalogItem[] => {
     const selected = config.sectionVehicleIds[sectionId] ?? [];
@@ -2705,10 +2733,17 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       })),
     [sortedUpcomingAuctions, homeVisibleItems, config.vehicleUpcomingAuctionIds, config.sectionVehicleIds],
   );
+  const visibleUpcomingAuctionGroups = useMemo(
+    () =>
+      upcomingAuctionGroups.filter(
+        (group) => !hiddenHomeCategoryIds.has(auctionCategoryKey(group.auction.id)),
+      ),
+    [upcomingAuctionGroups, hiddenHomeCategoryIds],
+  );
 
   const hasUpcomingAuctionCategories =
     sortedUpcomingAuctions.length > 0 &&
-    upcomingAuctionGroups.some((group) => group.items.length > 0);
+    visibleUpcomingAuctionGroups.some((group) => group.items.length > 0);
 
   const proximosRemates = getSectionItems("proximos-remates");
   const ventasDirectas = getSectionItems("ventas-directas");
@@ -2724,7 +2759,10 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   const managedCategorySections = useMemo(
     () =>
       (config.managedCategories ?? [])
-        .filter((category) => category.visible !== false)
+        .filter((category) => {
+          const categoryHidden = hiddenHomeCategoryIds.has(managedCategoryKey(category.id));
+          return category.visible !== false && !categoryHidden;
+        })
         .map((category) => ({
           ...category,
           items: (category.vehicleIds ?? [])
@@ -2733,7 +2771,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             .filter((item) => homeVisibleKeys.has(getVehicleKey(item))),
         }))
         .filter((category) => category.items.length > 0),
-    [config.managedCategories, itemsByKey, homeVisibleKeys],
+    [config.managedCategories, itemsByKey, homeVisibleKeys, hiddenHomeCategoryIds],
   );
   const managedCategoryOrderEntries = useMemo(
     () =>
@@ -2773,7 +2811,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   }, [config.homeLayout.sectionOrder, managedCategoryOrderEntries]);
   const homeSectionCountById = useMemo(() => {
     const map = new Map<HomeSectionOrderId, number>();
-    map.set("proximos-remates", hasUpcomingAuctionCategories ? upcomingAuctionGroups.reduce((acc, group) => acc + group.items.length, 0) : proximosRemates.length);
+    map.set("proximos-remates", hasUpcomingAuctionCategories ? visibleUpcomingAuctionGroups.reduce((acc, group) => acc + group.items.length, 0) : proximosRemates.length);
     map.set("ventas-directas", ventasDirectas.length);
     map.set("novedades", novedades.length);
     map.set("catalogo", filteredCatalogItems.length);
@@ -2783,7 +2821,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     return map;
   }, [
     hasUpcomingAuctionCategories,
-    upcomingAuctionGroups,
+    visibleUpcomingAuctionGroups,
     proximosRemates.length,
     ventasDirectas.length,
     novedades.length,
@@ -2809,7 +2847,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     const sections: CalendarPdfSection[] = [];
 
     if (hasUpcomingAuctionCategories) {
-      for (const group of upcomingAuctionGroups) {
+      for (const group of visibleUpcomingAuctionGroups) {
         if (group.items.length === 0) continue;
         sections.push({
           categoryTitle: `Remates disponibles - ${group.auction.name}`,
@@ -2850,7 +2888,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     return sections;
   }, [
     hasUpcomingAuctionCategories,
-    upcomingAuctionGroups,
+    visibleUpcomingAuctionGroups,
     proximosRemates,
     ventasDirectas,
     homeVisibleItems,
@@ -4317,6 +4355,26 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     });
   };
 
+  const toggleCategoryHidden = useCallback(
+    (categoryKey: string, label: string) => {
+      setConfig((prev) => {
+        const set = new Set(prev.hiddenCategoryIds ?? []);
+        const willHide = !set.has(categoryKey);
+        if (willHide) set.add(categoryKey);
+        else set.delete(categoryKey);
+        showSystemNotice(
+          "success",
+          willHide ? "Categoría oculta del home" : "Categoría visible en home",
+          willHide
+            ? `${label} quedó oculta del home sin eliminar vehículos.`
+            : `${label} volvió a mostrarse en el home.`,
+        );
+        return { ...prev, hiddenCategoryIds: Array.from(set) };
+      });
+    },
+    [showSystemNotice],
+  );
+
   const resolveSoldCategory = useCallback(
     (
       vehicleKey: string,
@@ -4724,10 +4782,15 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   };
 
   const deleteManagedCategory = (categoryId: string) => {
-    setConfig((prev) => ({
-      ...prev,
-      managedCategories: (prev.managedCategories ?? []).filter((category) => category.id !== categoryId),
-    }));
+    setConfig((prev) => {
+      const hidden = new Set(prev.hiddenCategoryIds ?? []);
+      hidden.delete(managedCategoryKey(categoryId));
+      return {
+        ...prev,
+        managedCategories: (prev.managedCategories ?? []).filter((category) => category.id !== categoryId),
+        hiddenCategoryIds: Array.from(hidden),
+      };
+    });
     if (assignCategoryId === categoryId) setAssignCategoryId(null);
   };
 
@@ -4993,10 +5056,13 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         if (value === auctionId) delete nextAssignments[vehicleKey];
       }
       const assignedVehicleKeys = new Set(Object.keys(nextAssignments));
+      const hidden = new Set(prev.hiddenCategoryIds ?? []);
+      hidden.delete(auctionCategoryKey(auctionId));
       return {
         ...prev,
         upcomingAuctions: prev.upcomingAuctions.filter((auction) => auction.id !== auctionId),
         vehicleUpcomingAuctionIds: nextAssignments,
+        hiddenCategoryIds: Array.from(hidden),
         sectionVehicleIds: {
           ...prev.sectionVehicleIds,
           "proximos-remates": (prev.sectionVehicleIds["proximos-remates"] ?? []).filter((key) =>
@@ -5755,6 +5821,69 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       );
     },
     [analyticsChartMetricLabel, showSystemNotice],
+  );
+
+  const analyticsChartPoints = useMemo(() => {
+    const total = analyticsChartRows.length;
+    return analyticsChartRows.map((row, index) => {
+      const x = total <= 1 ? 500 : 40 + (index * 920) / (total - 1);
+      const y = 220 - (analyticsChartMax > 0 ? (row.value / analyticsChartMax) * 170 : 0);
+      return { ...row, x, y };
+    });
+  }, [analyticsChartRows, analyticsChartMax]);
+
+  const analyticsChartLabelStep = useMemo(
+    () => Math.max(1, Math.ceil(analyticsChartPoints.length / 12)),
+    [analyticsChartPoints.length],
+  );
+
+  const analyticsChartViewBox = useMemo(() => {
+    const fullWidth = 1000;
+    const viewportWidth = fullWidth / analyticsChartZoom;
+    const startX = (fullWidth - viewportWidth) * analyticsChartPan;
+    return `${startX} 0 ${viewportWidth} 260`;
+  }, [analyticsChartZoom, analyticsChartPan]);
+
+  const handleAnalyticsChartWheel = useCallback(
+    (event: ReactWheelEvent<HTMLDivElement>) => {
+      if (analyticsChartPoints.length === 0) return;
+      event.preventDefault();
+      const direction = event.deltaY < 0 ? 1 : -1;
+      setAnalyticsChartZoom((prev) => {
+        const next = Math.min(6, Math.max(1, Number((prev + direction * 0.2).toFixed(2))));
+        if (next <= 1) setAnalyticsChartPan(0);
+        return next;
+      });
+    },
+    [analyticsChartPoints.length],
+  );
+
+  const handleAnalyticsChartMouseDown = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      if (analyticsChartZoom <= 1) return;
+      setAnalyticsChartDragStart({
+        clientX: event.clientX,
+        pan: analyticsChartPan,
+      });
+    },
+    [analyticsChartPan, analyticsChartZoom],
+  );
+
+  const handleAnalyticsChartMouseMove = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      if (!analyticsChartDragStart || analyticsChartZoom <= 1) return;
+      const width = analyticsChartViewportRef.current?.getBoundingClientRect().width ?? 0;
+      if (!width) return;
+      const deltaX = event.clientX - analyticsChartDragStart.clientX;
+      const denominator = width * (analyticsChartZoom - 1);
+      if (!Number.isFinite(denominator) || denominator <= 0) return;
+      const nextPan = Math.min(
+        1,
+        Math.max(0, analyticsChartDragStart.pan - deltaX / denominator),
+      );
+      setAnalyticsChartPan(nextPan);
+    },
+    [analyticsChartDragStart, analyticsChartZoom],
   );
 
   return (
@@ -6604,7 +6733,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 </div>
 
                 <div className="mt-3 space-y-2">
-                  <div className="hidden gap-2 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500 md:grid md:grid-cols-[minmax(170px,1.1fr)_minmax(300px,1.8fr)_72px_176px]">
+                  <div className="hidden gap-2 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500 md:grid md:grid-cols-[minmax(170px,1.1fr)_minmax(300px,1.8fr)_72px_228px]">
                     <span>Grupo</span>
                     <span>Descripción / textos</span>
                     <span className="text-center">Unidades</span>
@@ -6617,10 +6746,11 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   {(["proximos-remates", "ventas-directas", "novedades", "catalogo"] as SectionId[]).map(
                     (sectionId) => {
                       const isEditingTexts = editingSectionTextId === sectionId;
+                      const sectionHidden = hiddenHomeCategoryIds.has(sectionCategoryKey(sectionId));
                       return (
                         <article
                           key={sectionId}
-                          className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-slate-50/30 px-2.5 py-2 md:grid-cols-[minmax(170px,1.1fr)_minmax(300px,1.8fr)_72px_176px] md:items-center"
+                          className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-slate-50/30 px-2.5 py-2 md:grid-cols-[minmax(170px,1.1fr)_minmax(300px,1.8fr)_72px_228px] md:items-center"
                         >
                           <div className="min-h-8 md:flex md:items-center">
                             <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
@@ -6681,7 +6811,30 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                         <div className="mx-auto flex h-8 w-14 items-center justify-center rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
                           {sectionVehicleCounts[sectionId]}
                         </div>
-                        <div className="flex items-center justify-end gap-1.5 md:w-44">
+                        <div className="flex items-center justify-end gap-1.5 md:w-56">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              toggleCategoryHidden(sectionCategoryKey(sectionId), SECTION_LABELS[sectionId])
+                            }
+                            className={`ui-focus inline-flex h-8 w-8 items-center justify-center rounded border transition ${
+                              sectionHidden
+                                ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                            }`}
+                            aria-label={`${sectionHidden ? "Mostrar" : "Ocultar"} ${SECTION_LABELS[sectionId]} en home`}
+                            title={sectionHidden ? "Mostrar en home" : "Ocultar del home"}
+                          >
+                            {sectionHidden ? (
+                              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                                <path d="M10 4c3.38 0 6.63 2 8.37 5.42a1.3 1.3 0 0 1 0 1.16C16.63 14 13.38 16 10 16s-6.63-2-8.37-5.42a1.3 1.3 0 0 1 0-1.16C3.37 6 6.62 4 10 4Zm0 2c-2.6 0-5.16 1.5-6.71 4 .01.02.02.04.03.05C4.84 12.5 7.4 14 10 14s5.16-1.5 6.71-4a.63.63 0 0 0-.03-.05C15.16 7.5 12.6 6 10 6Zm0 1.75A2.25 2.25 0 1 1 10 12.25 2.25 2.25 0 0 1 10 7.75Z" />
+                              </svg>
+                            ) : (
+                              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                                <path d="M10 4c3.38 0 6.63 2 8.37 5.42a1.3 1.3 0 0 1 0 1.16C16.63 14 13.38 16 10 16c-1.72 0-3.42-.52-4.95-1.5l1.5-1.5c1.06.63 2.24.97 3.45.97 2.6 0 5.16-1.5 6.71-4a.63.63 0 0 0-.03-.05C15.16 7.5 12.6 6 10 6c-1.2 0-2.38.34-3.43.96L5.1 5.49A9.85 9.85 0 0 1 10 4Zm7.2 13.6a.75.75 0 0 1-1.06 0l-13-13a.75.75 0 1 1 1.06-1.06l13 13a.75.75 0 0 1 0 1.06ZM10 7.75c.7 0 1.33.32 1.75.83L8.58 11.75A2.25 2.25 0 0 1 10 7.75Z" />
+                              </svg>
+                            )}
+                          </button>
                           <button
                             type="button"
                             onClick={() => {
@@ -6729,10 +6882,11 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       const count = Object.values(config.vehicleUpcomingAuctionIds).filter(
                         (id) => id === auction.id,
                       ).length;
+                      const auctionHidden = hiddenHomeCategoryIds.has(auctionCategoryKey(auction.id));
                       return (
                         <article
                           key={auction.id}
-                          className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-slate-50/30 px-2.5 py-2 md:grid-cols-[minmax(170px,1.1fr)_minmax(300px,1.8fr)_72px_176px] md:items-center"
+                          className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-slate-50/30 px-2.5 py-2 md:grid-cols-[minmax(170px,1.1fr)_minmax(300px,1.8fr)_72px_228px] md:items-center"
                         >
                           <div className="min-h-8 md:flex md:items-center">
                             <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
@@ -6745,7 +6899,30 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                           <div className="mx-auto flex h-8 w-14 items-center justify-center rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
                             {count}
                           </div>
-                          <div className="flex items-center justify-end gap-1.5 md:w-44">
+                          <div className="flex items-center justify-end gap-1.5 md:w-56">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                toggleCategoryHidden(auctionCategoryKey(auction.id), auction.name)
+                              }
+                              className={`ui-focus inline-flex h-8 w-8 items-center justify-center rounded border transition ${
+                                auctionHidden
+                                  ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                              }`}
+                              aria-label={`${auctionHidden ? "Mostrar" : "Ocultar"} ${auction.name} en home`}
+                              title={auctionHidden ? "Mostrar en home" : "Ocultar del home"}
+                            >
+                              {auctionHidden ? (
+                                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                                  <path d="M10 4c3.38 0 6.63 2 8.37 5.42a1.3 1.3 0 0 1 0 1.16C16.63 14 13.38 16 10 16s-6.63-2-8.37-5.42a1.3 1.3 0 0 1 0-1.16C3.37 6 6.62 4 10 4Zm0 2c-2.6 0-5.16 1.5-6.71 4 .01.02.02.04.03.05C4.84 12.5 7.4 14 10 14s5.16-1.5 6.71-4a.63.63 0 0 0-.03-.05C15.16 7.5 12.6 6 10 6Zm0 1.75A2.25 2.25 0 1 1 10 12.25 2.25 2.25 0 0 1 10 7.75Z" />
+                                </svg>
+                              ) : (
+                                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                                  <path d="M10 4c3.38 0 6.63 2 8.37 5.42a1.3 1.3 0 0 1 0 1.16C16.63 14 13.38 16 10 16c-1.72 0-3.42-.52-4.95-1.5l1.5-1.5c1.06.63 2.24.97 3.45.97 2.6 0 5.16-1.5 6.71-4a.63.63 0 0 0-.03-.05C15.16 7.5 12.6 6 10 6c-1.2 0-2.38.34-3.43.96L5.1 5.49A9.85 9.85 0 0 1 10 4Zm7.2 13.6a.75.75 0 0 1-1.06 0l-13-13a.75.75 0 1 1 1.06-1.06l13 13a.75.75 0 0 1 0 1.06ZM10 7.75c.7 0 1.33.32 1.75.83L8.58 11.75A2.25 2.25 0 0 1 10 7.75Z" />
+                                </svg>
+                              )}
+                            </button>
                             <button
                               type="button"
                               onClick={() => {
@@ -6811,65 +6988,81 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       No hay categorías personalizadas aún.
                     </div>
                   ) : (
-                    (config.managedCategories ?? []).map((category) => (
-                      <article
-                        key={category.id}
-                        className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-slate-50/30 px-2.5 py-2 md:grid-cols-[minmax(170px,1.1fr)_minmax(300px,1.8fr)_72px_176px] md:items-center"
-                      >
-                        <input
-                          value={category.name}
-                          onChange={(event) =>
-                            updateManagedCategory(category.id, { name: event.target.value })
-                          }
-                          className="ui-focus rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm font-semibold"
-                        />
-                        <input
-                          value={category.description}
-                          onChange={(event) =>
-                            updateManagedCategory(category.id, { description: event.target.value })
-                          }
-                          className="ui-focus rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm"
-                        />
-                        <div className="mx-auto flex h-8 w-14 items-center justify-center rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
-                          {category.vehicleIds.length}
-                        </div>
-                        <div className="flex items-center justify-end gap-1.5 md:w-44">
-                          <label className="inline-flex h-8 w-24 items-center justify-center gap-1 rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700">
-                            <input
-                              type="checkbox"
-                              checked={category.visible !== false}
-                              onChange={(event) =>
-                                updateManagedCategory(category.id, { visible: event.target.checked })
+                    (config.managedCategories ?? []).map((category) => {
+                      const categoryHidden = hiddenHomeCategoryIds.has(managedCategoryKey(category.id));
+                      return (
+                        <article
+                          key={category.id}
+                          className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-slate-50/30 px-2.5 py-2 md:grid-cols-[minmax(170px,1.1fr)_minmax(300px,1.8fr)_72px_228px] md:items-center"
+                        >
+                          <input
+                            value={category.name}
+                            onChange={(event) =>
+                              updateManagedCategory(category.id, { name: event.target.value })
+                            }
+                            className="ui-focus rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm font-semibold"
+                          />
+                          <input
+                            value={category.description}
+                            onChange={(event) =>
+                              updateManagedCategory(category.id, { description: event.target.value })
+                            }
+                            className="ui-focus rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm"
+                          />
+                          <div className="mx-auto flex h-8 w-14 items-center justify-center rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
+                            {category.vehicleIds.length}
+                          </div>
+                          <div className="flex items-center justify-end gap-1.5 md:w-56">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                toggleCategoryHidden(managedCategoryKey(category.id), category.name)
                               }
-                            />
-                            Visible
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setAssignCategoryId(category.id);
-                              setAssignSearchTerm("");
-                            }}
-                            className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-cyan-300 bg-cyan-50 text-cyan-700"
-                            aria-label={`Asignar vehículos a ${category.name}`}
-                            title="Asignar vehículos"
-                          >
-                            +
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => deleteManagedCategory(category.id)}
-                            className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-rose-300 bg-rose-50 text-rose-700"
-                            aria-label={`Eliminar ${category.name}`}
-                            title="Eliminar"
-                          >
-                            <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
-                              <path d="M7 2.5A1.5 1.5 0 0 0 5.5 4v.5H3.75a.75.75 0 0 0 0 1.5h.56l.75 9.02A2 2 0 0 0 7.06 17h5.88a2 2 0 0 0 1.99-1.98l.75-9.02h.57a.75.75 0 0 0 0-1.5H14.5V4A1.5 1.5 0 0 0 13 2.5H7Zm6 .5a.5.5 0 0 1 .5.5v.5h-7V3.5a.5.5 0 0 1 .5-.5h6ZM8 8.25a.75.75 0 0 1 1.5 0v5a.75.75 0 0 1-1.5 0v-5Zm3 0a.75.75 0 0 1 1.5 0v5a.75.75 0 0 1-1.5 0v-5Z" />
-                            </svg>
-                          </button>
-                        </div>
-                      </article>
-                    ))
+                              className={`ui-focus inline-flex h-8 w-8 items-center justify-center rounded border transition ${
+                                categoryHidden
+                                  ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                              }`}
+                              aria-label={`${categoryHidden ? "Mostrar" : "Ocultar"} ${category.name} en home`}
+                              title={categoryHidden ? "Mostrar en home" : "Ocultar del home"}
+                            >
+                              {categoryHidden ? (
+                                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                                  <path d="M10 4c3.38 0 6.63 2 8.37 5.42a1.3 1.3 0 0 1 0 1.16C16.63 14 13.38 16 10 16s-6.63-2-8.37-5.42a1.3 1.3 0 0 1 0-1.16C3.37 6 6.62 4 10 4Zm0 2c-2.6 0-5.16 1.5-6.71 4 .01.02.02.04.03.05C4.84 12.5 7.4 14 10 14s5.16-1.5 6.71-4a.63.63 0 0 0-.03-.05C15.16 7.5 12.6 6 10 6Zm0 1.75A2.25 2.25 0 1 1 10 12.25 2.25 2.25 0 0 1 10 7.75Z" />
+                                </svg>
+                              ) : (
+                                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                                  <path d="M10 4c3.38 0 6.63 2 8.37 5.42a1.3 1.3 0 0 1 0 1.16C16.63 14 13.38 16 10 16c-1.72 0-3.42-.52-4.95-1.5l1.5-1.5c1.06.63 2.24.97 3.45.97 2.6 0 5.16-1.5 6.71-4a.63.63 0 0 0-.03-.05C15.16 7.5 12.6 6 10 6c-1.2 0-2.38.34-3.43.96L5.1 5.49A9.85 9.85 0 0 1 10 4Zm7.2 13.6a.75.75 0 0 1-1.06 0l-13-13a.75.75 0 1 1 1.06-1.06l13 13a.75.75 0 0 1 0 1.06ZM10 7.75c.7 0 1.33.32 1.75.83L8.58 11.75A2.25 2.25 0 0 1 10 7.75Z" />
+                                </svg>
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAssignCategoryId(category.id);
+                                setAssignSearchTerm("");
+                              }}
+                              className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-cyan-300 bg-cyan-50 text-cyan-700"
+                              aria-label={`Asignar vehículos a ${category.name}`}
+                              title="Asignar vehículos"
+                            >
+                              +
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteManagedCategory(category.id)}
+                              className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-rose-300 bg-rose-50 text-rose-700"
+                              aria-label={`Eliminar ${category.name}`}
+                              title="Eliminar"
+                            >
+                              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                                <path d="M7 2.5A1.5 1.5 0 0 0 5.5 4v.5H3.75a.75.75 0 0 0 0 1.5h.56l.75 9.02A2 2 0 0 0 7.06 17h5.88a2 2 0 0 0 1.99-1.98l.75-9.02h.57a.75.75 0 0 0 0-1.5H14.5V4A1.5 1.5 0 0 0 13 2.5H7Zm6 .5a.5.5 0 0 1 .5.5v.5h-7V3.5a.5.5 0 0 1 .5-.5h6ZM8 8.25a.75.75 0 0 1 1.5 0v5a.75.75 0 0 1-1.5 0v-5Zm3 0a.75.75 0 0 1 1.5 0v5a.75.75 0 0 1-1.5 0v-5Z" />
+                              </svg>
+                            </button>
+                          </div>
+                        </article>
+                      );
+                    })
                   )}
                 </div>
               </div>
@@ -7262,69 +7455,130 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   </div>
 
                   <div className="rounded-xl border border-slate-200 bg-white p-3">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Actividad diaria (gráfico dinámico)
-                    </p>
-                    <div className="mb-3 grid gap-2 md:grid-cols-2 xl:grid-cols-5">
-                      <select
-                        value={analyticsChartType}
-                        onChange={(event) =>
-                          setAnalyticsChartType(event.target.value as AnalyticsChartType)
-                        }
-                        className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
-                      >
-                        <option value="bar">Gráfico de barras</option>
-                        <option value="line">Gráfico de línea</option>
-                        <option value="area">Gráfico de área</option>
-                      </select>
-                      <select
-                        value={analyticsTimelineMetric}
-                        onChange={(event) =>
-                          setAnalyticsTimelineMetric(event.target.value as AnalyticsTimelineMetric)
-                        }
-                        className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
-                      >
-                        <option value="eventos">Métrica: Eventos</option>
-                        <option value="visitas">Métrica: Visitas</option>
-                        <option value="detalle">Métrica: Detalle abierto</option>
-                        <option value="whatsapp">Métrica: Clicks WhatsApp</option>
-                        <option value="leads">Métrica: Leads</option>
-                      </select>
-                      <input
-                        type="date"
-                        value={analyticsDateFrom}
-                        onChange={(event) => setAnalyticsDateFrom(event.target.value)}
-                        className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
-                        title="Fecha desde"
-                      />
-                      <input
-                        type="date"
-                        value={analyticsDateTo}
-                        onChange={(event) => setAnalyticsDateTo(event.target.value)}
-                        className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
-                        title="Fecha hasta"
-                      />
-                      <div className="flex items-center gap-2">
+                    <div className="mb-2 flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Actividad diaria
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          Horizonte completo visible. Usa rueda del mouse para zoom y arrastra para desplazarte.
+                        </p>
+                      </div>
+                      <div className="relative">
                         <button
                           type="button"
-                          onClick={() => downloadAnalyticsTimelineExcel(analyticsChartRows)}
-                          className="ui-focus inline-flex h-9 flex-1 items-center justify-center rounded-md border border-emerald-300 bg-emerald-50 px-3 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
-                          title="Descargar Excel (CSV)"
+                          onClick={() => setShowAnalyticsChartMenu((prev) => !prev)}
+                          className={`ui-focus inline-flex h-9 w-9 items-center justify-center rounded-md border transition ${
+                            showAnalyticsChartMenu
+                              ? "border-cyan-400 bg-cyan-50 text-cyan-700"
+                              : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                          }`}
+                          aria-label="Opciones del gráfico de actividad diaria"
+                          title="Opciones del gráfico"
                         >
-                          Descargar Excel
+                          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                            <path d="M4 7h9M4 17h5M14 17h6M17 7h3" strokeLinecap="round" />
+                            <circle cx="15" cy="7" r="2.5" />
+                            <circle cx="11" cy="17" r="2.5" />
+                          </svg>
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setAnalyticsDateFrom("");
-                            setAnalyticsDateTo("");
-                            setAnalyticsTimelineMetric("eventos");
-                            setAnalyticsChartType("bar");
-                          }}
-                          className="ui-focus inline-flex h-9 items-center justify-center rounded-md border border-slate-300 bg-slate-50 px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
-                        >
-                          Limpiar
-                        </button>
+                        {showAnalyticsChartMenu ? (
+                          <div className="absolute right-0 z-20 mt-2 w-[19rem] rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
+                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                              Opciones del gráfico
+                            </p>
+                            <div className="space-y-2">
+                              <select
+                                value={analyticsChartType}
+                                onChange={(event) =>
+                                  setAnalyticsChartType(event.target.value as AnalyticsChartType)
+                                }
+                                className="ui-focus w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
+                              >
+                                <option value="bar">Gráfico de barras</option>
+                                <option value="line">Gráfico de línea</option>
+                                <option value="area">Gráfico de área</option>
+                              </select>
+                              <select
+                                value={analyticsTimelineMetric}
+                                onChange={(event) =>
+                                  setAnalyticsTimelineMetric(event.target.value as AnalyticsTimelineMetric)
+                                }
+                                className="ui-focus w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
+                              >
+                                <option value="eventos">Métrica: Eventos</option>
+                                <option value="visitas">Métrica: Visitas</option>
+                                <option value="detalle">Métrica: Detalle abierto</option>
+                                <option value="whatsapp">Métrica: Clicks WhatsApp</option>
+                                <option value="leads">Métrica: Leads</option>
+                              </select>
+                              <div className="grid grid-cols-2 gap-2">
+                                <input
+                                  type="date"
+                                  value={analyticsDateFrom}
+                                  onChange={(event) => setAnalyticsDateFrom(event.target.value)}
+                                  className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
+                                  title="Fecha desde"
+                                />
+                                <input
+                                  type="date"
+                                  value={analyticsDateTo}
+                                  onChange={(event) => setAnalyticsDateTo(event.target.value)}
+                                  className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
+                                  title="Fecha hasta"
+                                />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setAnalyticsChartZoom((prev) => Math.max(1, Number((prev - 0.25).toFixed(2))))
+                                  }
+                                  className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                                  title="Alejar"
+                                >
+                                  −
+                                </button>
+                                <span className="min-w-16 text-center text-xs font-semibold text-slate-700">
+                                  Zoom {Math.round(analyticsChartZoom * 100)}%
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setAnalyticsChartZoom((prev) => Math.min(6, Number((prev + 0.25).toFixed(2))))
+                                  }
+                                  className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                                  title="Acercar"
+                                >
+                                  +
+                                </button>
+                              </div>
+                              <div className="flex items-center gap-2 pt-1">
+                                <button
+                                  type="button"
+                                  onClick={() => downloadAnalyticsTimelineExcel(analyticsChartRows)}
+                                  className="ui-focus inline-flex h-9 flex-1 items-center justify-center rounded-md border border-emerald-300 bg-emerald-50 px-3 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                                >
+                                  Descargar Excel
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setAnalyticsDateFrom("");
+                                    setAnalyticsDateTo("");
+                                    setAnalyticsTimelineMetric("eventos");
+                                    setAnalyticsChartType("bar");
+                                    setAnalyticsChartZoom(1);
+                                    setAnalyticsChartPan(0);
+                                  }}
+                                  className="ui-focus inline-flex h-9 items-center justify-center rounded-md border border-slate-300 bg-slate-50 px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                                >
+                                  Limpiar
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                     {analyticsChartRows.length === 0 ? (
@@ -7335,130 +7589,129 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                           Mostrando <span className="font-semibold text-slate-700">{analyticsChartMetricLabel}</span> por día
                           ({analyticsChartRows.length} registros).
                         </p>
-                        <div className="overflow-x-auto rounded-md border border-slate-200 bg-slate-50 p-2">
-                          {analyticsChartType === "bar" ? (
-                            <div className="flex h-56 min-w-[680px] items-end gap-2">
-                              {analyticsChartRows.map((row) => (
-                                <div
-                                  key={`analytics-bar-${row.date}`}
-                                  className="group flex min-w-8 flex-1 flex-col items-center justify-end gap-1"
-                                  title={`${formatAuctionDateLabel(row.date)} · ${analyticsChartMetricLabel}: ${row.value}`}
-                                >
-                                  <div
-                                    className="w-full rounded-t bg-cyan-600 transition group-hover:bg-cyan-500"
-                                    style={{
-                                      height: `${analyticsChartMax > 0 ? Math.max((row.value / analyticsChartMax) * 100, 4) : 0}%`,
-                                    }}
+                        <div
+                          ref={analyticsChartViewportRef}
+                          className={`rounded-md border border-slate-200 bg-slate-50 p-2 ${
+                            analyticsChartZoom > 1 ? "cursor-grab" : "cursor-default"
+                          } ${analyticsChartDragStart ? "cursor-grabbing" : ""}`}
+                          onWheel={handleAnalyticsChartWheel}
+                          onMouseDown={handleAnalyticsChartMouseDown}
+                          onMouseMove={handleAnalyticsChartMouseMove}
+                          onMouseUp={() => setAnalyticsChartDragStart(null)}
+                          onMouseLeave={() => setAnalyticsChartDragStart(null)}
+                          onDoubleClick={() => {
+                            setAnalyticsChartZoom(1);
+                            setAnalyticsChartPan(0);
+                          }}
+                        >
+                          <svg
+                            viewBox={analyticsChartViewBox}
+                            className="h-72 w-full"
+                            aria-label={`${analyticsChartType === "line" ? "Línea" : analyticsChartType === "area" ? "Área" : "Barras"} de ${analyticsChartMetricLabel}`}
+                          >
+                            <line x1="40" y1="220" x2="960" y2="220" stroke="#cbd5e1" strokeWidth="1" />
+                            {analyticsChartType === "bar"
+                              ? analyticsChartPoints.map((row, index) => {
+                                  const barWidth =
+                                    analyticsChartPoints.length <= 1
+                                      ? 50
+                                      : Math.max(8, 260 / analyticsChartPoints.length);
+                                  return (
+                                    <g key={`analytics-bar-${row.date}`}>
+                                      <rect
+                                        x={row.x - barWidth / 2}
+                                        y={row.y}
+                                        width={barWidth}
+                                        height={Math.max(3, 220 - row.y)}
+                                        rx="2"
+                                        fill="#0891b2"
+                                      >
+                                        <title>{`${formatAuctionDateLabel(row.date)} · ${analyticsChartMetricLabel}: ${row.value}`}</title>
+                                      </rect>
+                                      {(analyticsChartPoints.length <= 16 ||
+                                        index === analyticsChartPoints.length - 1 ||
+                                        index % analyticsChartLabelStep === 0) && (
+                                        <text
+                                          x={row.x}
+                                          y="238"
+                                          textAnchor="middle"
+                                          fontSize="11"
+                                          fill="#475569"
+                                        >
+                                          {new Date(row.date).toLocaleDateString("es-CL", {
+                                            day: "2-digit",
+                                            month: "2-digit",
+                                          })}
+                                        </text>
+                                      )}
+                                    </g>
+                                  );
+                                })
+                              : null}
+                            {analyticsChartType !== "bar" && analyticsChartPoints.length > 0 ? (
+                              <>
+                                {analyticsChartType === "area" ? (
+                                  <path
+                                    d={`${analyticsChartPoints
+                                      .map(
+                                        (point, index) =>
+                                          `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`,
+                                      )
+                                      .join(" ")} L ${analyticsChartPoints[analyticsChartPoints.length - 1]?.x ?? 960} 220 L ${analyticsChartPoints[0]?.x ?? 40} 220 Z`}
+                                    fill="rgba(34,211,238,0.24)"
                                   />
-                                  <span className="text-[10px] font-semibold text-slate-600">
-                                    {new Date(row.date).toLocaleDateString("es-CL", {
-                                      day: "2-digit",
-                                      month: "2-digit",
-                                    })}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <svg
-                              viewBox={`0 0 ${Math.max(analyticsChartRows.length * 68, 680)} 240`}
-                              className="h-60 min-w-[680px] w-full"
-                              aria-label={`${analyticsChartType === "line" ? "Línea" : "Área"} de ${analyticsChartMetricLabel}`}
-                            >
-                              <line x1="24" y1="212" x2={Math.max(analyticsChartRows.length * 68, 680) - 16} y2="212" stroke="#cbd5e1" strokeWidth="1" />
-                              <path
-                                d={
-                                  analyticsChartRows
-                                    .map((row, index) => {
-                                      const chartWidth = Math.max(analyticsChartRows.length * 68, 680);
-                                      const x =
-                                        analyticsChartRows.length === 1
-                                          ? chartWidth / 2
-                                          : 24 +
-                                            (index * (chartWidth - 48)) /
-                                              (analyticsChartRows.length - 1);
-                                      const y =
-                                        212 -
-                                        (analyticsChartMax > 0
-                                          ? (row.value / analyticsChartMax) * 170
-                                          : 0);
-                                      return `${index === 0 ? "M" : "L"} ${x} ${y}`;
-                                    })
-                                    .join(" ")
-                                }
-                                fill="none"
-                                stroke="#0891b2"
-                                strokeWidth="3"
-                                strokeLinejoin="round"
-                                strokeLinecap="round"
-                              />
-                              {analyticsChartType === "area" ? (
+                                ) : null}
                                 <path
-                                  d={`${analyticsChartRows
-                                    .map((row, index) => {
-                                      const chartWidth = Math.max(analyticsChartRows.length * 68, 680);
-                                      const x =
-                                        analyticsChartRows.length === 1
-                                          ? chartWidth / 2
-                                          : 24 +
-                                            (index * (chartWidth - 48)) /
-                                              (analyticsChartRows.length - 1);
-                                      const y =
-                                        212 -
-                                        (analyticsChartMax > 0
-                                          ? (row.value / analyticsChartMax) * 170
-                                          : 0);
-                                      return `${index === 0 ? "M" : "L"} ${x} ${y}`;
-                                    })
-                                    .join(" ")} L ${Math.max(analyticsChartRows.length * 68, 680) - 24} 212 L 24 212 Z`}
-                                  fill="rgba(34,211,238,0.25)"
+                                  d={analyticsChartPoints
+                                    .map(
+                                      (point, index) =>
+                                        `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`,
+                                    )
+                                    .join(" ")}
+                                  fill="none"
+                                  stroke="#0891b2"
+                                  strokeWidth="3"
+                                  strokeLinejoin="round"
+                                  strokeLinecap="round"
                                 />
-                              ) : null}
-                              {analyticsChartRows.map((row, index) => {
-                                const chartWidth = Math.max(analyticsChartRows.length * 68, 680);
-                                const x =
-                                  analyticsChartRows.length === 1
-                                    ? chartWidth / 2
-                                    : 24 +
-                                      (index * (chartWidth - 48)) /
-                                        (analyticsChartRows.length - 1);
-                                const y =
-                                  212 -
-                                  (analyticsChartMax > 0
-                                    ? (row.value / analyticsChartMax) * 170
-                                    : 0);
-                                return (
-                                  <g key={`analytics-point-${row.date}`}>
-                                    <circle cx={x} cy={y} r="4" fill="#0e7490">
-                                      <title>{`${formatAuctionDateLabel(row.date)} · ${analyticsChartMetricLabel}: ${row.value}`}</title>
+                                {analyticsChartPoints.map((point, index) => (
+                                  <g key={`analytics-point-${point.date}`}>
+                                    <circle cx={point.x} cy={point.y} r="4" fill="#0e7490">
+                                      <title>{`${formatAuctionDateLabel(point.date)} · ${analyticsChartMetricLabel}: ${point.value}`}</title>
                                     </circle>
-                                    <text x={x} y={228} textAnchor="middle" fontSize="10" fill="#475569">
-                                      {new Date(row.date).toLocaleDateString("es-CL", {
-                                        day: "2-digit",
-                                        month: "2-digit",
-                                      })}
-                                    </text>
+                                    {(analyticsChartPoints.length <= 16 ||
+                                      index === 0 ||
+                                      index === analyticsChartPoints.length - 1 ||
+                                      index % analyticsChartLabelStep === 0) && (
+                                      <text
+                                        x={point.x}
+                                        y="238"
+                                        textAnchor="middle"
+                                        fontSize="11"
+                                        fill="#475569"
+                                      >
+                                        {new Date(point.date).toLocaleDateString("es-CL", {
+                                          day: "2-digit",
+                                          month: "2-digit",
+                                        })}
+                                      </text>
+                                    )}
                                   </g>
-                                );
-                              })}
-                            </svg>
-                          )}
+                                ))}
+                              </>
+                            ) : null}
+                          </svg>
                         </div>
-                        <div className="max-h-40 space-y-1 overflow-auto rounded-md border border-slate-200 bg-white p-2">
-                          {analyticsChartRows
-                            .slice(-12)
-                            .reverse()
-                            .map((row) => (
-                              <div
-                                key={`analytics-row-${row.date}`}
-                                className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-2 py-1 text-xs"
-                              >
-                                <span className="font-semibold text-slate-700">
-                                  {formatAuctionDateLabel(row.date)}
-                                </span>
-                                <span className="font-bold text-slate-900">{row.value}</span>
-                              </div>
-                            ))}
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-600">
+                          <span>
+                            Zoom: <span className="font-semibold text-slate-800">{Math.round(analyticsChartZoom * 100)}%</span>
+                          </span>
+                          <span>
+                            Vista: <span className="font-semibold text-slate-800">100% del horizonte temporal</span>
+                          </span>
+                          <span className="text-slate-500">
+                            Doble clic para resetear zoom
+                          </span>
                         </div>
                       </div>
                     )}
@@ -8222,6 +8475,9 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           </section>
         ) : null}
         {resolvedHomeSectionOrder.map((sectionId) => {
+          if (isBaseHomeSectionOrderId(sectionId) && hiddenHomeCategoryIds.has(sectionCategoryKey(sectionId))) {
+            return null;
+          }
           if (sectionId.startsWith("managed:")) {
             const managedCategoryId = sectionId.replace("managed:", "");
             const category = managedCategorySections.find((entry) => entry.id === managedCategoryId);
@@ -8251,7 +8507,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             return hasUpcomingAuctionCategories ? (
               <UpcomingAuctionsSection
                 key="public-proximos-auctions"
-                groups={upcomingAuctionGroups}
+                groups={visibleUpcomingAuctionGroups}
                 priceMap={config.vehiclePrices}
                 upcomingAuctionByVehicleKey={upcomingAuctionByVehicleKey}
                 favoriteKeys={favoriteKeys}

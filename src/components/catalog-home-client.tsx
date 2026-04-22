@@ -1938,6 +1938,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     useState<AnalyticsTimelineMetric>("eventos");
   const [analyticsDateFrom, setAnalyticsDateFrom] = useState("");
   const [analyticsDateTo, setAnalyticsDateTo] = useState("");
+  const [showAnalyticsScopeMenu, setShowAnalyticsScopeMenu] = useState(false);
   const [showAnalyticsChartMenu, setShowAnalyticsChartMenu] = useState(false);
   const [analyticsChartZoom, setAnalyticsChartZoom] = useState(1);
   const [analyticsChartPan, setAnalyticsChartPan] = useState(0);
@@ -2467,6 +2468,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
 
   useEffect(() => {
     if (adminTab !== "analytics") {
+      setShowAnalyticsScopeMenu(false);
       setShowAnalyticsChartMenu(false);
     }
   }, [adminTab]);
@@ -7362,48 +7364,80 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   <p className="mt-1 text-xs text-slate-500">
                     Visitas = sesiones con evento <span className="font-semibold">page_view_home</span>. Eventos = todas las acciones registradas.
                   </p>
-                  <div className={`mt-3 grid gap-2 ${analyticsViewMode === "advanced" ? "md:grid-cols-4" : "md:grid-cols-2"}`}>
-                    <select
-                      value={analyticsEventFilter}
-                      onChange={(event) => setAnalyticsEventFilter(event.target.value)}
-                      className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
-                    >
-                      <option value="all">Todos los eventos</option>
-                      {analyticsEventOptions.map((eventName) => (
-                        <option key={`event-filter-${eventName}`} value={eventName}>
-                          {eventName}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      value={analyticsSectionFilter}
-                      onChange={(event) => setAnalyticsSectionFilter(event.target.value)}
-                      className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
-                    >
-                      <option value="all">Todas las secciones</option>
-                      {analyticsSectionOptions.map((sectionName) => (
-                        <option key={`section-filter-${sectionName}`} value={sectionName}>
-                          {sectionName}
-                        </option>
-                      ))}
-                    </select>
+                  <div className="relative mt-3 flex flex-wrap items-center gap-2">
                     <input
                       value={analyticsVehicleQuery}
                       onChange={(event) => setAnalyticsVehicleQuery(event.target.value)}
                       placeholder="Filtrar por patente o key"
-                      className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
+                      className="ui-focus min-w-[16rem] flex-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowAnalyticsScopeMenu((prev) => !prev)}
+                      className="ui-focus inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-50"
+                      aria-label="Abrir filtros de analytics"
+                      title="Filtros"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        aria-hidden="true"
+                      >
+                        <path d="M3 5h18M6 12h12M10 19h4" strokeLinecap="round" />
+                      </svg>
+                    </button>
                     <button
                       type="button"
                       onClick={() => {
                         setAnalyticsEventFilter("all");
                         setAnalyticsSectionFilter("all");
                         setAnalyticsVehicleQuery("");
+                        setShowAnalyticsScopeMenu(false);
                       }}
-                      className="ui-focus rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700"
+                      className="ui-focus inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-300 bg-slate-50 text-slate-700 transition hover:bg-slate-100"
+                      aria-label="Limpiar filtros de analytics"
+                      title="Limpiar filtros"
                     >
-                      Limpiar filtros
+                      <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                        <path d="M10 3a7 7 0 1 1-6.2 10.25.75.75 0 1 1 1.32-.72A5.5 5.5 0 1 0 4.5 10H6a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 10.75V7.5a.75.75 0 0 1 1.5 0v1.3A7 7 0 0 1 10 3Z" />
+                      </svg>
                     </button>
+                    {showAnalyticsScopeMenu ? (
+                      <div className="absolute right-0 top-full z-20 mt-2 w-full max-w-lg rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Filtros de analytics
+                        </p>
+                        <div className="grid gap-2 md:grid-cols-2">
+                          <select
+                            value={analyticsEventFilter}
+                            onChange={(event) => setAnalyticsEventFilter(event.target.value)}
+                            className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
+                          >
+                            <option value="all">Todos los eventos</option>
+                            {analyticsEventOptions.map((eventName) => (
+                              <option key={`event-filter-${eventName}`} value={eventName}>
+                                {eventName}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            value={analyticsSectionFilter}
+                            onChange={(event) => setAnalyticsSectionFilter(event.target.value)}
+                            className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
+                          >
+                            <option value="all">Todas las secciones</option>
+                            {analyticsSectionOptions.map((sectionName) => (
+                              <option key={`section-filter-${sectionName}`} value={sectionName}>
+                                {sectionName}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
 

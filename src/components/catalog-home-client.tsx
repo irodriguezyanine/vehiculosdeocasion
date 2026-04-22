@@ -6091,6 +6091,37 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                           <button
                             type="button"
                             onClick={() => {
+                              const nextHidden = !hidden;
+                              toggleHidden(key);
+                              showSystemNotice(
+                                "success",
+                                nextHidden ? "Unidad oculta del home" : "Unidad visible en home",
+                                nextHidden
+                                  ? `${getPatent(item)} quedó oculta del home, sin eliminarse del inventario.`
+                                  : `${getPatent(item)} volvió a mostrarse en el home.`,
+                              );
+                            }}
+                            className={`ui-focus inline-flex h-7 w-7 items-center justify-center rounded border transition ${
+                              hidden
+                                ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                            }`}
+                            aria-label={`${hidden ? "Mostrar" : "Ocultar"} en home ${getPatent(item)}`}
+                            title={hidden ? "Mostrar en home" : "Ocultar del home"}
+                          >
+                            {hidden ? (
+                              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                                <path d="M10 4c3.38 0 6.63 2 8.37 5.42a1.3 1.3 0 0 1 0 1.16C16.63 14 13.38 16 10 16s-6.63-2-8.37-5.42a1.3 1.3 0 0 1 0-1.16C3.37 6 6.62 4 10 4Zm0 2c-2.6 0-5.16 1.5-6.71 4 .01.02.02.04.03.05C4.84 12.5 7.4 14 10 14s5.16-1.5 6.71-4a.63.63 0 0 0-.03-.05C15.16 7.5 12.6 6 10 6Zm0 1.75A2.25 2.25 0 1 1 10 12.25 2.25 2.25 0 0 1 10 7.75Z" />
+                              </svg>
+                            ) : (
+                              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                                <path d="M10 4c3.38 0 6.63 2 8.37 5.42a1.3 1.3 0 0 1 0 1.16C16.63 14 13.38 16 10 16c-1.72 0-3.42-.52-4.95-1.5l1.5-1.5c1.06.63 2.24.97 3.45.97 2.6 0 5.16-1.5 6.71-4a.63.63 0 0 0-.03-.05C15.16 7.5 12.6 6 10 6c-1.2 0-2.38.34-3.43.96L5.1 5.49A9.85 9.85 0 0 1 10 4Zm7.2 13.6a.75.75 0 0 1-1.06 0l-13-13a.75.75 0 1 1 1.06-1.06l13 13a.75.75 0 0 1 0 1.06ZM10 7.75c.7 0 1.33.32 1.75.83L8.58 11.75A2.25 2.25 0 0 1 10 7.75Z" />
+                              </svg>
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
                               markVehicleAsSold(key);
                               setManagingVehicleKey(null);
                               showSystemNotice(

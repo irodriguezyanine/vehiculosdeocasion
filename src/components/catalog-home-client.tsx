@@ -763,6 +763,56 @@ function parseAnalyticsTimestamp(value: unknown): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+function getAnalyticsEventLabel(eventName: string): string {
+  const labels: Record<string, string> = {
+    page_view_home: "Vista al home",
+    vehicle_detail_open: "Apertura de detalle de vehículo",
+    home_search_change: "Búsqueda en home",
+    quick_filter_toggle: "Uso de filtro rápido",
+    compare_toggle: "Comparar vehículos",
+    whatsapp_click_modal_mobile: "Click WhatsApp desde modal (móvil)",
+    whatsapp_click_modal: "Click WhatsApp desde modal",
+    whatsapp_click_card: "Click WhatsApp en tarjeta",
+    whatsapp_click_floating: "Click WhatsApp en botón flotante",
+    home_sort_change: "Cambio de orden en listado",
+    calendar_pdf_download: "Descarga de PDF del calendario",
+    login_modal_open: "Apertura de modal de login",
+    offer_modal_open: "Apertura de modal de oferta",
+    favorite_toggle: "Agregar/quitar favorito",
+    top_filter_click: "Click en sección superior",
+    vehicle_share: "Compartir vehículo",
+    lead_form_submit: "Envío de formulario de contacto",
+    card_open: "Apertura de tarjeta de vehículo",
+  };
+  if (labels[eventName]) return labels[eventName];
+  return eventName
+    .replace(/_/g, " ")
+    .trim()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function getAnalyticsSectionLabel(sectionName: string): string {
+  const labels: Record<string, string> = {
+    "sin-seccion": "Sin sección",
+    "sin-sección": "Sin sección",
+    all: "Todas las secciones",
+    "proximos-remates": "Próximos remates",
+    "ventas-directas": "Ventas directas",
+    novedades: "Novedades",
+    catalogo: "Catálogo",
+    favoritos: "Favoritos",
+    "recien-publicados": "Recién publicados",
+    "recién-publicados": "Recién publicados",
+  };
+  if (labels[sectionName]) return labels[sectionName];
+  if (sectionName.startsWith("managed:")) return "Categoría personalizada";
+  if (sectionName.startsWith("categoria-")) return "Categoría personalizada";
+  return sectionName
+    .replace(/[_-]+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 function formatCompactNumber(value: number): string {
   return new Intl.NumberFormat("es-CL").format(value);
 }
@@ -7470,21 +7520,29 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
 
                 <div className={`grid gap-4 ${analyticsViewMode === "advanced" ? "xl:grid-cols-3" : "xl:grid-cols-2"}`}>
                   <div className="rounded-xl border border-slate-200 bg-white p-3 xl:col-span-1">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Top vehículos
-                    </p>
+                    <div className="mb-2 grid grid-cols-[1fr_112px] items-center gap-2 px-1">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Top vehículos
+                      </p>
+                      <p className="text-right text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                        Interacciones
+                      </p>
+                    </div>
                     {analyticsTopVehicles.length === 0 ? (
                       <p className="text-sm text-slate-500">Aún no hay datos de vehículos para este rango.</p>
                     ) : (
                       <div className="space-y-2">
                         {analyticsTopVehicles.slice(0, analyticsViewMode === "simple" ? 5 : 10).map((row, index) => (
-                          <div key={`top-vehicle-${row.itemKey}`} className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+                          <div
+                            key={`top-vehicle-${row.itemKey}`}
+                            className="grid grid-cols-[1fr_112px] items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2"
+                          >
                             <div className="min-w-0">
                               <p className="text-xs font-semibold text-slate-500">#{index + 1} · {row.patent}</p>
                               <p className="line-clamp-1 text-sm font-semibold text-slate-900">{row.model}</p>
                             </div>
-                            <span className="rounded-full bg-cyan-100 px-2 py-0.5 text-xs font-semibold text-cyan-800">
-                              {row.total} interacciones
+                            <span className="text-right text-base font-black text-slate-900">
+                              {formatCompactNumber(row.total)}
                             </span>
                           </div>
                         ))}
@@ -7755,7 +7813,9 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       <div className="space-y-2">
                         {analyticsTopEvents.map((row) => (
                           <div key={`top-event-${row.eventName}`} className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
-                            <span className="line-clamp-1 text-xs font-semibold text-slate-700">{row.eventName}</span>
+                            <span className="line-clamp-1 text-xs font-semibold text-slate-700">
+                              {getAnalyticsEventLabel(row.eventName)}
+                            </span>
                             <span className="text-xs font-bold text-slate-900">{row.total}</span>
                           </div>
                         ))}
@@ -7777,7 +7837,9 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                         <div className="space-y-2">
                           {analyticsTopSections.map((row) => (
                             <div key={`top-section-${row.section}`} className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
-                              <span className="text-sm font-semibold text-slate-700">{row.section}</span>
+                              <span className="text-sm font-semibold text-slate-700">
+                                {getAnalyticsSectionLabel(row.section)}
+                              </span>
                               <span className="rounded-full bg-slate-900 px-2 py-0.5 text-xs font-semibold text-white">
                                 {row.total}
                               </span>
@@ -7818,8 +7880,16 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                     <div className="max-h-64 space-y-1 overflow-auto pr-1">
                       {analyticsScopedEvents.slice(0, analyticsViewMode === "simple" ? 12 : 40).map((event, index) => (
                         <div key={`analytics-event-row-${index}`} className="grid grid-cols-[1.2fr_1fr_1fr_1fr] gap-2 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs">
-                          <span className="line-clamp-1 font-semibold text-slate-800">{event.event ?? "sin_evento"}</span>
-                          <span className="line-clamp-1 text-slate-600">{event.section ?? "sin-sección"}</span>
+                          <span className="line-clamp-1 font-semibold text-slate-800">
+                            {getAnalyticsEventLabel(
+                              typeof event.event === "string" ? event.event : "sin_evento",
+                            )}
+                          </span>
+                          <span className="line-clamp-1 text-slate-600">
+                            {getAnalyticsSectionLabel(
+                              typeof event.section === "string" ? event.section : "sin-seccion",
+                            )}
+                          </span>
                           <span className="line-clamp-1 text-slate-600">{event.itemKey ?? "—"}</span>
                           <span className="line-clamp-1 text-slate-500">
                             {event.timestamp ? new Date(event.timestamp).toLocaleString("es-CL") : "sin fecha"}

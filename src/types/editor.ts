@@ -145,6 +145,7 @@ export type EditorVehicleDetails = {
 export type EditorConfig = {
   sectionVehicleIds: Record<SectionId, string[]>;
   hiddenVehicleIds: string[];
+  hiddenCategoryIds: string[];
   soldVehicleIds: string[];
   soldVehicleHistory: SoldVehicleRecord[];
   vehiclePrices: Record<string, string>;
@@ -165,6 +166,7 @@ export const DEFAULT_EDITOR_CONFIG: EditorConfig = {
     catalogo: [],
   },
   hiddenVehicleIds: [],
+  hiddenCategoryIds: [],
   soldVehicleIds: [],
   soldVehicleHistory: [],
   vehiclePrices: {},

@@ -65,7 +65,7 @@ type OfferFormState = {
   offerAmount: string;
 };
 type OfferFilterField = "all" | "vehicleTitle" | "patent" | "customerName" | "customerEmail" | "customerPhone";
-type SoldFilterField = "all" | "patent" | "title" | "auctionName";
+type SoldFilterField = "all" | "patent" | "title" | "soldCategory" | "auctionName";
 type VehicleDetailTabId = "general" | "descripcion" | "tecnica" | "fotos";
 type CalendarPdfRow = {
   title: string;
@@ -4302,18 +4302,65 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     });
   };
 
+  const resolveSoldCategory = useCallback(
+    (
+      vehicleKey: string,
+      currentConfig: EditorConfig,
+      context?: {
+        auctionId?: string;
+        auctionName?: string;
+        soldCategory?: string;
+      },
+    ): string => {
+      const explicit = context?.soldCategory?.trim();
+      if (explicit) return explicit;
+
+      if (
+        context?.auctionId ||
+        context?.auctionName ||
+        Boolean(currentConfig.vehicleUpcomingAuctionIds[vehicleKey])
+      ) {
+        return "Remate";
+      }
+
+      if ((currentConfig.sectionVehicleIds["ventas-directas"] ?? []).includes(vehicleKey)) {
+        return "Venta directa";
+      }
+      if ((currentConfig.sectionVehicleIds.novedades ?? []).includes(vehicleKey)) {
+        return "Novedades";
+      }
+      if ((currentConfig.sectionVehicleIds.catalogo ?? []).includes(vehicleKey)) {
+        return "Catálogo";
+      }
+
+      const managedCategory = (currentConfig.managedCategories ?? []).find((category) =>
+        (category.vehicleIds ?? []).includes(vehicleKey),
+      );
+      if (managedCategory) {
+        return managedCategory.name?.trim()
+          ? `Categoría: ${managedCategory.name.trim()}`
+          : "Categoría personalizada";
+      }
+
+      return "Sin categoría";
+    },
+    [],
+  );
+
   const buildSoldVehicleRecord = useCallback(
     (
       item: CatalogItem,
       context?: {
         auctionId?: string;
         auctionName?: string;
+        soldCategory?: string;
       },
     ): SoldVehicleRecord => ({
       vehicleKey: getVehicleKey(item),
       patent: getPatent(item),
       title: getModel(item),
       soldAt: new Date().toISOString(),
+      soldCategory: context?.soldCategory,
       auctionId: context?.auctionId,
       auctionName: context?.auctionName,
     }),
@@ -4326,12 +4373,16 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       context?: {
         auctionId?: string;
         auctionName?: string;
+        soldCategory?: string;
       },
     ) => {
       const item = itemsByKey.get(vehicleKey);
       if (!item) return;
-      const soldRecord = buildSoldVehicleRecord(item, context);
       setConfig((prev) => {
+        const soldRecord = buildSoldVehicleRecord(item, {
+          ...context,
+          soldCategory: resolveSoldCategory(vehicleKey, prev, context),
+        });
         const soldSet = new Set(prev.soldVehicleIds ?? []);
         soldSet.add(vehicleKey);
 
@@ -4371,7 +4422,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         };
       });
     },
-    [buildSoldVehicleRecord, itemsByKey],
+    [buildSoldVehicleRecord, itemsByKey, resolveSoldCategory],
   );
 
   const revertVehicleSale = useCallback((vehicleKey: string) => {
@@ -4972,6 +5023,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             const soldRecord = buildSoldVehicleRecord(item, {
               auctionId,
               auctionName: auction?.name ?? "Remate finalizado",
+              soldCategory: "Remate",
             });
             nextHistory.unshift(soldRecord);
           }
@@ -5251,6 +5303,11 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       ).sort((a, b) => a.localeCompare(b, "es-CL")),
     [soldHistoryRows],
   );
+  const getSoldCategoryLabel = useCallback(
+    (row: SoldVehicleRecord): string =>
+      row.soldCategory?.trim() || (row.auctionName?.trim() ? "Remate" : "Venta individual"),
+    [],
+  );
   const soldFilteredRows = useMemo(() => {
     const query = normalizeText(soldSearch);
     const from = soldDateFrom ? new Date(`${soldDateFrom}T00:00:00`) : null;
@@ -5270,6 +5327,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       const columns = {
         patent: normalizeText(row.patent),
         title: normalizeText(row.title),
+        soldCategory: normalizeText(getSoldCategoryLabel(row)),
         auctionName: normalizeText(auctionLabel),
       };
       if (soldSearchField === "all") {
@@ -5277,7 +5335,15 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       }
       return columns[soldSearchField].includes(query);
     });
-  }, [soldHistoryRows, soldSearch, soldSearchField, soldAuctionFilter, soldDateFrom, soldDateTo]);
+  }, [
+    soldHistoryRows,
+    soldSearch,
+    soldSearchField,
+    soldAuctionFilter,
+    soldDateFrom,
+    soldDateTo,
+    getSoldCategoryLabel,
+  ]);
   const soldFiltersActiveCount = useMemo(() => {
     let count = 0;
     if (soldSearchField !== "all") count += 1;
@@ -5296,10 +5362,11 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         );
         return;
       }
-      const header = ["Patente", "Modelo", "Origen", "Fecha venta", "ID vehículo"];
+      const header = ["Patente", "Modelo", "Categoría venta", "Origen", "Fecha venta", "ID vehículo"];
       const lines = rows.map((row) => [
         toCsvCell(row.patent),
         toCsvCell(row.title),
+        toCsvCell(getSoldCategoryLabel(row)),
         toCsvCell(row.auctionName?.trim() || "Venta individual"),
         toCsvCell(new Date(row.soldAt).toLocaleString("es-CL")),
         toCsvCell(row.vehicleKey),
@@ -5321,7 +5388,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         `Se descargó el archivo para Excel (${scope}) con ${rows.length} registro(s).`,
       );
     },
-    [showSystemNotice],
+    [getSoldCategoryLabel, showSystemNotice],
   );
   const analyticsBaseEvents = analyticsSource === "server" ? serverAnalyticsEvents : analyticsEvents;
 
@@ -6146,6 +6213,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                               <option value="all">Buscar en todas las columnas</option>
                               <option value="patent">Patente</option>
                               <option value="title">Modelo</option>
+                              <option value="soldCategory">Categoría de venta</option>
                               <option value="auctionName">Origen de venta</option>
                             </select>
                             <select
@@ -6201,7 +6269,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                         <table className="min-w-[980px] w-full text-left text-xs">
                           <thead className="bg-slate-50 text-slate-600">
                             <tr>
-                              {["Fecha venta", "Patente", "Modelo", "Origen", "ID vehículo", "Acciones"].map((label) => (
+                              {["Fecha venta", "Patente", "Modelo", "Categoría venta", "Origen", "ID vehículo", "Acciones"].map((label) => (
                                 <th key={`sold-col-${label}`} className="px-3 py-2 font-semibold uppercase tracking-wide">
                                   {label}
                                 </th>
@@ -6218,6 +6286,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                                   {entry.patent}
                                 </td>
                                 <td className="px-3 py-2 text-slate-800">{entry.title}</td>
+                                <td className="px-3 py-2 text-slate-700">{getSoldCategoryLabel(entry)}</td>
                                 <td className="px-3 py-2 text-slate-700">
                                   {entry.auctionName?.trim() || "Venta individual"}
                                 </td>
@@ -6375,7 +6444,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 </div>
 
                 <div className="mt-3 space-y-2">
-                  <div className="grid grid-cols-[1.2fr_1.6fr_auto_auto] gap-2 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                  <div className="hidden gap-2 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500 md:grid md:grid-cols-[minmax(170px,1.1fr)_minmax(300px,1.8fr)_72px_176px]">
                     <span>Grupo</span>
                     <span>Descripción / textos</span>
                     <span className="text-center">Unidades</span>
@@ -6391,14 +6460,14 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       return (
                         <article
                           key={sectionId}
-                          className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-slate-50/30 px-2.5 py-2 md:grid-cols-[1.2fr_1.6fr_auto_auto]"
+                          className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-slate-50/30 px-2.5 py-2 md:grid-cols-[minmax(170px,1.1fr)_minmax(300px,1.8fr)_72px_176px] md:items-center"
                         >
-                          <div>
+                          <div className="min-h-8 md:flex md:items-center">
                             <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
                               {SECTION_LABELS[sectionId]}
                             </p>
                           </div>
-                          <div className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5">
+                          <div className="min-h-12 rounded-md border border-slate-200 bg-white px-2.5 py-1.5">
                             {isEditingTexts ? (
                               <div className="grid gap-1 md:grid-cols-[1fr_1fr_auto]">
                                 <input
@@ -6416,7 +6485,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                                 <button
                                   type="button"
                                   onClick={() => setEditingSectionTextId(null)}
-                                  className="ui-focus inline-flex items-center justify-center rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-emerald-700"
+                                  className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-emerald-300 bg-emerald-50 text-emerald-700"
                                   aria-label={`Cerrar edición de ${SECTION_LABELS[sectionId]}`}
                                   title="Listo"
                                 >
@@ -6449,10 +6518,10 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                               </div>
                             )}
                           </div>
-                        <div className="flex items-center justify-center rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
+                        <div className="mx-auto flex h-8 w-14 items-center justify-center rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
                           {sectionVehicleCounts[sectionId]}
                         </div>
-                        <div className="flex flex-wrap items-center justify-end gap-1.5">
+                        <div className="flex items-center justify-end gap-1.5 md:w-44">
                           <button
                             type="button"
                             onClick={() => {
@@ -6461,7 +6530,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                               setEditorPage(1);
                               setAdminTab("vehiculos");
                             }}
-                            className="ui-focus inline-flex h-7 w-7 items-center justify-center rounded border border-cyan-300 bg-cyan-50 text-cyan-700"
+                            className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-cyan-300 bg-cyan-50 text-cyan-700"
                             aria-label={`Ver y gestionar ${SECTION_LABELS[sectionId]}`}
                             title="Ver y gestionar"
                           >
@@ -6475,7 +6544,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                               onClick={() =>
                                 openBatchAssignModal({ type: "section", sectionId: sectionId as "ventas-directas" | "novedades" | "catalogo" })
                               }
-                              className="ui-focus inline-flex h-7 w-7 items-center justify-center rounded border border-emerald-300 bg-emerald-50 text-emerald-700"
+                              className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-emerald-300 bg-emerald-50 text-emerald-700"
                               aria-label={`Agregar unidades a ${SECTION_LABELS[sectionId]}`}
                               title="Agregar unidades"
                             >
@@ -6503,18 +6572,20 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       return (
                         <article
                           key={auction.id}
-                          className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-slate-50/30 px-2.5 py-2 md:grid-cols-[1.2fr_1.6fr_auto_auto]"
+                          className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-slate-50/30 px-2.5 py-2 md:grid-cols-[minmax(170px,1.1fr)_minmax(300px,1.8fr)_72px_176px] md:items-center"
                         >
-                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
-                            {auction.name}
-                          </p>
+                          <div className="min-h-8 md:flex md:items-center">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                              {auction.name}
+                            </p>
+                          </div>
                           <p className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-600">
                             Remate programado para {formatAuctionDateLabel(auction.date)}
                           </p>
-                          <div className="flex items-center justify-center rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
+                          <div className="mx-auto flex h-8 w-14 items-center justify-center rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
                             {count}
                           </div>
-                          <div className="flex flex-wrap items-center justify-end gap-1.5">
+                          <div className="flex items-center justify-end gap-1.5 md:w-44">
                             <button
                               type="button"
                               onClick={() => {
@@ -6523,7 +6594,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                                 setEditorPage(1);
                                 setAdminTab("vehiculos");
                               }}
-                              className="ui-focus inline-flex h-7 w-7 items-center justify-center rounded border border-cyan-300 bg-cyan-50 text-cyan-700"
+                              className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-cyan-300 bg-cyan-50 text-cyan-700"
                               aria-label={`Ver y gestionar ${auction.name}`}
                               title="Ver y gestionar"
                             >
@@ -6534,7 +6605,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                             <button
                               type="button"
                               onClick={() => openBatchAssignModal({ type: "auction", auctionId: auction.id })}
-                              className="ui-focus inline-flex h-7 w-7 items-center justify-center rounded border border-emerald-300 bg-emerald-50 text-emerald-700"
+                              className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-emerald-300 bg-emerald-50 text-emerald-700"
                               aria-label={`Agregar unidades a ${auction.name}`}
                               title="Agregar unidades"
                             >
@@ -6547,7 +6618,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                                 setFinalizeAuctionSearchTerm("");
                                 setFinalizeSoldVehicleKeys([]);
                               }}
-                              className="ui-focus inline-flex h-7 w-7 items-center justify-center rounded border border-amber-300 bg-amber-50 text-amber-700"
+                              className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-amber-300 bg-amber-50 text-amber-700"
                               aria-label={`Finalizar remate ${auction.name}`}
                               title="Finalizar remate"
                             >
@@ -6558,7 +6629,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                             <button
                               type="button"
                               onClick={() => removeUpcomingAuction(auction.id)}
-                              className="ui-focus inline-flex h-7 w-7 items-center justify-center rounded border border-rose-300 bg-rose-50 text-rose-700"
+                              className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-rose-300 bg-rose-50 text-rose-700"
                               aria-label={`Quitar ${auction.name}`}
                               title="Quitar"
                             >
@@ -6583,7 +6654,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                     (config.managedCategories ?? []).map((category) => (
                       <article
                         key={category.id}
-                        className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-slate-50/30 px-2.5 py-2 md:grid-cols-[1.2fr_1.6fr_auto_auto]"
+                        className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-slate-50/30 px-2.5 py-2 md:grid-cols-[minmax(170px,1.1fr)_minmax(300px,1.8fr)_72px_176px] md:items-center"
                       >
                         <input
                           value={category.name}
@@ -6599,11 +6670,11 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                           }
                           className="ui-focus rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm"
                         />
-                        <div className="flex items-center justify-center rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
+                        <div className="mx-auto flex h-8 w-14 items-center justify-center rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
                           {category.vehicleIds.length}
                         </div>
-                        <div className="flex flex-wrap items-center justify-end gap-1.5">
-                          <label className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700">
+                        <div className="flex items-center justify-end gap-1.5 md:w-44">
+                          <label className="inline-flex h-8 w-24 items-center justify-center gap-1 rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700">
                             <input
                               type="checkbox"
                               checked={category.visible !== false}
@@ -6619,7 +6690,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                               setAssignCategoryId(category.id);
                               setAssignSearchTerm("");
                             }}
-                            className="ui-focus inline-flex h-7 w-7 items-center justify-center rounded border border-cyan-300 bg-cyan-50 text-cyan-700"
+                            className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-cyan-300 bg-cyan-50 text-cyan-700"
                             aria-label={`Asignar vehículos a ${category.name}`}
                             title="Asignar vehículos"
                           >
@@ -6628,7 +6699,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                           <button
                             type="button"
                             onClick={() => deleteManagedCategory(category.id)}
-                            className="ui-focus inline-flex h-7 w-7 items-center justify-center rounded border border-rose-300 bg-rose-50 text-rose-700"
+                            className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-rose-300 bg-rose-50 text-rose-700"
                             aria-label={`Eliminar ${category.name}`}
                             title="Eliminar"
                           >

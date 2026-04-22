@@ -66,6 +66,8 @@ type OfferFormState = {
 };
 type OfferFilterField = "all" | "vehicleTitle" | "patent" | "customerName" | "customerEmail" | "customerPhone";
 type SoldFilterField = "all" | "patent" | "title" | "soldCategory" | "auctionName";
+type AnalyticsChartType = "bar" | "line" | "area";
+type AnalyticsTimelineMetric = "eventos" | "visitas" | "detalle" | "whatsapp" | "leads";
 type VehicleDetailTabId = "general" | "descripcion" | "tecnica" | "fotos";
 type CalendarPdfRow = {
   title: string;
@@ -93,6 +95,14 @@ type AnalyticsEventPayload = Record<string, unknown> & {
   section?: string;
   sessionId?: string;
   visitorId?: string;
+};
+type AnalyticsTimelineRow = {
+  date: string;
+  total: number;
+  visits: number;
+  detailOpens: number;
+  whatsappClicks: number;
+  leads: number;
 };
 
 const QUICK_FILTER_LABELS: Record<QuickFilterId, string> = {
@@ -1919,6 +1929,11 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   const [analyticsEventFilter, setAnalyticsEventFilter] = useState("all");
   const [analyticsSectionFilter, setAnalyticsSectionFilter] = useState("all");
   const [analyticsVehicleQuery, setAnalyticsVehicleQuery] = useState("");
+  const [analyticsChartType, setAnalyticsChartType] = useState<AnalyticsChartType>("bar");
+  const [analyticsTimelineMetric, setAnalyticsTimelineMetric] =
+    useState<AnalyticsTimelineMetric>("eventos");
+  const [analyticsDateFrom, setAnalyticsDateFrom] = useState("");
+  const [analyticsDateTo, setAnalyticsDateTo] = useState("");
   const [showOfferModal, setShowOfferModal] = useState(false);
   const [offerForm, setOfferForm] = useState<OfferFormState>(buildEmptyOfferForm);
   const [offerSending, setOfferSending] = useState(false);
@@ -5588,22 +5603,80 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       .slice(0, 8);
   }, [analyticsScopedEvents]);
 
-  const analyticsTimeline = useMemo(() => {
-    const buckets = new Map<string, number>();
+  const analyticsTimeline = useMemo<AnalyticsTimelineRow[]>(() => {
+    const buckets = new Map<
+      string,
+      {
+        total: number;
+        pageViews: number;
+        detailOpens: number;
+        whatsappClicks: number;
+        leads: number;
+        sessionIds: Set<string>;
+      }
+    >();
     for (const event of analyticsScopedEvents) {
       const timestamp = parseAnalyticsTimestamp(event.timestamp);
       if (!timestamp) continue;
       const key = timestamp.toISOString().slice(0, 10);
-      buckets.set(key, (buckets.get(key) ?? 0) + 1);
+      const current = buckets.get(key) ?? {
+        total: 0,
+        pageViews: 0,
+        detailOpens: 0,
+        whatsappClicks: 0,
+        leads: 0,
+        sessionIds: new Set<string>(),
+      };
+      current.total += 1;
+      if (event.event === "page_view_home") {
+        current.pageViews += 1;
+        if (typeof event.sessionId === "string" && event.sessionId.trim().length > 0) {
+          current.sessionIds.add(event.sessionId.trim());
+        }
+      }
+      if (event.event === "vehicle_detail_open") current.detailOpens += 1;
+      if (String(event.event).startsWith("whatsapp_click")) current.whatsappClicks += 1;
+      if (event.event === "lead_form_submit") current.leads += 1;
+      buckets.set(key, current);
     }
     return Array.from(buckets.entries())
-      .map(([date, total]) => ({ date, total }))
+      .map(([date, entry]) => ({
+        date,
+        total: entry.total,
+        visits: entry.sessionIds.size > 0 ? entry.sessionIds.size : entry.pageViews,
+        detailOpens: entry.detailOpens,
+        whatsappClicks: entry.whatsappClicks,
+        leads: entry.leads,
+      }))
       .sort((a, b) => a.date.localeCompare(b.date));
   }, [analyticsScopedEvents]);
 
-  const analyticsTimelineMax = useMemo(
-    () => analyticsTimeline.reduce((max, row) => Math.max(max, row.total), 0),
-    [analyticsTimeline],
+  const analyticsTimelineFiltered = useMemo(
+    () =>
+      analyticsTimeline.filter((row) => {
+        if (analyticsDateFrom && row.date < analyticsDateFrom) return false;
+        if (analyticsDateTo && row.date > analyticsDateTo) return false;
+        return true;
+      }),
+    [analyticsTimeline, analyticsDateFrom, analyticsDateTo],
+  );
+
+  const analyticsChartRows = useMemo(
+    () =>
+      analyticsTimelineFiltered.map((row) => {
+        let value = row.total;
+        if (analyticsTimelineMetric === "visitas") value = row.visits;
+        else if (analyticsTimelineMetric === "detalle") value = row.detailOpens;
+        else if (analyticsTimelineMetric === "whatsapp") value = row.whatsappClicks;
+        else if (analyticsTimelineMetric === "leads") value = row.leads;
+        return { ...row, value };
+      }),
+    [analyticsTimelineFiltered, analyticsTimelineMetric],
+  );
+
+  const analyticsChartMax = useMemo(
+    () => analyticsChartRows.reduce((max, row) => Math.max(max, row.value), 0),
+    [analyticsChartRows],
   );
 
   const analyticsEventOptions = useMemo(() => {
@@ -5627,6 +5700,62 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     ).sort((a, b) => a.localeCompare(b));
     return names;
   }, [analyticsFilteredEvents]);
+
+  const analyticsChartMetricLabel = useMemo(() => {
+    if (analyticsTimelineMetric === "visitas") return "Visitas";
+    if (analyticsTimelineMetric === "detalle") return "Detalle abierto";
+    if (analyticsTimelineMetric === "whatsapp") return "Clicks WhatsApp";
+    if (analyticsTimelineMetric === "leads") return "Leads";
+    return "Eventos";
+  }, [analyticsTimelineMetric]);
+
+  const downloadAnalyticsTimelineExcel = useCallback(
+    (rows: Array<AnalyticsTimelineRow & { value: number }>) => {
+      if (rows.length === 0) {
+        showSystemNotice(
+          "info",
+          "Sin datos para exportar",
+          "No hay actividad diaria para los filtros seleccionados.",
+        );
+        return;
+      }
+      const header = [
+        "Fecha",
+        "Eventos",
+        "Visitas",
+        "Detalle abierto",
+        "Clicks WhatsApp",
+        "Leads",
+        analyticsChartMetricLabel,
+      ];
+      const lines = rows.map((row) => [
+        toCsvCell(formatAuctionDateLabel(row.date)),
+        toCsvCell(row.total),
+        toCsvCell(row.visits),
+        toCsvCell(row.detailOpens),
+        toCsvCell(row.whatsappClicks),
+        toCsvCell(row.leads),
+        toCsvCell(row.value),
+      ]);
+      const csv = `\uFEFF${header.map(toCsvCell).join(",")}\n${lines.map((line) => line.join(",")).join("\n")}`;
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const dateTag = new Date().toISOString().slice(0, 10);
+      link.href = url;
+      link.download = `analytics-actividad-diaria-${dateTag}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      showSystemNotice(
+        "success",
+        "Exportación lista",
+        `Se descargó el archivo para Excel con ${rows.length} registro(s).`,
+      );
+    },
+    [analyticsChartMetricLabel, showSystemNotice],
+  );
 
   return (
     <main className="premium-bg min-h-screen overflow-x-hidden text-slate-900">
@@ -5826,7 +5955,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 ["vehiculos", "1. Inventario"],
                 ["categorias", "2. Editar categorías"],
                 ["layout", "3. Editar layout home"],
-                ["analytics", "4. Dashboard analytics"],
+                ["analytics", "Analytics"],
                 ["ofertas", "5. Ofertas recibidas"],
               ] as Array<[AdminTabId, string]>).map(([tabId, label]) => (
                 <button
@@ -6990,7 +7119,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        Dashboard de tráfico y conversión
+                        Analytics
                       </p>
                       <p className="text-sm text-slate-600">
                         Analiza visitas, interacciones, ranking de vehículos y efectividad comercial.
@@ -7134,26 +7263,203 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
 
                   <div className="rounded-xl border border-slate-200 bg-white p-3">
                     <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Actividad diaria
+                      Actividad diaria (gráfico dinámico)
                     </p>
-                    {analyticsTimeline.length === 0 ? (
+                    <div className="mb-3 grid gap-2 md:grid-cols-2 xl:grid-cols-5">
+                      <select
+                        value={analyticsChartType}
+                        onChange={(event) =>
+                          setAnalyticsChartType(event.target.value as AnalyticsChartType)
+                        }
+                        className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
+                      >
+                        <option value="bar">Gráfico de barras</option>
+                        <option value="line">Gráfico de línea</option>
+                        <option value="area">Gráfico de área</option>
+                      </select>
+                      <select
+                        value={analyticsTimelineMetric}
+                        onChange={(event) =>
+                          setAnalyticsTimelineMetric(event.target.value as AnalyticsTimelineMetric)
+                        }
+                        className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
+                      >
+                        <option value="eventos">Métrica: Eventos</option>
+                        <option value="visitas">Métrica: Visitas</option>
+                        <option value="detalle">Métrica: Detalle abierto</option>
+                        <option value="whatsapp">Métrica: Clicks WhatsApp</option>
+                        <option value="leads">Métrica: Leads</option>
+                      </select>
+                      <input
+                        type="date"
+                        value={analyticsDateFrom}
+                        onChange={(event) => setAnalyticsDateFrom(event.target.value)}
+                        className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
+                        title="Fecha desde"
+                      />
+                      <input
+                        type="date"
+                        value={analyticsDateTo}
+                        onChange={(event) => setAnalyticsDateTo(event.target.value)}
+                        className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
+                        title="Fecha hasta"
+                      />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => downloadAnalyticsTimelineExcel(analyticsChartRows)}
+                          className="ui-focus inline-flex h-9 flex-1 items-center justify-center rounded-md border border-emerald-300 bg-emerald-50 px-3 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                          title="Descargar Excel (CSV)"
+                        >
+                          Descargar Excel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAnalyticsDateFrom("");
+                            setAnalyticsDateTo("");
+                            setAnalyticsTimelineMetric("eventos");
+                            setAnalyticsChartType("bar");
+                          }}
+                          className="ui-focus inline-flex h-9 items-center justify-center rounded-md border border-slate-300 bg-slate-50 px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                        >
+                          Limpiar
+                        </button>
+                      </div>
+                    </div>
+                    {analyticsChartRows.length === 0 ? (
                       <p className="text-sm text-slate-500">Sin actividad en el rango seleccionado.</p>
                     ) : (
-                      <div className="space-y-2">
-                        {analyticsTimeline.slice(-10).reverse().map((row) => (
-                          <div key={`timeline-lite-${row.date}`} className="space-y-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
-                            <div className="flex items-center justify-between text-xs">
-                              <span className="font-semibold text-slate-700">{formatAuctionDateLabel(row.date)}</span>
-                              <span className="font-bold text-slate-900">{row.total}</span>
+                      <div className="space-y-3">
+                        <p className="text-xs text-slate-500">
+                          Mostrando <span className="font-semibold text-slate-700">{analyticsChartMetricLabel}</span> por día
+                          ({analyticsChartRows.length} registros).
+                        </p>
+                        <div className="overflow-x-auto rounded-md border border-slate-200 bg-slate-50 p-2">
+                          {analyticsChartType === "bar" ? (
+                            <div className="flex h-56 min-w-[680px] items-end gap-2">
+                              {analyticsChartRows.map((row) => (
+                                <div
+                                  key={`analytics-bar-${row.date}`}
+                                  className="group flex min-w-8 flex-1 flex-col items-center justify-end gap-1"
+                                  title={`${formatAuctionDateLabel(row.date)} · ${analyticsChartMetricLabel}: ${row.value}`}
+                                >
+                                  <div
+                                    className="w-full rounded-t bg-cyan-600 transition group-hover:bg-cyan-500"
+                                    style={{
+                                      height: `${analyticsChartMax > 0 ? Math.max((row.value / analyticsChartMax) * 100, 4) : 0}%`,
+                                    }}
+                                  />
+                                  <span className="text-[10px] font-semibold text-slate-600">
+                                    {new Date(row.date).toLocaleDateString("es-CL", {
+                                      day: "2-digit",
+                                      month: "2-digit",
+                                    })}
+                                  </span>
+                                </div>
+                              ))}
                             </div>
-                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
-                              <div
-                                className="h-full rounded-full bg-cyan-600"
-                                style={{ width: `${analyticsTimelineMax > 0 ? Math.max((row.total / analyticsTimelineMax) * 100, 8) : 0}%` }}
+                          ) : (
+                            <svg
+                              viewBox={`0 0 ${Math.max(analyticsChartRows.length * 68, 680)} 240`}
+                              className="h-60 min-w-[680px] w-full"
+                              aria-label={`${analyticsChartType === "line" ? "Línea" : "Área"} de ${analyticsChartMetricLabel}`}
+                            >
+                              <line x1="24" y1="212" x2={Math.max(analyticsChartRows.length * 68, 680) - 16} y2="212" stroke="#cbd5e1" strokeWidth="1" />
+                              <path
+                                d={
+                                  analyticsChartRows
+                                    .map((row, index) => {
+                                      const chartWidth = Math.max(analyticsChartRows.length * 68, 680);
+                                      const x =
+                                        analyticsChartRows.length === 1
+                                          ? chartWidth / 2
+                                          : 24 +
+                                            (index * (chartWidth - 48)) /
+                                              (analyticsChartRows.length - 1);
+                                      const y =
+                                        212 -
+                                        (analyticsChartMax > 0
+                                          ? (row.value / analyticsChartMax) * 170
+                                          : 0);
+                                      return `${index === 0 ? "M" : "L"} ${x} ${y}`;
+                                    })
+                                    .join(" ")
+                                }
+                                fill="none"
+                                stroke="#0891b2"
+                                strokeWidth="3"
+                                strokeLinejoin="round"
+                                strokeLinecap="round"
                               />
-                            </div>
-                          </div>
-                        ))}
+                              {analyticsChartType === "area" ? (
+                                <path
+                                  d={`${analyticsChartRows
+                                    .map((row, index) => {
+                                      const chartWidth = Math.max(analyticsChartRows.length * 68, 680);
+                                      const x =
+                                        analyticsChartRows.length === 1
+                                          ? chartWidth / 2
+                                          : 24 +
+                                            (index * (chartWidth - 48)) /
+                                              (analyticsChartRows.length - 1);
+                                      const y =
+                                        212 -
+                                        (analyticsChartMax > 0
+                                          ? (row.value / analyticsChartMax) * 170
+                                          : 0);
+                                      return `${index === 0 ? "M" : "L"} ${x} ${y}`;
+                                    })
+                                    .join(" ")} L ${Math.max(analyticsChartRows.length * 68, 680) - 24} 212 L 24 212 Z`}
+                                  fill="rgba(34,211,238,0.25)"
+                                />
+                              ) : null}
+                              {analyticsChartRows.map((row, index) => {
+                                const chartWidth = Math.max(analyticsChartRows.length * 68, 680);
+                                const x =
+                                  analyticsChartRows.length === 1
+                                    ? chartWidth / 2
+                                    : 24 +
+                                      (index * (chartWidth - 48)) /
+                                        (analyticsChartRows.length - 1);
+                                const y =
+                                  212 -
+                                  (analyticsChartMax > 0
+                                    ? (row.value / analyticsChartMax) * 170
+                                    : 0);
+                                return (
+                                  <g key={`analytics-point-${row.date}`}>
+                                    <circle cx={x} cy={y} r="4" fill="#0e7490">
+                                      <title>{`${formatAuctionDateLabel(row.date)} · ${analyticsChartMetricLabel}: ${row.value}`}</title>
+                                    </circle>
+                                    <text x={x} y={228} textAnchor="middle" fontSize="10" fill="#475569">
+                                      {new Date(row.date).toLocaleDateString("es-CL", {
+                                        day: "2-digit",
+                                        month: "2-digit",
+                                      })}
+                                    </text>
+                                  </g>
+                                );
+                              })}
+                            </svg>
+                          )}
+                        </div>
+                        <div className="max-h-40 space-y-1 overflow-auto rounded-md border border-slate-200 bg-white p-2">
+                          {analyticsChartRows
+                            .slice(-12)
+                            .reverse()
+                            .map((row) => (
+                              <div
+                                key={`analytics-row-${row.date}`}
+                                className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-2 py-1 text-xs"
+                              >
+                                <span className="font-semibold text-slate-700">
+                                  {formatAuctionDateLabel(row.date)}
+                                </span>
+                                <span className="font-bold text-slate-900">{row.value}</span>
+                              </div>
+                            ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -7204,11 +7510,11 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                         Línea completa de tiempo
                       </p>
-                      {analyticsTimeline.length === 0 ? (
+                      {analyticsTimelineFiltered.length === 0 ? (
                         <p className="text-sm text-slate-500">Sin actividad en el rango seleccionado.</p>
                       ) : (
                         <div className="max-h-64 space-y-2 overflow-auto pr-1">
-                          {analyticsTimeline.map((row) => (
+                          {analyticsTimelineFiltered.map((row) => (
                             <div key={`timeline-${row.date}`} className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
                               <span className="text-sm font-semibold text-slate-700">{formatAuctionDateLabel(row.date)}</span>
                               <span className="text-sm font-bold text-slate-900">{row.total}</span>

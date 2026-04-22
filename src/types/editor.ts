@@ -27,6 +27,7 @@ export type SoldVehicleRecord = {
   patent: string;
   title: string;
   soldAt: string;
+  soldCategory?: string;
   auctionId?: string;
   auctionName?: string;
 };

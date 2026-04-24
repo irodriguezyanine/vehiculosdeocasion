@@ -107,7 +107,7 @@ type AnalyticsTimelineRow = {
 
 type InstagramMediaItem = {
   id: string;
-  imageUrl: string;
+  imageUrl?: string;
   permalink: string;
   caption?: string;
 };
@@ -1582,7 +1582,7 @@ function InstagramGalleryStrip({ mediaItems }: { mediaItems: InstagramMediaItem[
   const items = useMemo(
     () =>
       mediaItems
-        .filter((item) => Boolean(item.imageUrl))
+        .filter((item) => Boolean(item.permalink))
         .slice(0, 12),
     [mediaItems],
   );
@@ -1637,10 +1637,8 @@ function InstagramGalleryStrip({ mediaItems }: { mediaItems: InstagramMediaItem[
       </div>
       {items.length === 0 ? (
         <div className="rounded-xl border border-stone-200 bg-white p-4 text-sm text-slate-600">
-          No pudimos cargar las fotos de Instagram en este momento.
-          {" "}
           <a href={INSTAGRAM_URL} target="_blank" rel="noreferrer" className="ui-focus font-semibold text-amber-800 underline">
-            Ver perfil {INSTAGRAM_HANDLE}
+            Ver Instagram {INSTAGRAM_HANDLE}
           </a>
         </div>
       ) : null}
@@ -1682,12 +1680,21 @@ function InstagramGalleryStrip({ mediaItems }: { mediaItems: InstagramMediaItem[
               className="featured-item text-left"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={item.imageUrl}
-                alt={item.caption || "Publicacion de Instagram"}
-                className="featured-image"
-                loading="lazy"
-              />
+              {item.imageUrl ? (
+                <img
+                  src={item.imageUrl}
+                  alt={item.caption || "Publicacion de Instagram"}
+                  className="featured-image"
+                  loading="lazy"
+                />
+              ) : (
+                <iframe
+                  src={`${item.permalink}embed/captioned`}
+                  title={item.caption || "Publicacion de Instagram"}
+                  className="featured-image border-0"
+                  loading="lazy"
+                />
+              )}
               <div className="featured-overlay" />
               <div className="featured-content">
                 <p className="line-clamp-1 text-sm font-semibold uppercase tracking-wide text-amber-300">
@@ -8287,10 +8294,10 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       ) : null}
       {config.homeLayout.showSearchBar ? (
       <section className="relative z-50 mx-auto w-full max-w-7xl px-3 pt-3 pb-2 sm:px-6 lg:px-8">
-        <div className="glass-soft overflow-visible rounded-2xl border border-slate-300/80 bg-white/95 p-3 shadow-md md:p-4">
+        <div className="overflow-visible rounded-2xl border border-amber-400/60 bg-[#3a2518] p-3 shadow-[0_14px_34px_rgba(32,18,10,0.42)] md:p-4">
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
             <div className="w-full">
-              <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+              <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-100">
                 Busqueda de inventario
               </p>
               <div className="relative">
@@ -8298,7 +8305,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   viewBox="0 0 20 20"
                   fill="none"
                   aria-hidden="true"
-                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-amber-200"
                 >
                   <path d="M13.5 13.5L17 17" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                   <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="1.8" />
@@ -8310,7 +8317,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                     trackEvent("home_search_change", { query: event.target.value });
                   }}
                   placeholder="Buscar por patente, marca, modelo o categoria..."
-                  className="ui-focus w-full rounded-xl border-2 border-slate-300 bg-white py-3 pl-10 pr-28 text-sm font-medium text-slate-800 shadow-sm placeholder:text-slate-500"
+                  className="ui-focus w-full rounded-xl border border-amber-300/70 bg-[#4a3020] py-3 pl-10 pr-28 text-sm font-medium text-amber-50 shadow-sm placeholder:text-amber-200/80"
                   aria-label="Buscar vehiculos por patente, marca, modelo o categoria"
                 />
                 {homeSearchTerm ? (
@@ -8320,7 +8327,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       setHomeSearchTerm("");
                       trackEvent("home_search_clear");
                     }}
-                    className="ui-focus absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    className="ui-focus absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-amber-300/70 bg-[#5a3a25] px-2 py-1 text-xs font-semibold text-amber-50 hover:bg-[#6a452c]"
                   >
                     Limpiar
                   </button>
@@ -8328,7 +8335,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-              <span className="rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+              <span className="rounded-full border border-amber-300/70 bg-[#5a3a25] px-3 py-1 text-xs font-semibold text-amber-50">
                 {homeVisibleItems.length} resultado(s)
               </span>
               <span className="sr-only" aria-live="polite">
@@ -8337,7 +8344,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               {config.homeLayout.showSortSelector ? (
                 <details className="relative">
                   <summary
-                    className="ui-focus flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                    className="ui-focus flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-lg border border-amber-300/70 bg-[#5a3a25] text-amber-50 hover:bg-[#6a452c]"
                     aria-label="Abrir opciones de orden"
                     title="Ordenar resultados"
                   >
@@ -8345,7 +8352,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       <path d="M4 5h12M6 10h8M8 15h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                     </svg>
                   </summary>
-                  <div className="absolute right-0 z-50 mt-2 w-44 rounded-lg border border-slate-200 bg-white p-1 shadow-lg">
+                  <div className="absolute right-0 z-50 mt-2 w-44 rounded-lg border border-amber-300/70 bg-[#4a3020] p-1 shadow-lg">
                     {([
                       ["recomendado", "Recomendado"],
                       ["relevancia", "Relevancia"],
@@ -8365,8 +8372,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                         }}
                         className={`ui-focus flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs font-medium ${
                           homeSort === value
-                            ? "bg-slate-900 text-white"
-                            : "text-slate-700 hover:bg-slate-50"
+                            ? "bg-amber-700 text-amber-50"
+                            : "text-amber-100 hover:bg-[#5a3a25]"
                         }`}
                       >
                         <span>{label}</span>
@@ -8379,7 +8386,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             </div>
           </div>
           {config.homeLayout.showQuickFilters ? (
-          <div className="mt-3 flex items-start gap-2 border-t border-slate-200 pt-3 pb-1">
+          <div className="mt-3 flex items-start gap-2 border-t border-amber-300/40 pt-3 pb-1">
             <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto whitespace-nowrap md:flex-wrap md:overflow-visible md:whitespace-normal">
               {config.homeLayout.showQuickFilters ? (
                 Object.entries(QUICK_FILTER_LABELS).map(([id, label]) => (
@@ -8389,8 +8396,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                     onClick={() => toggleQuickFilter(id as QuickFilterId)}
                     className={`ui-focus shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                       quickFilters.includes(id as QuickFilterId)
-                        ? "border-slate-700 bg-slate-800 text-white"
-                        : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                        ? "border-amber-200 bg-amber-700 text-amber-50"
+                        : "border-amber-300/70 bg-[#5a3a25] text-amber-100 hover:bg-[#6a452c]"
                     }`}
                   >
                     {label}
@@ -8406,8 +8413,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               disabled={isDownloadingCalendarPdf}
               className={`ui-focus ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
                 isDownloadingCalendarPdf
-                  ? "cursor-wait border-slate-300 bg-slate-100 text-slate-500"
-                  : "border-amber-300 bg-stone-100 text-amber-900 hover:bg-stone-200"
+                  ? "cursor-wait border-amber-300/50 bg-[#5a3a25] text-amber-200/70"
+                  : "border-amber-200 bg-amber-700 text-amber-50 hover:bg-amber-600"
               }`}
               title="Descargar PDF profesional del calendario visible"
             >
@@ -8419,8 +8426,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           </div>
           ) : null}
           {config.homeLayout.showQuickFilters && quickFilters.length > 0 ? (
-            <div className="mt-3 flex items-center gap-2 overflow-x-auto border-t border-stone-200 pt-3 whitespace-nowrap">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <div className="mt-3 flex items-center gap-2 overflow-x-auto border-t border-amber-300/40 pt-3 whitespace-nowrap">
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-100">
                 Filtros activos
               </p>
               {quickFilters.map((filterId) => (
@@ -8428,7 +8435,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   key={`active-${filterId}`}
                   type="button"
                   onClick={() => toggleQuickFilter(filterId)}
-                  className="ui-focus shrink-0 rounded-full border border-amber-300 bg-stone-100 px-3 py-1 text-xs font-semibold text-amber-900"
+                  className="ui-focus shrink-0 rounded-full border border-amber-200 bg-amber-700 px-3 py-1 text-xs font-semibold text-amber-50"
                 >
                   {QUICK_FILTER_LABELS[filterId]} ×
                 </button>
@@ -8436,7 +8443,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               <button
                 type="button"
                 onClick={() => setQuickFilters([])}
-                className="ui-focus rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+                className="ui-focus rounded border border-amber-300/70 px-2 py-1 text-xs text-amber-100 hover:bg-[#5a3a25]"
               >
                 Limpiar filtros
               </button>

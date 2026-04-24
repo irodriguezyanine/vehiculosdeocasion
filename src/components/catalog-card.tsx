@@ -89,11 +89,11 @@ function getConditionBadgeClasses(condition?: string | null): string {
     .toLowerCase()
     .normalize("NFD")
     .replace(/\p{Diacritic}/gu, "");
-  if (!sample) return "bg-[#4f311f] text-amber-50";
+  if (!sample) return "bg-[#4f311f] text-white";
   if (/100% operativo|operativo/.test(sample)) return "bg-emerald-600 text-white";
   if (/no arranca|desarme/.test(sample)) return "bg-rose-600 text-white";
-  if (/problema|recuperado|robo/.test(sample)) return "bg-amber-500 text-white";
-  return "bg-[#7a4724] text-amber-50";
+  if (/problema|recuperado|robo/.test(sample)) return "bg-amber-600 text-white";
+  return "bg-[#7a4724] text-white";
 }
 
 export function CatalogCard({
@@ -165,7 +165,7 @@ export function CatalogCard({
           <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-transparent" />
           <div className="absolute left-3 top-3 flex flex-wrap gap-1">
             {item.view3dUrl ? (
-              <span className="rounded-full border border-amber-200/70 bg-[#3d2518]/90 px-2 py-1 text-[10px] font-semibold text-amber-50">3D</span>
+              <span className="rounded-full border border-amber-200/70 bg-[#3d2518]/90 px-2 py-1 text-[10px] font-semibold text-white">3D</span>
             ) : null}
             {priceLabel ? (
               <span className={`rounded-full px-2 py-1 text-[10px] font-semibold text-white ${promoEnabled ? "bg-rose-600" : "bg-[#9a5d33]"}`}>

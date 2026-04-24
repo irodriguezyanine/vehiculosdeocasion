@@ -1559,7 +1559,7 @@ function FeaturedStrip({ items, onOpenVehicle }: FeaturedStripProps) {
               />
               <div className="featured-overlay" />
               <div className="featured-content">
-                <p className="line-clamp-1 text-sm font-semibold uppercase tracking-wide text-amber-800">
+                <p className="line-clamp-1 text-sm font-semibold uppercase tracking-wide text-white">
                   {item.status ?? "Unidad disponible"}
                 </p>
                 <h3 className="line-clamp-2 text-xl font-bold text-white">{item.title}</h3>
@@ -1697,7 +1697,7 @@ function InstagramGalleryStrip({ mediaItems }: { mediaItems: InstagramMediaItem[
               )}
               <div className="featured-overlay" />
               <div className="featured-content">
-                <p className="line-clamp-1 text-sm font-semibold uppercase tracking-wide text-amber-300">
+                <p className="line-clamp-1 text-sm font-semibold uppercase tracking-wide text-white">
                   {INSTAGRAM_HANDLE}
                 </p>
                 <h3 className="line-clamp-2 text-xl font-bold text-white">

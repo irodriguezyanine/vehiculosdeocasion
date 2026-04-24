@@ -57,17 +57,6 @@ body {
     "Arial Black",
     serif;
   letter-spacing: 0.02em;
-  color: #2d1c11;
-}
-
-.front-public p,
-.front-public span,
-.front-public label {
-  color: #5f4a38;
-}
-
-.front-public strong {
-  color: #422917;
 }
 
 ::selection {

@@ -89,11 +89,11 @@ function getConditionBadgeClasses(condition?: string | null): string {
     .toLowerCase()
     .normalize("NFD")
     .replace(/\p{Diacritic}/gu, "");
-  if (!sample) return "bg-slate-900/75 text-white";
+  if (!sample) return "bg-[#4f311f] text-amber-50";
   if (/100% operativo|operativo/.test(sample)) return "bg-emerald-600 text-white";
   if (/no arranca|desarme/.test(sample)) return "bg-rose-600 text-white";
   if (/problema|recuperado|robo/.test(sample)) return "bg-amber-500 text-white";
-  return "bg-indigo-600 text-white";
+  return "bg-[#7a4724] text-amber-50";
 }
 
 export function CatalogCard({
@@ -140,7 +140,7 @@ export function CatalogCard({
     if (!url.hash) url.hash = "catalogo";
     return url.toString();
   }, [itemKey]);
-  const whatsappText = `Hola, estoy interesado en ofertar por el vehÃ­culo ${patent} ${brandModel}`;
+  const whatsappText = `Hola, estoy interesado en ofertar por el vehiculo ${patent} ${brandModel}`;
   const whatsappUrl = `${WHATSAPP_BASE_URL}&text=${encodeURIComponent(
     `${whatsappText}${shareUrl ? `. Link: ${shareUrl}` : ""}`,
   )}&type=phone_number&app_absent=0`;
@@ -151,9 +151,9 @@ export function CatalogCard({
   }, [cover]);
 
   return (
-    <article className="group glass-soft flex h-full w-full flex-col overflow-hidden rounded-2xl text-left shadow-md transition duration-300 hover:-translate-y-1 hover:border-amber-300 hover:shadow-lg">
+    <article className="group glass-soft vehicle-card flex h-full w-full flex-col overflow-hidden rounded-2xl text-left shadow-md transition duration-300 hover:-translate-y-1 hover:border-amber-300 hover:shadow-xl">
       <button type="button" onClick={onOpen} className="ui-focus flex flex-1 flex-col w-full text-left">
-        <div className={`relative w-full bg-slate-100 ${isCompact ? "h-44" : "h-56"}`}>
+        <div className={`relative w-full bg-[#e6ddd2] ${isCompact ? "h-44" : "h-56"}`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={coverSrc}
@@ -165,10 +165,10 @@ export function CatalogCard({
           <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-transparent" />
           <div className="absolute left-3 top-3 flex flex-wrap gap-1">
             {item.view3dUrl ? (
-              <span className="rounded-full bg-stone-1000 px-2 py-1 text-[10px] font-semibold text-white">3D</span>
+              <span className="rounded-full border border-amber-200/70 bg-[#3d2518]/90 px-2 py-1 text-[10px] font-semibold text-amber-50">3D</span>
             ) : null}
             {priceLabel ? (
-              <span className={`rounded-full px-2 py-1 text-[10px] font-semibold text-white ${promoEnabled ? "bg-rose-500" : "bg-amber-500"}`}>
+              <span className={`rounded-full px-2 py-1 text-[10px] font-semibold text-white ${promoEnabled ? "bg-rose-600" : "bg-[#9a5d33]"}`}>
                 {promoEnabled ? "Oferta" : "Precio"}
               </span>
             ) : null}
@@ -183,7 +183,7 @@ export function CatalogCard({
             ) : null}
           </div>
           {item.status ? (
-            <span className="absolute right-3 top-3 max-w-[12rem] truncate rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-white">
+            <span className="absolute right-3 top-3 max-w-[12rem] truncate rounded-full border border-emerald-200 bg-emerald-600 px-3 py-1 text-xs font-semibold text-white">
               {shortText(item.status, 30)}
             </span>
           ) : null}
@@ -191,91 +191,103 @@ export function CatalogCard({
 
         <div className={`flex flex-1 flex-col space-y-3 p-4 ${isCompact ? "space-y-2" : ""}`}>
           <div className={isCompact ? "min-h-[3.2rem]" : "min-h-[5.2rem]"}>
-            <h3 className="line-clamp-2 break-words text-base font-semibold text-slate-900">
+            <h3 className="line-clamp-2 break-words text-base font-semibold text-[#2f1f14]">
               {item.title}
             </h3>
             {!isCompact && item.subtitle ? (
-              <p className="mt-1 break-words text-sm text-slate-600 [overflow-wrap:anywhere]">{shortText(item.subtitle)}</p>
+              <p className="mt-1 break-words text-sm text-[#6c5440] [overflow-wrap:anywhere]">{shortText(item.subtitle)}</p>
             ) : null}
           </div>
 
-          <div className="flex min-h-[2.6rem] min-w-0 flex-wrap content-start gap-2 text-xs text-slate-700">
+          <div className="flex min-h-[2.6rem] min-w-0 flex-wrap content-start gap-2 text-xs text-[#604734]">
             {item.lot ? (
-              <span className="max-w-full truncate rounded-full bg-slate-100 px-2 py-1">Lote {item.lot}</span>
+              <span className="max-w-full truncate rounded-full border border-amber-300/60 bg-[#f4ebe2] px-2 py-1">Lote {item.lot}</span>
             ) : null}
             {formattedDate ? (
-              <span className="max-w-full truncate rounded-full bg-slate-100 px-2 py-1">
+              <span className="max-w-full truncate rounded-full border border-amber-300/60 bg-[#f4ebe2] px-2 py-1">
                 Fecha {formattedDate}
               </span>
             ) : null}
             {item.location ? (
-              <span className="max-w-full truncate rounded-full bg-slate-100 px-2 py-1">
+              <span className="max-w-full truncate rounded-full border border-amber-300/60 bg-[#f4ebe2] px-2 py-1">
                 {shortText(item.location, 35)}
               </span>
             ) : null}
             {upcomingAuctionLabel ? (
-              <span className="max-w-full truncate rounded-full bg-indigo-100 px-2 py-1 font-semibold text-indigo-700">
+              <span className="max-w-full truncate rounded-full border border-amber-300/70 bg-[#eddccf] px-2 py-1 font-semibold text-[#6c3e1f]">
                 {shortText(`Categoria: ${upcomingAuctionLabel}`, 38)}
               </span>
             ) : null}
           </div>
 
-          <div className="mt-auto flex items-center justify-between border-t border-slate-200 pt-3">
+          <div className="mt-auto flex items-center justify-between border-t border-amber-200/70 pt-3">
             <div className="flex flex-col">
               {promoEnabled && originalPriceLabel && priceLabel ? (
-                <span className="text-xs text-slate-400 line-through">{originalPriceLabel}</span>
+                <span className="text-xs text-[#9b856f] line-through">{originalPriceLabel}</span>
               ) : null}
               {priceLabel ? (
-                <span className={`text-sm font-semibold ${promoEnabled ? "text-rose-600" : "text-amber-800"}`}>
+                <span className={`text-sm font-semibold ${promoEnabled ? "text-rose-700" : "text-[#673b1f]"}`}>
                   {priceLabel}
                 </span>
               ) : null}
-              <span className="text-xs text-slate-500">
+              <span className="text-xs text-[#7a624f]">
                 {item.images.length} foto{item.images.length === 1 ? "" : "s"}
               </span>
             </div>
             {item.view3dUrl ? (
-              <span className="rounded-md bg-stone-200 px-3 py-1.5 text-xs font-medium text-amber-900">
+              <span className="rounded-md border border-amber-300 bg-amber-100 px-3 py-1.5 text-xs font-medium text-[#6b3d1e]">
                 Ver detalle 3D
               </span>
             ) : (
-              <span className="text-xs text-slate-400">Ver detalle</span>
+              <span className="text-xs text-[#99816b]">Ver detalle</span>
             )}
           </div>
         </div>
       </button>
 
-      <div className="border-t border-slate-100 px-4 pb-4 pt-3">
+      <div className="border-t border-amber-200/60 px-4 pb-4 pt-3">
         <div className="grid grid-cols-4 gap-2">
           <button
             type="button"
             onClick={onToggleFavorite}
             className={`ui-focus inline-flex items-center justify-center rounded-full border px-3 py-2 text-xs font-semibold transition ${
               isFavorite
-                ? "border-amber-300 bg-amber-50 text-amber-700"
-                : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                ? "border-amber-300 bg-amber-100 text-[#6f431f]"
+                : "border-amber-300/60 bg-white text-[#7c624d] hover:bg-[#f7eee6]"
             }`}
             aria-label={isFavorite ? `Quitar guardado ${item.title}` : `Guardar ${item.title}`}
             title={isFavorite ? "Guardado" : "Guardar"}
           >
-            <span aria-hidden="true" className="text-base leading-none">
-              {isFavorite ? "â˜…" : "â˜†"}
-            </span>
+            <svg viewBox="0 0 20 20" className="h-[18px] w-[18px]" fill={isFavorite ? "currentColor" : "none"} aria-hidden="true">
+              <path
+                d="M10 2.75l2.16 4.37 4.82.7-3.49 3.4.83 4.8L10 13.74l-4.32 2.28.83-4.8-3.49-3.4 4.82-.7L10 2.75Z"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinejoin="round"
+              />
+            </svg>
           </button>
           <button
             type="button"
             onClick={onToggleCompare}
             className={`ui-focus inline-flex items-center justify-center rounded-full border px-3 py-2 text-xs font-semibold transition ${
               isCompared
-                ? "border-indigo-300 bg-indigo-50 text-indigo-700"
-                : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                ? "border-amber-300 bg-amber-100 text-[#6f431f]"
+                : "border-amber-300/60 bg-white text-[#7c624d] hover:bg-[#f7eee6]"
             }`}
-            aria-label={isCompared ? `Quitar comparaciÃ³n ${item.title}` : `Comparar ${item.title}`}
+            aria-label={isCompared ? `Quitar comparacion ${item.title}` : `Comparar ${item.title}`}
             title={isCompared ? "Comparando" : "Comparar"}
           >
-            <span aria-hidden="true" className="text-base leading-none">
-              {isCompared ? "âœ“" : "+"}
-            </span>
+            <svg viewBox="0 0 20 20" className="h-[18px] w-[18px]" fill="none" aria-hidden="true">
+              {isCompared ? (
+                <path d="M4.5 10.5l3.1 3.1L15.5 5.8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              ) : (
+                <>
+                  <path d="M5 6.25h3M5 13.75h3M12 10h3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                  <circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="1.5" />
+                </>
+              )}
+            </svg>
           </button>
           <button
             type="button"
@@ -284,7 +296,7 @@ export function CatalogCard({
                 if (navigator.share && shareUrl) {
                   await navigator.share({
                     title: item.title,
-                    text: `Revisa este vehÃ­culo: ${patent}`,
+                    text: `Revisa este vehiculo: ${patent}`,
                     url: shareUrl,
                   });
                 } else if (navigator.clipboard && shareUrl) {
@@ -298,20 +310,28 @@ export function CatalogCard({
                 // no-op if user cancels share
               }
             }}
-            className="ui-focus inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50"
+            className="ui-focus inline-flex items-center justify-center rounded-full border border-amber-300/60 bg-white px-3 py-2 text-xs font-semibold text-[#6f553f] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#f7eee6]"
             aria-label={`Compartir ${item.title}`}
             title={shareCopied ? "Copiado" : "Compartir"}
           >
-            <span aria-hidden="true" className="text-base leading-none">
-              {shareCopied ? "âœ“" : "â†—"}
-            </span>
+            <svg viewBox="0 0 20 20" className="h-[18px] w-[18px]" fill="none" aria-hidden="true">
+              {shareCopied ? (
+                <path d="M4.5 10.5l3.1 3.1L15.5 5.8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              ) : (
+                <>
+                  <path d="M11.5 4h4.5v4.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                  <path d="M15.8 4.2l-6.7 6.7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                  <rect x="4" y="8.5" width="8.5" height="7.5" rx="1.8" stroke="currentColor" strokeWidth="1.5" />
+                </>
+              )}
+            </svg>
           </button>
           <a
             href={whatsappUrl}
             target="_blank"
             rel="noreferrer"
             onClick={onWhatsappClick}
-            className="ui-focus inline-flex items-center justify-center rounded-full bg-[#25D366] px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:brightness-95"
+            className="ui-focus inline-flex items-center justify-center rounded-full border border-[#2ac76d] bg-[#25D366] px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:brightness-95"
             aria-label={`Contactar por WhatsApp por ${item.title}`}
             title="WhatsApp"
           >

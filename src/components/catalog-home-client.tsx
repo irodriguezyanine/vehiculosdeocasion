@@ -619,7 +619,7 @@ function getRawPromoMeta(raw: Record<string, unknown>): {
 
 function getConditionBadgeClasses(condition?: string | null): string {
   const sample = normalizeText(condition ?? "");
-  if (!sample) return "border-slate-200 bg-slate-100 text-slate-700";
+  if (!sample) return "border-amber-200 bg-[#f6ebe1] text-[#6f4a2e]";
   if (/100% operativo|operativo/.test(sample)) {
     return "border-emerald-200 bg-emerald-50 text-emerald-800";
   }
@@ -629,7 +629,7 @@ function getConditionBadgeClasses(condition?: string | null): string {
   if (/problema|recuperado|robo/.test(sample)) {
     return "border-amber-200 bg-amber-50 text-amber-800";
   }
-  return "border-indigo-200 bg-indigo-50 text-indigo-800";
+  return "border-amber-300 bg-[#f4e2d2] text-[#6d3f1f]";
 }
 
 function normalizeVehicleCategoryValue(value?: string): string {
@@ -1497,15 +1497,15 @@ function FeaturedStrip({ items, onOpenVehicle }: FeaturedStripProps) {
       <div className="mb-4 flex items-center justify-between">
         <div>
           <p className="premium-kicker">Selecciones premium</p>
-          <h2 className="text-2xl font-bold text-slate-900">Vitrina destacada</h2>
+          <h2 className="text-2xl font-bold text-[#2f1e13]">Vitrina destacada</h2>
         </div>
-        <p className="text-xs text-slate-500">Desliza con mouse o flechas</p>
+        <p className="text-xs text-[#7a614d]">Desliza con mouse o flechas</p>
       </div>
       <div className="featured-strip-shell relative">
         <button
           type="button"
           onClick={() => scrollByAmount("left")}
-          className={`ui-focus absolute left-2 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-slate-900/25 text-white backdrop-blur-sm transition hover:bg-slate-900/45 md:inline-flex ${
+          className={`ui-focus absolute left-2 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-amber-200/50 bg-[#4d301d]/70 text-amber-50 backdrop-blur-sm transition hover:bg-[#4d301d] md:inline-flex ${
             canScrollLeft ? "opacity-100" : "pointer-events-none opacity-0"
           }`}
           aria-label="Desplazar vitrina hacia la izquierda"
@@ -1518,7 +1518,7 @@ function FeaturedStrip({ items, onOpenVehicle }: FeaturedStripProps) {
         <button
           type="button"
           onClick={() => scrollByAmount("right")}
-          className={`ui-focus absolute right-2 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-slate-900/25 text-white backdrop-blur-sm transition hover:bg-slate-900/45 md:inline-flex ${
+          className={`ui-focus absolute right-2 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-amber-200/50 bg-[#4d301d]/70 text-amber-50 backdrop-blur-sm transition hover:bg-[#4d301d] md:inline-flex ${
             canScrollRight ? "opacity-100" : "pointer-events-none opacity-0"
           }`}
           aria-label="Desplazar vitrina hacia la derecha"
@@ -1563,7 +1563,7 @@ function FeaturedStrip({ items, onOpenVehicle }: FeaturedStripProps) {
                   {item.status ?? "Unidad disponible"}
                 </p>
                 <h3 className="line-clamp-2 text-xl font-bold text-white">{item.title}</h3>
-                <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-100">
+                <div className="mt-2 flex flex-wrap gap-2 text-xs text-amber-100">
                   {item.subtitle ? <span className="featured-chip">{item.subtitle}</span> : null}
                 </div>
               </div>
@@ -1624,19 +1624,19 @@ function InstagramGalleryStrip({ mediaItems }: { mediaItems: InstagramMediaItem[
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <p className="premium-kicker">Instagram</p>
-          <h2 className="text-2xl font-bold text-slate-900">Galeria social</h2>
+          <h2 className="text-2xl font-bold text-[#2f1e13]">Galeria social</h2>
         </div>
         <a
           href={INSTAGRAM_URL}
           target="_blank"
           rel="noreferrer"
-          className="ui-focus rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-50"
+          className="ui-focus rounded-full border border-amber-300 bg-[#fff8f1] px-3 py-1 text-xs font-semibold text-[#6d3f1f] hover:bg-[#f6e8db]"
         >
           Ver perfil {INSTAGRAM_HANDLE}
         </a>
       </div>
       {items.length === 0 ? (
-        <div className="rounded-xl border border-stone-200 bg-white p-4 text-sm text-slate-600">
+        <div className="rounded-xl border border-amber-200 bg-[#fff8f1] p-4 text-sm text-[#6f583f]">
           <a href={INSTAGRAM_URL} target="_blank" rel="noreferrer" className="ui-focus font-semibold text-amber-800 underline">
             Ver Instagram {INSTAGRAM_HANDLE}
           </a>
@@ -1647,7 +1647,7 @@ function InstagramGalleryStrip({ mediaItems }: { mediaItems: InstagramMediaItem[
         <button
           type="button"
           onClick={() => scrollByAmount("left")}
-          className={`ui-focus absolute left-2 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-slate-900/25 text-white backdrop-blur-sm transition hover:bg-slate-900/45 md:inline-flex ${
+          className={`ui-focus absolute left-2 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-amber-200/50 bg-[#4d301d]/70 text-amber-50 backdrop-blur-sm transition hover:bg-[#4d301d] md:inline-flex ${
             canScrollLeft ? "opacity-100" : "pointer-events-none opacity-0"
           }`}
           aria-label="Desplazar galeria hacia la izquierda"
@@ -1660,7 +1660,7 @@ function InstagramGalleryStrip({ mediaItems }: { mediaItems: InstagramMediaItem[
         <button
           type="button"
           onClick={() => scrollByAmount("right")}
-          className={`ui-focus absolute right-2 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-slate-900/25 text-white backdrop-blur-sm transition hover:bg-slate-900/45 md:inline-flex ${
+          className={`ui-focus absolute right-2 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-amber-200/50 bg-[#4d301d]/70 text-amber-50 backdrop-blur-sm transition hover:bg-[#4d301d] md:inline-flex ${
             canScrollRight ? "opacity-100" : "pointer-events-none opacity-0"
           }`}
           aria-label="Desplazar galeria hacia la derecha"
@@ -1703,7 +1703,7 @@ function InstagramGalleryStrip({ mediaItems }: { mediaItems: InstagramMediaItem[
                 <h3 className="line-clamp-2 text-xl font-bold text-white">
                   {item.caption?.trim() ? item.caption : "Ver publicacion"}
                 </h3>
-                <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-100">
+                <div className="mt-2 flex flex-wrap gap-2 text-xs text-amber-100">
                   <span className="featured-chip">Abrir Instagram</span>
                 </div>
               </div>
@@ -1923,16 +1923,16 @@ function Section({
       <header className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="premium-kicker">Seccion destacada</p>
-          <h2 className="text-2xl font-bold text-slate-900">{title}</h2>
-          <p className="mt-1 text-sm text-slate-600">{subtitle}</p>
+          <h2 className="text-2xl font-bold text-[#2f1e13]">{title}</h2>
+          <p className="mt-1 text-sm text-[#6f563f]">{subtitle}</p>
         </div>
-        <span className="inline-flex w-fit rounded-full bg-stone-200 px-3 py-1 text-xs font-semibold text-cyan-900">
+        <span className="inline-flex w-fit rounded-full border border-amber-300/70 bg-[#f3e3d4] px-3 py-1 text-xs font-semibold text-[#6b3d1e]">
           {items.length} publicaciones
         </span>
       </header>
 
       {items.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500">
+        <div className="rounded-2xl border border-dashed border-amber-300/70 bg-[#f9efe5] p-6 text-sm text-[#7a614d]">
           No encontramos unidades en esta seccion. Prueba limpiar filtros o cambiar el tipo de vehiculo.
         </div>
       ) : (
@@ -1984,16 +1984,16 @@ function UpcomingAuctionsSection({
       <header className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="premium-kicker">Vitrina destacada</p>
-          <h2 className="text-2xl font-bold text-slate-900">Destacados</h2>
-          <p className="mt-1 text-sm text-slate-600">Unidades priorizadas y organizadas para facilitar tu decision de compra.</p>
+          <h2 className="text-2xl font-bold text-[#2f1e13]">Destacados</h2>
+          <p className="mt-1 text-sm text-[#6f563f]">Unidades priorizadas y organizadas para facilitar tu decision de compra.</p>
         </div>
       </header>
       <div className="space-y-8">
         {visibleGroups.map(({ auction, items }) => (
           <div key={auction.id}>
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-100 bg-indigo-50/50 px-3 py-2">
-              <h3 className="text-base font-semibold text-indigo-900">{auction.name}</h3>
-              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-indigo-700">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300/70 bg-[#f4e7da] px-3 py-2">
+              <h3 className="text-base font-semibold text-[#62391f]">{auction.name}</h3>
+              <span className="rounded-full border border-amber-300/70 bg-[#fff8f1] px-3 py-1 text-xs font-semibold text-[#744322]">
                 {formatAuctionDateLabel(auction.date)}  ·  {items.length} vehiculos
               </span>
             </div>
@@ -6112,7 +6112,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   );
 
   return (
-    <main className={`premium-bg min-h-screen overflow-x-hidden text-slate-900 ${showPublicHome ? "front-public" : ""}`}>
+    <main className={`premium-bg min-h-screen overflow-x-hidden text-[#2d2118] ${showPublicHome ? "front-public" : ""}`}>
       <div className="premium-glow premium-glow-cyan" />
       <div className="premium-glow premium-glow-gold" />
       <script
@@ -6126,7 +6126,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
       />
 
-      <section className="sticky top-0 z-30 border-b border-stone-200/80 bg-white/92 shadow-[0_6px_16px_rgba(87,141,167,0.06)] backdrop-blur-xl">
+      <section className="sticky top-0 z-30 border-b border-amber-200/70 bg-white/92 shadow-[0_10px_22px_rgba(72,43,24,0.12)] backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-2 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-3 md:gap-4">
             <Link
@@ -6154,14 +6154,14 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 priority
                 className="h-14 w-14 rounded-full object-cover sm:h-16 sm:w-16"
               />
-              <span className="brand-wordmark hidden text-xl text-slate-900 sm:inline-block">
+              <span className="brand-wordmark hidden text-xl text-[#4d2f1d] sm:inline-block">
                 Vehiculos de Ocasion
               </span>
             </Link>
             <button
               type="button"
               onClick={() => setMobileMenuOpen((prev) => !prev)}
-              className="ui-focus inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-2 py-1 text-slate-700 md:hidden"
+              className="ui-focus inline-flex items-center justify-center rounded-md border border-amber-300/70 bg-[#fff8f1] px-2 py-1 text-[#6b3d1e] md:hidden"
               aria-label="Abrir menu"
               aria-expanded={mobileMenuOpen}
               aria-controls="mobile-main-menu"
@@ -8463,27 +8463,27 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           <div
             className={`${config.homeLayout.showCommercialPanel ? "lg:col-span-8" : "lg:col-span-12"} premium-panel premium-panel-hero ${
               config.homeLayout.heroTheme === "indigo"
-                ? "border-indigo-200 bg-indigo-50/40"
+                ? "border-amber-300/70 bg-[#f6e9dc]"
                 : config.homeLayout.heroTheme === "slate"
-                  ? "border-slate-300 bg-slate-100/70"
-                  : "border-stone-300 bg-stone-100/30"
+                  ? "border-amber-300/70 bg-[#f6e9dc]"
+                  : "border-amber-300/60 bg-[#f7efe7]"
             } ${config.homeLayout.heroAlignment === "center" ? "text-center" : "text-left"}`}
           >
             <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${
               config.homeLayout.heroTheme === "indigo"
-                ? "text-indigo-700"
+                ? "text-[#89502a]"
                 : config.homeLayout.heroTheme === "slate"
-                  ? "text-slate-700"
-                  : "text-amber-800"
+                  ? "text-[#7d4a27]"
+                  : "text-[#7d4a27]"
             }`}>{config.homeLayout.heroKicker}</p>
             <h1
-              className="mt-2 text-3xl font-black leading-tight text-slate-900 md:text-[2.7rem] [&_a]:text-amber-800 [&_a]:underline [&_b]:font-black [&_strong]:font-black [&_em]:italic [&_i]:italic [&_u]:underline"
+              className="mt-2 text-3xl font-black leading-tight text-[#2f1d12] md:text-[2.7rem] [&_a]:text-[#8d542d] [&_a]:underline [&_b]:font-black [&_strong]:font-black [&_em]:italic [&_i]:italic [&_u]:underline"
               dangerouslySetInnerHTML={{
                 __html: formatHomeHeroHtml(config.homeLayout.heroTitle) || "Sin titulo",
               }}
             />
             <div
-              className={`mt-3 text-sm leading-relaxed text-slate-600 md:text-[15px] [&_a]:text-amber-800 [&_a]:underline [&_b]:font-bold [&_strong]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_p]:mb-2 ${
+              className={`mt-3 text-sm leading-relaxed text-[#644d3a] md:text-[15px] [&_a]:text-[#8d542d] [&_a]:underline [&_b]:font-bold [&_strong]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_p]:mb-2 ${
                 config.homeLayout.heroAlignment === "center"
                   ? config.homeLayout.heroMaxWidth === "xl"
                     ? "mx-auto max-w-xl"
@@ -8502,13 +8502,13 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             />
             {config.homeLayout.showHeroChips ? (
             <div className={`mt-4 flex flex-wrap gap-2 ${config.homeLayout.heroAlignment === "center" ? "justify-center" : ""}`}>
-              <span className="rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">Visor 3D</span>
-              <span className="rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">Seleccion curada</span>
-              <span className="rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">Trazabilidad tecnica</span>
+              <span className="rounded-full border border-amber-300/70 bg-[#f8ecdf] px-3 py-1 text-xs font-semibold text-[#6f4222]">Visor 3D</span>
+              <span className="rounded-full border border-amber-300/70 bg-[#f8ecdf] px-3 py-1 text-xs font-semibold text-[#6f4222]">Seleccion curada</span>
+              <span className="rounded-full border border-amber-300/70 bg-[#f8ecdf] px-3 py-1 text-xs font-semibold text-[#6f4222]">Trazabilidad tecnica</span>
             </div>
             ) : null}
             {config.homeLayout.showHeroCtas ? (
-            <div className={`mt-4 flex flex-wrap gap-3 border-t border-slate-200 pt-4 ${config.homeLayout.heroAlignment === "center" ? "justify-center" : ""}`}>
+            <div className={`mt-4 flex flex-wrap gap-3 border-t border-amber-200/70 pt-4 ${config.homeLayout.heroAlignment === "center" ? "justify-center" : ""}`}>
               <a href={config.homeLayout.heroPrimaryCtaHref || "#catalogo"} className="premium-btn-primary ui-focus">
                 {config.homeLayout.heroPrimaryCtaLabel || "Ver catalogo completo"}
               </a>
@@ -8524,23 +8524,23 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           </div>
           {config.homeLayout.showCommercialPanel ? (
           <div className="premium-panel lg:col-span-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Informacion comercial</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8b6546]">Informacion comercial</p>
             <div className="mt-4 space-y-3">
               <div className="info-tile">
-                <p className="text-[11px] uppercase tracking-widest text-slate-500">Canal principal</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">WhatsApp +56 9 4550 660</p>
+                <p className="text-[11px] uppercase tracking-widest text-[#8b6546]">Canal principal</p>
+                <p className="mt-1 text-sm font-semibold text-[#2f1d12]">WhatsApp +56 9 4550 660</p>
               </div>
               <div className="info-tile">
-                <p className="text-[11px] uppercase tracking-widest text-slate-500">Correo comercial</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">{CONTACT_EMAIL}</p>
+                <p className="text-[11px] uppercase tracking-widest text-[#8b6546]">Correo comercial</p>
+                <p className="mt-1 text-sm font-semibold text-[#2f1d12]">{CONTACT_EMAIL}</p>
               </div>
               <div className="info-tile">
-                <p className="text-[11px] uppercase tracking-widest text-slate-500">Soporte digital</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">Catalogo online + visor GLO3D para evaluar cada unidad</p>
+                <p className="text-[11px] uppercase tracking-widest text-[#8b6546]">Soporte digital</p>
+                <p className="mt-1 text-sm font-semibold text-[#2f1d12]">Catalogo online + visor GLO3D para evaluar cada unidad</p>
               </div>
               <div className="info-tile">
-                <p className="text-[11px] uppercase tracking-widest text-slate-500">Red social</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">{INSTAGRAM_HANDLE}</p>
+                <p className="text-[11px] uppercase tracking-widest text-[#8b6546]">Red social</p>
+                <p className="mt-1 text-sm font-semibold text-[#2f1d12]">{INSTAGRAM_HANDLE}</p>
               </div>
             </div>
           </div>

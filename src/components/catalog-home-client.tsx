@@ -471,6 +471,35 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
+function getImageDimensionsFromDataUrl(dataUrl: string): Promise<{ width: number; height: number } | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+        resolve({ width: img.naturalWidth, height: img.naturalHeight });
+        return;
+      }
+      resolve(null);
+    };
+    img.onerror = () => resolve(null);
+    img.src = dataUrl;
+  });
+}
+
+function fitDimensionsByAspect(
+  aspectRatio: number,
+  maxWidth: number,
+  maxHeight: number,
+): { width: number; height: number } {
+  let width = maxWidth;
+  let height = width / aspectRatio;
+  if (height > maxHeight) {
+    height = maxHeight;
+    width = height * aspectRatio;
+  }
+  return { width, height };
+}
+
 async function loadLogoForPdfAsDataUrl(): Promise<string | null> {
   const candidates = ["/vehiculos-ocasion-logo.png", "https://vehiculosdeocasion.vercel.app/vehiculos-ocasion-logo.png"];
   for (const url of candidates) {
@@ -3128,6 +3157,13 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         import("jspdf"),
         loadLogoForPdfAsDataUrl(),
       ]);
+      const logoDimensions = logoDataUrl
+        ? await getImageDimensionsFromDataUrl(logoDataUrl)
+        : null;
+      const logoAspectRatio =
+        logoDimensions && logoDimensions.width > 0 && logoDimensions.height > 0
+          ? logoDimensions.width / logoDimensions.height
+          : 3.6;
       const doc = new jsPDF({ unit: "pt", format: "a4" });
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
@@ -3178,8 +3214,11 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       doc.roundedRect(marginX, 72, usableWidth, pageHeight - 160, 14, 14, "FD");
 
       if (logoDataUrl) {
-        const logoWidth = 216;
-        const logoHeight = 60;
+        const { width: logoWidth, height: logoHeight } = fitDimensionsByAspect(
+          logoAspectRatio,
+          240,
+          76,
+        );
         doc.addImage(
           logoDataUrl,
           "PNG",
@@ -3275,7 +3314,19 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         doc.setFillColor(...BRAND.copper);
         doc.rect(0, 58, pageWidth, 6, "F");
         if (logoDataUrl) {
-          doc.addImage(logoDataUrl, "PNG", marginX, 16, 90, 24);
+          const { width: headerLogoWidth, height: headerLogoHeight } = fitDimensionsByAspect(
+            logoAspectRatio,
+            108,
+            28,
+          );
+          doc.addImage(
+            logoDataUrl,
+            "PNG",
+            marginX,
+            16 + (24 - headerLogoHeight) / 2,
+            headerLogoWidth,
+            headerLogoHeight,
+          );
         }
         doc.setFont("helvetica", "bold");
         doc.setFontSize(12);

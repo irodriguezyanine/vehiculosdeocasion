@@ -1004,7 +1004,7 @@ function formatExtendedDescriptionHtml(value?: string | null): string {
       ? decodeBasicHtmlEntities(normalized)
       : normalized;
   if (/<[a-z][\s\S]*>/i.test(maybeDecoded)) return sanitizeRichHtml(maybeDecoded);
-  return escapeHtml(normalized).replace(/\n/g, "<br />");
+  return escapeHtml(decodeBasicHtmlEntities(normalized)).replace(/\n/g, "<br />");
 }
 
 function formatHomeHeroHtml(value?: string | null): string {
@@ -1017,7 +1017,7 @@ function formatHomeHeroHtml(value?: string | null): string {
       ? decodeBasicHtmlEntities(normalized)
       : normalized;
   if (/<[a-z][\s\S]*>/i.test(maybeDecoded)) return sanitizeRichHtml(maybeDecoded);
-  return escapeHtml(normalized).replace(/\n/g, "<br />");
+  return escapeHtml(decodeBasicHtmlEntities(normalized)).replace(/\n/g, "<br />");
 }
 
 function normalizeCssColorToHex(value?: string | null): string {
@@ -2443,14 +2443,18 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     const titleEditor = heroTitleEditorRef.current;
     if (titleEditor) {
       const normalizedTitle = formatHomeHeroHtml(config.homeLayout.heroTitle);
-      if (titleEditor.innerHTML !== normalizedTitle) {
+      const isEditingTitle =
+        typeof document !== "undefined" && document.activeElement === titleEditor;
+      if (!isEditingTitle && titleEditor.innerHTML !== normalizedTitle) {
         titleEditor.innerHTML = normalizedTitle;
       }
     }
     const subtitleEditor = heroSubtitleEditorRef.current;
     if (subtitleEditor) {
       const normalizedSubtitle = formatHomeHeroHtml(config.homeLayout.heroDescription);
-      if (subtitleEditor.innerHTML !== normalizedSubtitle) {
+      const isEditingSubtitle =
+        typeof document !== "undefined" && document.activeElement === subtitleEditor;
+      if (!isEditingSubtitle && subtitleEditor.innerHTML !== normalizedSubtitle) {
         subtitleEditor.innerHTML = normalizedSubtitle;
       }
     }

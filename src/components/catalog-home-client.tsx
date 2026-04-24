@@ -2471,6 +2471,17 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       selection.removeAllRanges();
       selection.addRange(heroSavedSelectionRef.current);
     }
+    // Fallback UX: if no text is selected, color/background affects full current block.
+    const currentSelection = window.getSelection();
+    if (
+      (command === "foreColor" || command === "hiliteColor" || command === "backColor") &&
+      (!currentSelection || currentSelection.rangeCount === 0 || currentSelection.isCollapsed)
+    ) {
+      const fallbackRange = document.createRange();
+      fallbackRange.selectNodeContents(editor);
+      currentSelection?.removeAllRanges();
+      currentSelection?.addRange(fallbackRange);
+    }
     document.execCommand("styleWithCSS", false, "true");
     document.execCommand(command, false, value);
     rememberHeroSelection();
@@ -2535,8 +2546,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     syncHeroToolbarState,
   ]);
 
-  const heroToolbarButtonClass = useCallback((isActive: boolean) => (
-    `ui-focus rounded border px-2 py-1 text-xs font-semibold transition ${
+  const heroToolbarIconButtonClass = useCallback((isActive: boolean) => (
+    `ui-focus inline-flex h-8 w-8 items-center justify-center rounded border transition ${
       isActive
         ? "border-amber-400 bg-stone-200 text-amber-900"
         : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
@@ -7553,63 +7564,37 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                                 <option value="Times New Roman">Times New Roman</option>
                                 <option value="Courier New">Courier New</option>
                               </select>
-                              <button type="button" onClick={() => runHeroHtmlCommand("bold")} className={heroToolbarButtonClass(heroToolbarState.bold)} title="Negrita">B</button>
-                              <button type="button" onClick={() => runHeroHtmlCommand("italic")} className={heroToolbarButtonClass(heroToolbarState.italic)} title="Cursiva">I</button>
-                              <button type="button" onClick={() => runHeroHtmlCommand("underline")} className={heroToolbarButtonClass(heroToolbarState.underline)} title="Subrayado">U</button>
-                              <select
-                                value={heroToolbarState.align}
-                                onChange={(event) => {
-                                  const value = event.target.value as "left" | "center" | "right";
-                                  if (value === "left") runHeroHtmlCommand("justifyLeft");
-                                  if (value === "center") runHeroHtmlCommand("justifyCenter");
-                                  if (value === "right") runHeroHtmlCommand("justifyRight");
-                                }}
-                                className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700"
-                                title="Alineacion"
-                              >
-                                <option value="left">Alinear izq</option>
-                                <option value="center">Centrar</option>
-                                <option value="right">Alinear der</option>
-                              </select>
-                              <select
-                                value={heroToolbarState.orderedList ? "ordered" : heroToolbarState.unorderedList ? "unordered" : "none"}
-                                onChange={(event) => {
-                                  const value = event.target.value;
-                                  if (value === "ordered") {
-                                    if (!heroToolbarState.orderedList) runHeroHtmlCommand("insertOrderedList");
-                                    if (heroToolbarState.unorderedList) runHeroHtmlCommand("insertUnorderedList");
-                                  } else if (value === "unordered") {
-                                    if (!heroToolbarState.unorderedList) runHeroHtmlCommand("insertUnorderedList");
-                                    if (heroToolbarState.orderedList) runHeroHtmlCommand("insertOrderedList");
-                                  } else {
-                                    if (heroToolbarState.unorderedList) runHeroHtmlCommand("insertUnorderedList");
-                                    if (heroToolbarState.orderedList) runHeroHtmlCommand("insertOrderedList");
-                                  }
-                                }}
-                                className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700"
-                                title="Listas"
-                              >
-                                <option value="none">Sin lista</option>
-                                <option value="unordered">Lista con puntos</option>
-                                <option value="ordered">Lista numerada</option>
-                              </select>
-                              <label className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
-                                Color
-                                <input
-                                  type="color"
-                                  value={heroToolbarState.foreColor}
-                                  onChange={(event) => runHeroHtmlCommand("foreColor", event.target.value)}
-                                  className="h-5 w-6 cursor-pointer border-0 bg-transparent p-0"
-                                />
+                              <button type="button" onClick={() => runHeroHtmlCommand("bold")} className={heroToolbarIconButtonClass(heroToolbarState.bold)} title="Negrita" aria-label="Negrita">
+                                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true"><path d="M6 4.5h5a3 3 0 0 1 0 6H6V4.5Zm0 6h5.4a3 3 0 1 1 0 6H6v-6Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" /></svg>
+                              </button>
+                              <button type="button" onClick={() => runHeroHtmlCommand("italic")} className={heroToolbarIconButtonClass(heroToolbarState.italic)} title="Cursiva" aria-label="Cursiva">
+                                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true"><path d="M12.5 4.5h-5m5 11h-5m4-11-3 11" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /></svg>
+                              </button>
+                              <button type="button" onClick={() => runHeroHtmlCommand("underline")} className={heroToolbarIconButtonClass(heroToolbarState.underline)} title="Subrayado" aria-label="Subrayado">
+                                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true"><path d="M6 4.5v4.2a4 4 0 1 0 8 0V4.5M4.5 15.5h11" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /></svg>
+                              </button>
+                              <button type="button" onClick={() => runHeroHtmlCommand("justifyLeft")} className={heroToolbarIconButtonClass(heroToolbarState.align === "left")} title="Alinear izquierda" aria-label="Alinear izquierda">
+                                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true"><path d="M4.5 5h11M4.5 8.5h8M4.5 12h11M4.5 15.5h8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /></svg>
+                              </button>
+                              <button type="button" onClick={() => runHeroHtmlCommand("justifyCenter")} className={heroToolbarIconButtonClass(heroToolbarState.align === "center")} title="Centrar" aria-label="Centrar">
+                                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true"><path d="M4.5 5h11M6 8.5h8M4.5 12h11M6 15.5h8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /></svg>
+                              </button>
+                              <button type="button" onClick={() => runHeroHtmlCommand("justifyRight")} className={heroToolbarIconButtonClass(heroToolbarState.align === "right")} title="Alinear derecha" aria-label="Alinear derecha">
+                                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true"><path d="M4.5 5h11M7.5 8.5h8M4.5 12h11M7.5 15.5h8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /></svg>
+                              </button>
+                              <button type="button" onClick={() => runHeroHtmlCommand("insertUnorderedList")} className={heroToolbarIconButtonClass(heroToolbarState.unorderedList)} title="Lista con puntos" aria-label="Lista con puntos">
+                                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true"><circle cx="5" cy="6" r="1.1" fill="currentColor" /><circle cx="5" cy="10" r="1.1" fill="currentColor" /><circle cx="5" cy="14" r="1.1" fill="currentColor" /><path d="M8 6h7M8 10h7M8 14h7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /></svg>
+                              </button>
+                              <button type="button" onClick={() => runHeroHtmlCommand("insertOrderedList")} className={heroToolbarIconButtonClass(heroToolbarState.orderedList)} title="Lista numerada" aria-label="Lista numerada">
+                                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true"><path d="M3.5 5h2v2h-2m0 3h2v2h-2m0 3h2v2h-2M8 6h8M8 10h8M8 14h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+                              </button>
+                              <label className="inline-flex h-8 items-center justify-center rounded border border-slate-300 bg-white px-2 text-slate-700 hover:bg-slate-100" title="Color del texto">
+                                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true"><path d="M6 14h8m-6.8-1.5 2.8-8h.1l2.8 8M8.7 8.5h3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+                                <input type="color" value={heroToolbarState.foreColor} onChange={(event) => runHeroHtmlCommand("foreColor", event.target.value)} className="ml-1 h-5 w-5 cursor-pointer border-0 bg-transparent p-0" aria-label="Color del texto" />
                               </label>
-                              <label className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
-                                Fondo
-                                <input
-                                  type="color"
-                                  value={heroToolbarState.hiliteColor}
-                                  onChange={(event) => runHeroHtmlCommand("hiliteColor", event.target.value)}
-                                  className="h-5 w-6 cursor-pointer border-0 bg-transparent p-0"
-                                />
+                              <label className="inline-flex h-8 items-center justify-center rounded border border-slate-300 bg-white px-2 text-slate-700 hover:bg-slate-100" title="Color de fondo">
+                                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true"><path d="M4.5 13.5h11M8.2 12.5l2.8-8h.1l2.8 8M9.7 8.5h3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+                                <input type="color" value={heroToolbarState.hiliteColor} onChange={(event) => runHeroHtmlCommand("hiliteColor", event.target.value)} className="ml-1 h-5 w-5 cursor-pointer border-0 bg-transparent p-0" aria-label="Color de fondo" />
                               </label>
                               <button
                                 type="button"
@@ -7619,20 +7604,30 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                                     : null;
                                   if (url?.trim()) runHeroHtmlCommand("createLink", url.trim());
                                 }}
-                                className={heroToolbarButtonClass(false)}
+                                className={heroToolbarIconButtonClass(false)}
+                                title="Insertar enlace"
+                                aria-label="Insertar enlace"
                               >
-                                Enlace
+                                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true"><path d="M8 12.5l4-4M6.5 14a3 3 0 0 1 0-4.2l1.3-1.3a3 3 0 0 1 4.2 0M13.5 6a3 3 0 0 1 0 4.2l-1.3 1.3a3 3 0 0 1-4.2 0" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /></svg>
                               </button>
-                              <button type="button" onClick={() => runHeroHtmlCommand("removeFormat")} className={heroToolbarButtonClass(false)}>Limpiar</button>
+                              <button type="button" onClick={() => runHeroHtmlCommand("removeFormat")} className={heroToolbarIconButtonClass(false)} title="Limpiar formato" aria-label="Limpiar formato">
+                                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true"><path d="M4.5 15.5h11M6.5 4.5h7l-1.5 5h-4zM4.5 4.5l11 11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                              </button>
                             </div>
                             <details className="rounded border border-slate-200 bg-white px-2 py-1">
                               <summary className="cursor-pointer text-[11px] font-semibold text-slate-600">
                                 Mas herramientas
                               </summary>
                               <div className="mt-2 flex flex-wrap items-center gap-1.5 pb-1">
-                                <button type="button" onClick={() => runHeroHtmlCommand("unlink")} className={heroToolbarButtonClass(false)}>Quitar enlace</button>
-                                <button type="button" onClick={() => runHeroHtmlCommand("undo")} className={heroToolbarButtonClass(false)}>Undo</button>
-                                <button type="button" onClick={() => runHeroHtmlCommand("redo")} className={heroToolbarButtonClass(false)}>Redo</button>
+                                <button type="button" onClick={() => runHeroHtmlCommand("unlink")} className={heroToolbarIconButtonClass(false)} title="Quitar enlace" aria-label="Quitar enlace">
+                                  <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true"><path d="M8 12.5l4-4M4.5 4.5l11 11M6.5 14a3 3 0 0 1 0-4.2l1.3-1.3M13.5 6a3 3 0 0 1 0 4.2l-1.3 1.3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+                                </button>
+                                <button type="button" onClick={() => runHeroHtmlCommand("undo")} className={heroToolbarIconButtonClass(false)} title="Deshacer" aria-label="Deshacer">
+                                  <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true"><path d="M7 6H4v3M4.2 6.2A6 6 0 1 1 4 12" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                                </button>
+                                <button type="button" onClick={() => runHeroHtmlCommand("redo")} className={heroToolbarIconButtonClass(false)} title="Rehacer" aria-label="Rehacer">
+                                  <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true"><path d="M13 6h3v3M15.8 6.2A6 6 0 1 0 16 12" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                                </button>
                               </div>
                             </details>
                           </div>

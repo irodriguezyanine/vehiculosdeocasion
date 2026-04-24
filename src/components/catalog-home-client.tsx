@@ -1492,7 +1492,7 @@ function FeaturedStrip({ items, onOpenVehicle }: FeaturedStripProps) {
   if (items.length === 0) return null;
 
   return (
-    <section className="section-shell">
+    <section className="section-shell mb-8">
       <div className="mb-4 flex items-center justify-between">
         <div>
           <p className="premium-kicker">Selecciones premium</p>
@@ -3047,7 +3047,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         auctionLabel:
           upcomingAuctionByVehicleKey[key] ??
           formatAuctionDateLabel(item.auctionDate) ??
-          "Sin fecha de remate",
+          "Sin fecha comercial",
         priceLabel: formatPrice(config.vehiclePrices[key]) ?? "Sin precio",
       };
     };
@@ -3058,15 +3058,15 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       for (const group of visibleUpcomingAuctionGroups) {
         if (group.items.length === 0) continue;
         sections.push({
-          categoryTitle: `Remates disponibles - ${group.auction.name}`,
+          categoryTitle: `Destacados - ${group.auction.name}`,
           categorySubtitle: formatAuctionDateLabel(group.auction.date) || "Fecha por confirmar",
           rows: group.items.map(buildRow),
         });
       }
     } else if (proximosRemates.length > 0) {
       sections.push({
-        categoryTitle: "Remates disponibles",
-        categorySubtitle: "Vehiculos activos en proximos remates.",
+        categoryTitle: "Destacados",
+        categorySubtitle: "Vehiculos recomendados para gestion comercial inmediata.",
         rows: proximosRemates.map(buildRow),
       });
     }
@@ -3088,8 +3088,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     ));
     if (otrosRematesItems.length > 0) {
       sections.push({
-        categoryTitle: "Otros remates",
-        categorySubtitle: "Publicaciones activas clasificadas como otros remates.",
+        categoryTitle: "Otros vehiculos",
+        categorySubtitle: "Publicaciones activas clasificadas en otras categorias.",
         rows: otrosRematesItems.map(buildRow),
       });
     }
@@ -3138,7 +3138,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       const m2 = String(now.getMonth() + 1).padStart(2, "0");
       const d2 = String(now.getDate()).padStart(2, "0");
       const filenameDate = `${y2}${m2}${d2}`;
-      const exportFileName = `${filenameDate} CatalogoVedisa.PDF`;
+      const exportFileName = `${filenameDate}_CatalogoVehiculosDeOcasion.pdf`;
       const todayLabel = now.toLocaleString("es-CL", {
         day: "2-digit",
         month: "2-digit",
@@ -3148,36 +3148,38 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       });
       const totalRows = calendarPdfSections.reduce((acc, section) => acc + section.rows.length, 0);
       const BRAND = {
-        navy: [12, 28, 61] as const,
-        indigo: [67, 56, 202] as const,
-        cyan: [8, 145, 178] as const,
-        cyanSoft: [236, 254, 255] as const,
-        slateText: [30, 41, 59] as const,
-        slateMuted: [71, 85, 105] as const,
-        border: [203, 213, 225] as const,
-        borderSoft: [226, 232, 240] as const,
+        espresso: [44, 28, 19] as const,
+        cacao: [78, 49, 30] as const,
+        copper: [157, 98, 53] as const,
+        cream: [252, 247, 241] as const,
+        sand: [245, 236, 226] as const,
+        text: [61, 43, 30] as const,
+        muted: [115, 90, 71] as const,
+        border: [214, 191, 169] as const,
+        borderSoft: [233, 218, 201] as const,
         white: [255, 255, 255] as const,
       };
       const stats = [
         { label: "Categorias visibles", value: String(calendarPdfSections.length) },
-        { label: "Publicaciones visibles", value: String(totalRows) },
+        { label: "Vehiculos visibles", value: String(totalRows) },
       ];
+      const pdfContactLine = "WhatsApp +56 9 4550 660 | vehiculosdeocasioncl@gmail.com";
 
-      // Portada corporativa premium
-      doc.setFillColor(...BRAND.navy);
+      // Portada comercial - Vehiculos de Ocasion
+      doc.setFillColor(...BRAND.cream);
       doc.rect(0, 0, pageWidth, pageHeight, "F");
-      doc.setFillColor(...BRAND.cyan);
-      doc.rect(0, 0, pageWidth, 14, "F");
-      doc.setFillColor(...BRAND.indigo);
-      doc.rect(0, pageHeight - 14, pageWidth, 14, "F");
+      doc.setFillColor(...BRAND.espresso);
+      doc.rect(0, 0, pageWidth, 72, "F");
+      doc.setFillColor(...BRAND.copper);
+      doc.rect(0, 72, pageWidth, 6, "F");
 
-      doc.setDrawColor(36, 86, 167);
-      doc.setFillColor(255, 255, 255);
+      doc.setDrawColor(...BRAND.border);
+      doc.setFillColor(...BRAND.white);
       doc.roundedRect(marginX, 72, usableWidth, pageHeight - 160, 14, 14, "FD");
 
       if (logoDataUrl) {
-        const logoWidth = 210;
-        const logoHeight = 58;
+        const logoWidth = 216;
+        const logoHeight = 60;
         doc.addImage(
           logoDataUrl,
           "PNG",
@@ -3189,15 +3191,23 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       }
 
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(30);
-      doc.setTextColor(...BRAND.navy);
-      doc.text("Catalogo Vedisa", pageWidth / 2, 230, { align: "center" });
-      doc.setFontSize(15);
-      doc.setTextColor(...BRAND.indigo);
-      doc.text("Reporte corporativo de publicaciones", pageWidth / 2, 258, { align: "center" });
+      doc.setFontSize(31);
+      doc.setTextColor(...BRAND.text);
+      doc.text("Catalogo Vehiculos de Ocasion", pageWidth / 2, 230, { align: "center" });
+      doc.setFontSize(14);
+      doc.setTextColor(...BRAND.copper);
+      doc.text("Inventario comercial de vehiculos usados", pageWidth / 2, 256, { align: "center" });
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(11);
-      doc.setTextColor(...BRAND.slateMuted);
+      doc.setFontSize(11.5);
+      doc.setTextColor(...BRAND.muted);
+      doc.text(
+        "Unidades en buen estado para recibir ofertas y cerrar negocio rapido.",
+        pageWidth / 2,
+        278,
+        { align: "center" },
+      );
+      doc.setFontSize(10.5);
+      doc.setTextColor(...BRAND.muted);
       const coverDate = now.toLocaleDateString("es-CL", {
         day: "2-digit",
         month: "long",
@@ -3207,42 +3217,52 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         hour: "2-digit",
         minute: "2-digit",
       });
-      doc.text(`Actualizado ${coverDate}  ·  ${coverTime}`, pageWidth / 2, 282, { align: "center" });
+      doc.text(`Actualizado ${coverDate} - ${coverTime}`, pageWidth / 2, 300, { align: "center" });
 
       const cardGap = 12;
       const cardWidth = (usableWidth - cardGap * (stats.length - 1) - 16) / stats.length;
       let cardX = marginX + 8;
       for (const stat of stats) {
         doc.setDrawColor(...BRAND.border);
-        doc.setFillColor(...BRAND.cyanSoft);
-        doc.roundedRect(cardX, 322, cardWidth, 92, 8, 8, "FD");
+        doc.setFillColor(...BRAND.sand);
+        doc.roundedRect(cardX, 332, cardWidth, 88, 8, 8, "FD");
         doc.setFont("helvetica", "normal");
         doc.setFontSize(10);
-        doc.setTextColor(...BRAND.slateMuted);
-        doc.text(stat.label, cardX + cardWidth / 2, 348, { align: "center" });
+        doc.setTextColor(...BRAND.muted);
+        doc.text(stat.label, cardX + cardWidth / 2, 356, { align: "center" });
         doc.setFont("helvetica", "bold");
         const valueLines = doc.splitTextToSize(stat.value, cardWidth - 22);
-        doc.setFontSize(21);
-        doc.setTextColor(...BRAND.navy);
-        doc.text(valueLines, cardX + cardWidth / 2, 382, { align: "center" });
+        doc.setFontSize(22);
+        doc.setTextColor(...BRAND.text);
+        doc.text(valueLines, cardX + cardWidth / 2, 390, { align: "center" });
         cardX += cardWidth + cardGap;
       }
 
       doc.setDrawColor(...BRAND.borderSoft);
-      doc.line(marginX + 20, 442, pageWidth - marginX - 20, 442);
+      doc.line(marginX + 20, 446, pageWidth - marginX - 20, 446);
       doc.setFont("helvetica", "italic");
       doc.setFontSize(10);
-      doc.setTextColor(...BRAND.slateMuted);
+      doc.setTextColor(...BRAND.muted);
       doc.text(
-        "Incluye exclusivamente: remates disponibles, ventas directas y otros remates visibles.",
+        "Incluye categorias visibles segun filtros activos del catalogo.",
         pageWidth / 2,
-        464,
+        468,
         { align: "center" },
       );
 
+      doc.setFillColor(...BRAND.espresso);
+      doc.roundedRect(marginX + 26, 492, usableWidth - 52, 42, 7, 7, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+      doc.setTextColor(...BRAND.white);
+      doc.text("Contacto comercial directo", pageWidth / 2, 510, { align: "center" });
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9.4);
+      doc.text(pdfContactLine, pageWidth / 2, 525, { align: "center" });
+
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11);
-      doc.setTextColor(...BRAND.indigo);
+      doc.setTextColor(...BRAND.cacao);
       doc.text("Vehículos de Ocasión", pageWidth / 2, pageHeight - 54, { align: "center" });
 
       // Seccion detallada
@@ -3250,29 +3270,29 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       let y = 42;
 
       const drawPageHeader = () => {
-        doc.setFillColor(...BRAND.navy);
+        doc.setFillColor(...BRAND.espresso);
         doc.rect(0, 0, pageWidth, 64, "F");
-        doc.setFillColor(...BRAND.cyan);
+        doc.setFillColor(...BRAND.copper);
         doc.rect(0, 58, pageWidth, 6, "F");
         if (logoDataUrl) {
-          doc.addImage(logoDataUrl, "PNG", marginX, 16, 84, 22);
+          doc.addImage(logoDataUrl, "PNG", marginX, 16, 90, 24);
         }
         doc.setFont("helvetica", "bold");
         doc.setFontSize(12);
         doc.setTextColor(...BRAND.white);
-        doc.text("Detalle de publicaciones visibles", marginX + (logoDataUrl ? 96 : 0), 31);
+        doc.text("Detalle de vehiculos visibles", marginX + (logoDataUrl ? 102 : 0), 31);
         doc.setFont("helvetica", "normal");
         doc.setFontSize(9);
-        doc.setTextColor(191, 219, 254);
+        doc.setTextColor(245, 224, 205);
         doc.text(todayLabel, pageWidth - marginX, 31, { align: "right" });
         y = 82;
       };
 
       const tableColumns = [
-        { key: "title" as const, label: "Publicacion", width: Math.floor(usableWidth * 0.27), align: "left" as const },
+        { key: "title" as const, label: "Vehiculo", width: Math.floor(usableWidth * 0.27), align: "left" as const },
         { key: "patent" as const, label: "Patente", width: Math.floor(usableWidth * 0.12), align: "left" as const },
         { key: "model" as const, label: "Modelo", width: Math.floor(usableWidth * 0.19), align: "left" as const },
-        { key: "auctionLabel" as const, label: "Calendario", width: Math.floor(usableWidth * 0.27), align: "left" as const },
+        { key: "auctionLabel" as const, label: "Disponibilidad", width: Math.floor(usableWidth * 0.27), align: "left" as const },
         { key: "priceLabel" as const, label: "Precio", width: 0, align: "right" as const },
       ];
       tableColumns[4].width = Math.floor(
@@ -3280,7 +3300,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       );
 
       const drawTableHeader = () => {
-        doc.setFillColor(...BRAND.navy);
+        doc.setFillColor(...BRAND.cacao);
         doc.rect(marginX, y, usableWidth, 20, "F");
         let x = marginX;
         doc.setFont("helvetica", "bold");
@@ -3307,12 +3327,12 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       drawPageHeader();
       for (const section of calendarPdfSections) {
         const rawTitle = section.categoryTitle.trim();
-        const rematePrefix = "Remates disponibles - ";
-        const sectionTitlePrimary = rawTitle.startsWith(rematePrefix)
-          ? "Remates disponibles"
+        const destacadosPrefix = "Destacados - ";
+        const sectionTitlePrimary = rawTitle.startsWith(destacadosPrefix)
+          ? "Destacados"
           : rawTitle;
-        const sectionTitleSecondary = rawTitle.startsWith(rematePrefix)
-          ? rawTitle.slice(rematePrefix.length).trim()
+        const sectionTitleSecondary = rawTitle.startsWith(destacadosPrefix)
+          ? rawTitle.slice(destacadosPrefix.length).trim()
           : "";
         const subtitle = section.categorySubtitle.trim();
         const sectionDate = /^\d{2}-\d{2}-\d{4}$/.test(subtitle) ? subtitle : "";
@@ -3320,23 +3340,23 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         const headerHeight = sectionTitleSecondary ? 50 : 36;
 
         ensureSpace(headerHeight + 26);
-        doc.setFillColor(...BRAND.cyanSoft);
+        doc.setFillColor(...BRAND.sand);
         doc.roundedRect(marginX, y, usableWidth, headerHeight, 6, 6, "F");
         doc.setFont("helvetica", "bold");
         doc.setFontSize(13);
-        doc.setTextColor(...BRAND.indigo);
+        doc.setTextColor(...BRAND.cacao);
         doc.text(sectionTitlePrimary, marginX + 10, y + 19);
         if (sectionTitleSecondary) {
           doc.setFont("helvetica", "bold");
           doc.setFontSize(12);
-          doc.setTextColor(...BRAND.navy);
+          doc.setTextColor(...BRAND.text);
           doc.text(sectionTitleSecondary, marginX + 10, y + 37);
         }
 
-        const countLabel = `${section.rows.length} pub.`;
+        const countLabel = `${section.rows.length} veh.`;
         const countWidth = Math.max(58, doc.getTextWidth(countLabel) + 16);
         const countX = marginX + usableWidth - countWidth - 8;
-        doc.setFillColor(...BRAND.indigo);
+        doc.setFillColor(...BRAND.copper);
         doc.roundedRect(countX, y + 8, countWidth, 18, 5, 5, "F");
         doc.setFont("helvetica", "bold");
         doc.setFontSize(9);
@@ -3351,7 +3371,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           doc.roundedRect(dateX, y + headerHeight - 21, dateWidth, 16, 4, 4, "FD");
           doc.setFont("helvetica", "normal");
           doc.setFontSize(8.5);
-          doc.setTextColor(...BRAND.slateMuted);
+          doc.setTextColor(...BRAND.muted);
           doc.text(sectionDate, dateX + dateWidth / 2, y + headerHeight - 10, { align: "center" });
         }
 
@@ -3360,7 +3380,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         if (sectionSupportText) {
           doc.setFont("helvetica", "normal");
           doc.setFontSize(10);
-          doc.setTextColor(...BRAND.slateMuted);
+          doc.setTextColor(...BRAND.muted);
           const subtitleLines = doc.splitTextToSize(sectionSupportText, usableWidth);
           ensureSpace(subtitleLines.length * 12 + 12);
           doc.text(subtitleLines, marginX, y);
@@ -3382,7 +3402,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           const rowHeight = Math.max(24, maxLines * lineHeight + linePaddingY * 2);
 
           ensureSpace(rowHeight + 2, true);
-          const rowFill = rowIndex % 2 === 0 ? BRAND.white : BRAND.cyanSoft;
+          const rowFill = rowIndex % 2 === 0 ? BRAND.white : BRAND.cream;
           doc.setFillColor(rowFill[0], rowFill[1], rowFill[2]);
           doc.rect(marginX, y, usableWidth, rowHeight, "F");
           doc.setDrawColor(...BRAND.borderSoft);
@@ -3393,7 +3413,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             if (i > 0) doc.line(cellX, y, cellX, y + rowHeight);
             doc.setFont("helvetica", i === 0 ? "bold" : "normal");
             doc.setFontSize(i === 3 ? 8.8 : 9.2);
-            doc.setTextColor(...BRAND.slateText);
+            doc.setTextColor(...BRAND.text);
             if (tableColumns[i].align === "right") {
               doc.text(
                 linesByCol[i],
@@ -3416,9 +3436,9 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         doc.setPage(page);
         doc.setFont("helvetica", "normal");
         doc.setFontSize(8);
-        doc.setTextColor(...BRAND.slateMuted);
+        doc.setTextColor(...BRAND.muted);
         doc.text(
-          `CatalogoVedisa  ·  Pagina ${page} de ${totalPages}`,
+          `VehiculosDeOcasion | Pagina ${page} de ${totalPages}`,
           pageWidth / 2,
           pageHeight - 18,
           { align: "center" },
@@ -4344,7 +4364,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     const shareUrl = selectedVehicleShareUrl;
     if (!shareUrl) return;
     const title = `${getPatent(selectedVehicle)}  ·  ${getModel(selectedVehicle)}`;
-    const text = `Revisa este vehiculo en Catalogo Vedisa: ${title}`;
+    const text = `Revisa este vehiculo en Vehiculos de Ocasion: ${title}`;
     const canUseNativeShare = typeof navigator.share === "function";
     try {
       if (canUseNativeShare) {
@@ -8792,7 +8812,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       {config.homeLayout.showFeaturedStrip ? (
         <FeaturedStrip items={featuredItems} onOpenVehicle={openVehicleDetail} />
       ) : null}
-      <section className="relative z-10 mx-auto mb-14 grid max-w-7xl gap-6 px-4 sm:px-6 lg:grid-cols-2 lg:px-8">
+      <section className="relative z-10 mx-auto mt-10 mb-14 grid max-w-7xl gap-6 px-4 sm:px-6 lg:mt-12 lg:grid-cols-2 lg:px-8">
         <div className="section-shell">
           <p className="premium-kicker">Confianza Vehículos de Ocasión</p>
           <h2 className="text-2xl font-bold text-slate-900">Experiencia respaldada</h2>

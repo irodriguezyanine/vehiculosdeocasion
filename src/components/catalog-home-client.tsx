@@ -183,6 +183,15 @@ function normalizeEditorConfigClient(
     "Inventario de vehiculos",
     "Inventario de vehiculos",
   ]);
+  const legacyHeroKickers = new Set([
+    "Catalogo oficial de Vedisa Remates",
+    "Catálogo oficial de Vedisa Remates",
+  ]);
+  const legacySecondaryCtas = new Set([
+    "Explorar secciones",
+    "Como participar en el remate",
+    "Cómo participar en el remate",
+  ]);
   const requestedHeroTitle = "Encuentra tu proximo vehiculo en Vehiculos de Ocasion";
   const requestedHeroDescription =
     "Vehiculos de Ocasion es una empresa especializada en la comercializacion de vehiculos a precios competitivos, por debajo del promedio del mercado.";
@@ -191,30 +200,22 @@ function normalizeEditorConfigClient(
   const requestedSecondaryCta = "Contactar por WhatsApp";
   const requestedSecondaryHref = "#contacto";
   const incomingHeroTitle = value?.homeLayout?.heroTitle;
-  const normalizedIncomingHeroTitle = incomingHeroTitle?.trim().toLowerCase() ?? "";
   const normalizedHeroTitle =
     !incomingHeroTitle ||
-    legacyHeroTitles.has(incomingHeroTitle.trim()) ||
-    normalizedIncomingHeroTitle.includes("remate") ||
-    normalizedIncomingHeroTitle.includes("vedisa")
+    legacyHeroTitles.has(incomingHeroTitle.trim())
       ? requestedHeroTitle
       : incomingHeroTitle;
   const incomingHeroDescription = value?.homeLayout?.heroDescription?.trim();
-  const normalizedIncomingHeroDescription = incomingHeroDescription?.toLowerCase() ?? "";
   const normalizedHeroDescription =
     !incomingHeroDescription ||
     incomingHeroDescription ===
-      "Plataforma oficial de ofertas online en vedisaremates.cl. Revisa cada unidad con informacion clara, fotos y trazabilidad comercial para tomar decisiones con confianza." ||
-    normalizedIncomingHeroDescription.includes("remate") ||
-    normalizedIncomingHeroDescription.includes("vedisa")
+      "Plataforma oficial de ofertas online en vedisaremates.cl. Revisa cada unidad con informacion clara, fotos y trazabilidad comercial para tomar decisiones con confianza."
       ? requestedHeroDescription
       : value?.homeLayout?.heroDescription ?? defaults.homeLayout.heroDescription;
   const incomingHeroKicker = value?.homeLayout?.heroKicker?.trim();
-  const normalizedIncomingHeroKicker = incomingHeroKicker?.toLowerCase() ?? "";
   const normalizedHeroKicker =
     !incomingHeroKicker ||
-    normalizedIncomingHeroKicker.includes("remate") ||
-    normalizedIncomingHeroKicker.includes("vedisa")
+    legacyHeroKickers.has(incomingHeroKicker)
       ? requestedHeroKicker
       : value?.homeLayout?.heroKicker ?? defaults.homeLayout.heroKicker;
   const incomingPrimaryCta = value?.homeLayout?.heroPrimaryCtaLabel?.trim();
@@ -223,11 +224,9 @@ function normalizeEditorConfigClient(
       ? requestedPrimaryCta
       : value?.homeLayout?.heroPrimaryCtaLabel ?? defaults.homeLayout.heroPrimaryCtaLabel;
   const incomingSecondaryCta = value?.homeLayout?.heroSecondaryCtaLabel?.trim();
-  const normalizedIncomingSecondaryCta = incomingSecondaryCta?.toLowerCase() ?? "";
   const normalizedSecondaryCta =
     !incomingSecondaryCta ||
-    incomingSecondaryCta === "Explorar secciones" ||
-    normalizedIncomingSecondaryCta.includes("remate")
+    legacySecondaryCtas.has(incomingSecondaryCta)
       ? requestedSecondaryCta
       : value?.homeLayout?.heroSecondaryCtaLabel ?? defaults.homeLayout.heroSecondaryCtaLabel;
   const incomingSecondaryHref = value?.homeLayout?.heroSecondaryCtaHref?.trim();
@@ -2184,6 +2183,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   );
   const autoSaveReadyRef = useRef(false);
   const lastPersistedConfigRef = useRef("");
+  const previousAdminViewRef = useRef<"editor" | "home">("home");
 
   const editingValidationErrors = useMemo(() => {
     const errors: Partial<Record<keyof EditorVehicleDetails, string>> = {};
@@ -5451,6 +5451,16 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     return () => window.clearTimeout(timeout);
   }, [adminView, config, isAdmin, isBootstrapping, persistEditorConfig]);
 
+  useEffect(() => {
+    const previousAdminView = previousAdminViewRef.current;
+    previousAdminViewRef.current = adminView;
+    const leavingEditor = previousAdminView === "editor" && adminView !== "editor";
+    if (!leavingEditor || isBootstrapping || !isAdmin) return;
+    const serializedConfig = JSON.stringify(config);
+    if (serializedConfig === lastPersistedConfigRef.current) return;
+    void persistEditorConfig(config);
+  }, [adminView, config, isAdmin, isBootstrapping, persistEditorConfig]);
+
   const revalidateInventory = async () => {
     setRevalidating(true);
     try {
@@ -6293,11 +6303,11 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   }`}
                 >
                   {autoSaveState === "error"
-                    ? "Guardado automatico con respaldo local"
+                    ? "Guardado local en este navegador (servidor no disponible)"
                     : autoSaveState === "saving" || saving
                       ? "Guardando cambios..."
                       : autoSaveState === "saved"
-                        ? `Guardado automatico ${lastAutoSaveAt ? ` ·  ${lastAutoSaveAt}` : ""}`
+                        ? `Guardado en servidor ${lastAutoSaveAt ? ` ·  ${lastAutoSaveAt}` : ""}`
                         : "Guardado automatico activo"}
                 </span>
                 <button

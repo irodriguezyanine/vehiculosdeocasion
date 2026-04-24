@@ -175,16 +175,16 @@ export const DEFAULT_EDITOR_CONFIG: EditorConfig = {
   vehicleUpcomingAuctionIds: {},
   sectionTexts: {
     "proximos-remates": {
-      title: "Próximos remates",
-      subtitle: "Vehículos en agenda con mayor prioridad comercial.",
+      title: "Destacados",
+      subtitle: "Unidades recomendadas por precio, estado y oportunidad.",
     },
     "ventas-directas": {
       title: "Ventas Directas",
-      subtitle: "Stock disponible para cierre rápido.",
+      subtitle: "Stock disponible para cierre inmediato.",
     },
     novedades: {
       title: "Novedades",
-      subtitle: "Últimas unidades ingresadas al ecosistema Vedisa.",
+      subtitle: "Últimas unidades ingresadas a nuestra vitrina.",
     },
     catalogo: {
       title: "Catálogo",
@@ -192,14 +192,14 @@ export const DEFAULT_EDITOR_CONFIG: EditorConfig = {
     },
   },
   homeLayout: {
-    heroKicker: "Catálogo oficial de Vedisa Remates",
-    heroTitle: "Encuentra tu próximo vehículo al mejor precio",
+    heroKicker: "Automotora y compraventa",
+    heroTitle: "Encuentra tu próximo vehículo en Vehículos de Ocasión",
     heroDescription:
-      "Catálogo oficial de Vedisa Remates con fotos, historial técnico y trazabilidad.",
-    heroPrimaryCtaLabel: "Ver vehículos disponibles",
+      "Vehículos de Ocasión es una empresa especializada en la comercialización de vehículos a precios competitivos, por debajo del promedio del mercado.",
+    heroPrimaryCtaLabel: "Ver catálogo disponible",
     heroPrimaryCtaHref: "#catalogo",
-    heroSecondaryCtaLabel: "Cómo participar en el remate",
-    heroSecondaryCtaHref: "#como-participar",
+    heroSecondaryCtaLabel: "Contactar por WhatsApp",
+    heroSecondaryCtaHref: "#contacto",
     heroAlignment: "left",
     heroTheme: "slate",
     heroMaxWidth: "xl",

@@ -13,17 +13,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://catalogo.vedisaremates.cl"),
-  title: "Catálogo Oficial VEDISA REMATES | Subastas de Vehículos",
+  metadataBase: new URL("https://vehiculosdeocasion.vercel.app"),
+  title: "Vehículos de Ocasión | Automotora y Compraventa",
   description:
-    "Catálogo Vedisa: revisa nuestro stock de autos disponibles para remate y venta directa, y cuéntanos cuáles te interesan para ayudarte con la mejor alternativa.",
+    "Vehículos de Ocasión es una empresa especializada en la comercialización de vehículos a precios competitivos, por debajo del promedio del mercado.",
   alternates: {
-    canonical: "https://catalogo.vedisaremates.cl",
+    canonical: "https://vehiculosdeocasion.vercel.app",
   },
   icons: {
     icon: [
       { url: "/favicon.png", type: "image/png" },
-      { url: "/favicon.ico", type: "image/x-icon" },
     ],
     shortcut: "/favicon.png",
     apple: "/favicon.png",
@@ -31,25 +30,25 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "es_CL",
-    url: "https://catalogo.vedisaremates.cl",
-    siteName: "VEDISA REMATES",
-    title: "Catálogo Oficial VEDISA REMATES | Remates y Venta Directa",
+    url: "https://vehiculosdeocasion.vercel.app",
+    siteName: "Vehículos de Ocasión",
+    title: "Vehículos de Ocasión | Catálogo de vehículos",
     description:
-      "Revisa nuestro stock de autos en Catálogo Vedisa y dinos qué unidades te interesan para asesorarte en tu compra.",
+      "Explora nuestro catálogo de vehículos con precios competitivos, fotos y visor 3D para tomar mejores decisiones.",
     images: [
       {
         url: "/favicon.png",
         width: 128,
         height: 128,
-        alt: "Catálogo Vedisa",
+        alt: "Vehículos de Ocasión",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Catálogo Oficial VEDISA REMATES",
+    title: "Vehículos de Ocasión",
     description:
-      "Revisa nuestro stock de autos y dinos cuáles te interesan en Catálogo Vedisa.",
+      "Compraventa de vehículos con precios competitivos y apoyo comercial directo.",
     images: ["/favicon.png"],
   },
 };

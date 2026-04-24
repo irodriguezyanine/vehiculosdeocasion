@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
-  --foreground: #18181b;
+  --background: #f5f3f0;
+  --foreground: #1f1a17;
 }
 
 @theme inline {
@@ -21,16 +21,16 @@ body {
 }
 
 ::selection {
-  background: rgba(51, 199, 227, 0.25);
-  color: #0b2230;
+  background: rgba(146, 95, 54, 0.28);
+  color: #21150e;
 }
 
 .premium-bg {
   position: relative;
   background:
-    radial-gradient(circle at 12% 18%, rgba(51, 199, 227, 0.2), transparent 36%),
-    radial-gradient(circle at 82% 12%, rgba(114, 224, 245, 0.2), transparent 34%),
-    linear-gradient(180deg, #eef5fb 0%, #f5f8fc 35%, #eef3f8 100%);
+    radial-gradient(circle at 12% 18%, rgba(138, 93, 56, 0.2), transparent 36%),
+    radial-gradient(circle at 82% 12%, rgba(95, 73, 52, 0.2), transparent 34%),
+    linear-gradient(180deg, #f6f2ed 0%, #f8f5f1 35%, #f1ece6 100%);
 }
 
 .premium-glow {
@@ -48,35 +48,35 @@ body {
 .premium-glow-cyan {
   top: -6rem;
   left: -8rem;
-  background: rgba(51, 199, 227, 0.7);
+  background: rgba(150, 102, 60, 0.62);
 }
 
 .premium-glow-gold {
   right: -7rem;
   top: 30%;
-  background: rgba(124, 217, 243, 0.62);
+  background: rgba(92, 70, 49, 0.62);
   animation-delay: 1.2s;
 }
 
 .premium-panel {
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(125, 162, 186, 0.22);
+  border: 1px solid rgba(132, 112, 93, 0.28);
   border-radius: 1.25rem;
   padding: 2rem;
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.88), rgba(245, 250, 255, 0.9));
-  box-shadow: 0 18px 40px rgba(41, 95, 127, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.88), rgba(248, 244, 239, 0.92));
+  box-shadow: 0 18px 40px rgba(60, 44, 32, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.75);
 }
 
 .premium-panel-hero {
-  border-color: rgba(51, 199, 227, 0.45);
+  border-color: rgba(132, 84, 47, 0.45);
 }
 
 .premium-panel::before {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(120deg, rgba(51, 199, 227, 0.09), transparent 35%, rgba(114, 224, 245, 0.1));
+  background: linear-gradient(120deg, rgba(132, 84, 47, 0.09), transparent 35%, rgba(94, 74, 54, 0.12));
   opacity: 1;
   pointer-events: none;
 }
@@ -115,18 +115,18 @@ body {
 
 .premium-btn-primary {
   border-radius: 9999px;
-  background: linear-gradient(120deg, #33c7e3, #54def7);
-  color: #06111a;
+  background: linear-gradient(120deg, #7c4a25, #9f6235);
+  color: #fff;
   padding: 0.56rem 1.25rem;
   font-size: 0.86rem;
   font-weight: 700;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-  box-shadow: 0 10px 24px rgba(51, 199, 227, 0.35);
+  box-shadow: 0 10px 24px rgba(103, 61, 32, 0.35);
 }
 
 .premium-btn-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 16px 28px rgba(51, 199, 227, 0.45);
+  box-shadow: 0 16px 28px rgba(93, 55, 29, 0.45);
 }
 
 .premium-btn-secondary {
@@ -156,10 +156,10 @@ body {
 }
 
 .premium-link-pill:hover {
-  border-color: rgba(51, 199, 227, 0.7);
-  color: rgb(14 116 144);
+  border-color: rgba(129, 78, 40, 0.7);
+  color: rgb(111 63 27);
   transform: translateY(-1px);
-  box-shadow: 0 8px 16px rgba(51, 199, 227, 0.18);
+  box-shadow: 0 8px 16px rgba(84, 52, 30, 0.18);
 }
 
 .glass-soft {

@@ -45,7 +45,7 @@ function normalizeConfig(config?: Partial<EditorConfig> | null): EditorConfig {
   const incomingSecondaryHref = config?.homeLayout?.heroSecondaryCtaHref?.trim();
   const normalizedSecondaryHref =
     !incomingSecondaryHref || incomingSecondaryHref === "#proximos-remates"
-      ? "#como-participar"
+      ? "#contacto"
       : config?.homeLayout?.heroSecondaryCtaHref ?? defaults.homeLayout.heroSecondaryCtaHref;
   return {
     sectionVehicleIds: {
@@ -98,7 +98,7 @@ function normalizeConfig(config?: Partial<EditorConfig> | null): EditorConfig {
         config?.homeLayout?.showFavoritesSection ?? defaults.homeLayout.showFavoritesSection,
       showHowToSection:
         (config?.homeLayout?.showHowToSection ?? defaults.homeLayout.showHowToSection) ||
-        normalizedSecondaryHref === "#como-participar",
+        normalizedSecondaryHref === "#contacto",
       showSearchBar: config?.homeLayout?.showSearchBar ?? defaults.homeLayout.showSearchBar,
       showQuickFilters:
         config?.homeLayout?.showQuickFilters ?? defaults.homeLayout.showQuickFilters,

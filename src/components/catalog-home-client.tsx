@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   useCallback,
@@ -28,10 +28,10 @@ import {
   type VehicleTypeId,
 } from "@/types/editor";
 
-const EDITOR_STORAGE_KEY = "vedisa_editor_config_local";
-const FAVORITES_STORAGE_KEY = "vedisa_client_favorites";
-const HOME_QUICK_FILTERS_STORAGE_KEY = "vedisa_home_quick_filters";
-const HOME_CARD_DENSITY_STORAGE_KEY = "vedisa_home_card_density";
+const EDITOR_STORAGE_KEY = "vehiculosdeocasion_editor_config_local";
+const FAVORITES_STORAGE_KEY = "vehiculosdeocasion_client_favorites";
+const HOME_QUICK_FILTERS_STORAGE_KEY = "vehiculosdeocasion_home_quick_filters";
+const HOME_CARD_DENSITY_STORAGE_KEY = "vehiculosdeocasion_home_card_density";
 const EDITOR_PAGE_SIZE = 20;
 type AdminTabId = "vehiculos" | "categorias" | "layout" | "analytics" | "ofertas";
 type InventorySubtabId = "actual" | "vendidas";
@@ -112,72 +112,67 @@ const QUICK_FILTER_LABELS: Record<QuickFilterId, string> = {
   conPrecio: "Con precio",
   recientes: "Recientes",
   manuales: "Manuales",
-  proximoRemate: "Próximo remate",
-  categoriaOtros: "Categoría: Otros",
+  proximoRemate: "Destacados",
+  categoriaOtros: "Categoria: Otros",
 };
 
 const VEHICLE_CONDITION_OPTIONS = [
-  "Vehículo 100% operativo",
+  "Vehiculo 100% operativo",
   "No arranca",
   "Con problemas",
   "Desarme",
   "Recuperado por robo sin registrar en la Cia de seguros",
 ] as const;
 const VEHICLE_CATEGORY_OPTIONS = [
-  { value: "vehiculo_liviano", label: "Vehículo liviano" },
-  { value: "vehiculo_pesado", label: "Vehículo pesado" },
+  { value: "vehiculo_liviano", label: "Vehiculo liviano" },
+  { value: "vehiculo_pesado", label: "Vehiculo pesado" },
   { value: "maquinaria", label: "Maquinaria" },
   { value: "chatarra", label: "Chatarra" },
   { value: "otros", label: "Otros" },
 ] as const;
 
 const WHATSAPP_CTA_URL =
-  "https://api.whatsapp.com/send/?phone=56989323397&text=Hola%2C+quiero+asesor%C3%ADa+para+ofertar+en+VEDISA&type=phone_number&app_absent=0";
-const WHATSAPP_PHONE = "56989323397";
+  "https://api.whatsapp.com/send/?phone=5694550660&text=Hola%2C+quiero+asesoria+comercial+en+Vehiculos+de+Ocasion&type=phone_number&app_absent=0";
+const WHATSAPP_PHONE = "5694550660";
+const CONTACT_EMAIL = "vehiculosdeocasioncl@gmail.com";
+const INSTAGRAM_URL = "https://www.instagram.com/autosdeoc?igsh=YzRqbHQwZ2Q4YTg3";
+const INSTAGRAM_HANDLE = "@vehiculosdeocasioncl";
+const INSTAGRAM_GALLERY = [
+  {
+    src: "/instagram-galeria-1.png",
+    title: "Perfil de Instagram",
+    subtitle: "Comunidad y novedades de Vehiculos de Ocasion",
+  },
+  {
+    src: "/vehiculos-ocasion-banner.png",
+    title: "Portada corporativa",
+    subtitle: "Imagen oficial de la automotora",
+  },
+  {
+    src: "/vehiculos-ocasion-logo.png",
+    title: "Identidad de marca",
+    subtitle: "Logo oficial Vehiculos de Ocasion",
+  },
+] as const;
 const MAX_COMPARE_ITEMS = 4;
-const ANALYTICS_STORAGE_KEY = "vedisa_analytics_events";
-const ANALYTICS_VISITOR_ID_KEY = "vedisa_analytics_visitor_id";
-const ANALYTICS_SESSION_ID_KEY = "vedisa_analytics_session_id";
-const ANALYTICS_SESSION_PAGEVIEW_KEY = "vedisa_analytics_pageview_home";
-const OBSERVATIONS_TEMPLATE_STORAGE_KEY = "vedisa_observations_template_html";
-const DEFAULT_OBSERVATIONS_TEMPLATE_HTML = `<h3><strong>¿Quieres ofertar y aprovechar esta oportunidad?</strong></h3>
-<p>Sigue estos pasos:</p>
-<ol>
-  <li>
-    <p><strong>Inscríbete en nuestra web</strong> y accede con tu usuario registrado.</p>
-  </li>
-  <li>
-    <p><strong>Deposita la garantía</strong> de $300.000 por cada vehículo de interés en nuestra cuenta. Luego, envía tu usuario y el comprobante de depósito a nuestro Contact Center vía WhatsApp al <a href="https://wa.me/56989323397" target="_blank" rel="noreferrer" style="color:#1d4ed8"><strong>+56 9 8932 3397</strong></a>. Recibirás un mensaje cuando estés habilitado para ofertar.</p>
-  </li>
-  <li>
-    <p><strong>Ingresa a nuestro sitio web</strong>, busca el lote que te interesa y elige tu forma de ofertar:</p>
-    <ul>
-      <li>Haz clic en la <em>oferta mínima</em>.</li>
-      <li>Ingresa el monto que deseas ofertar; el sistema pujará automáticamente desde la oferta mínima hasta tu valor máximo indicado.</li>
-    </ul>
-  </li>
-  <li>
-    <p><strong>Si te adjudicas el vehículo</strong>, recibirás un correo con el valor total a cancelar.</p>
-    <ul>
-      <li>Dispones de 48 horas para realizar el pago total y coordinar el retiro de tu vehículo.</li>
-      <li>Una vez pagado, envía los comprobantes a nuestro Contact Center.</li>
-      <li>Todos los trámites pueden realizarse de forma 100% remota.</li>
-    </ul>
-  </li>
-  <li>
-    <p><strong>Si no te adjudicas ningún vehículo</strong>, la garantía se devuelve después de 48 horas del remate garantizado.</p>
-  </li>
-</ol>
+const ANALYTICS_STORAGE_KEY = "vehiculosdeocasion_analytics_events";
+const ANALYTICS_VISITOR_ID_KEY = "vehiculosdeocasion_analytics_visitor_id";
+const ANALYTICS_SESSION_ID_KEY = "vehiculosdeocasion_analytics_session_id";
+const ANALYTICS_SESSION_PAGEVIEW_KEY = "vehiculosdeocasion_analytics_pageview_home";
+const OBSERVATIONS_TEMPLATE_STORAGE_KEY = "vehiculosdeocasion_observations_template_html";
+const DEFAULT_OBSERVATIONS_TEMPLATE_HTML = `<h3><strong>¿Te interesa esta unidad?</strong></h3>
+<p>En Vehiculos de Ocasion te acompanamos durante todo el proceso de compra.</p>
 <ul>
-  <li>En nuestro portal te asesoramos de manera honesta y transparente, con material audiovisual e información detallada de cada vehículo, garantizando su integridad hasta que sale de nuestras dependencias.</li>
-  <li>Si deseas ver el vehículo presencialmente, puedes hacerlo en la ubicación y horarios de exhibición establecidos, una vez depositada la garantía, para tu propia seguridad.</li>
+  <li>Solicita detalles y apoyo comercial por WhatsApp al <a href="https://wa.me/5694550660" target="_blank" rel="noreferrer" style="color:#7c4a25"><strong>+56 9 4550 660</strong></a>.</li>
+  <li>Revisa fotos, ficha tecnica y visor 3D cuando este disponible.</li>
+  <li>Coordinamos reserva, documentacion y cierre comercial de forma simple y segura.</li>
 </ul>`;
 
 const SECTION_LABELS: Record<SectionId, string> = {
-  "proximos-remates": "Próximos remates",
+  "proximos-remates": "Destacados",
   "ventas-directas": "Ventas directas",
   novedades: "Novedades",
-  catalogo: "Catálogo",
+  catalogo: "Catalogo",
 };
 const BASE_HOME_SECTION_ORDER: SectionId[] = [
   "proximos-remates",
@@ -194,16 +189,16 @@ function normalizeEditorConfigClient(
 ): EditorConfig {
   const defaults = DEFAULT_EDITOR_CONFIG;
   const legacyHeroTitles = new Set([
-    "Inventario de vehículos para remate y venta directa",
+    "Inventario de vehiculos para remate y venta directa",
     "Inventario de vehiculos",
-    "Inventario de vehículos",
+    "Inventario de vehiculos",
   ]);
-  const requestedHeroTitle = "Encuentra tu próximo vehículo al mejor precio";
+  const requestedHeroTitle = "Encuentra tu proximo vehiculo en Vehiculos de Ocasion";
   const requestedHeroDescription =
-    "Catálogo oficial de Vedisa Remates con fotos, historial técnico y trazabilidad.";
-  const requestedPrimaryCta = "Ver vehículos disponibles";
-  const requestedSecondaryCta = "Cómo participar en el remate";
-  const requestedSecondaryHref = "#como-participar";
+    "Vehiculos de Ocasion es una empresa especializada en la comercializacion de vehiculos a precios competitivos, por debajo del promedio del mercado.";
+  const requestedPrimaryCta = "Ver catalogo disponible";
+  const requestedSecondaryCta = "Contactar por WhatsApp";
+  const requestedSecondaryHref = "#contacto";
   const incomingHeroTitle = value?.homeLayout?.heroTitle;
   const normalizedHeroTitle =
     !incomingHeroTitle || legacyHeroTitles.has(incomingHeroTitle.trim())
@@ -213,12 +208,12 @@ function normalizeEditorConfigClient(
   const normalizedHeroDescription =
     !incomingHeroDescription ||
     incomingHeroDescription ===
-      "Plataforma oficial de ofertas online en vedisaremates.cl. Revisa cada unidad con información clara, fotos y trazabilidad comercial para tomar decisiones con confianza."
+      "Plataforma oficial de ofertas online en vedisaremates.cl. Revisa cada unidad con informacion clara, fotos y trazabilidad comercial para tomar decisiones con confianza."
       ? requestedHeroDescription
       : value?.homeLayout?.heroDescription ?? defaults.homeLayout.heroDescription;
   const incomingPrimaryCta = value?.homeLayout?.heroPrimaryCtaLabel?.trim();
   const normalizedPrimaryCta =
-    !incomingPrimaryCta || incomingPrimaryCta === "Ver catálogo completo"
+    !incomingPrimaryCta || incomingPrimaryCta === "Ver catalogo completo"
       ? requestedPrimaryCta
       : value?.homeLayout?.heroPrimaryCtaLabel ?? defaults.homeLayout.heroPrimaryCtaLabel;
   const incomingSecondaryCta = value?.homeLayout?.heroSecondaryCtaLabel?.trim();
@@ -468,7 +463,7 @@ function blobToDataUrl(blob: Blob): Promise<string> {
 }
 
 async function loadLogoForPdfAsDataUrl(): Promise<string | null> {
-  const candidates = ["/vedisa-logo.png", "https://vedisaremates.vercel.app/vedisa-logo.png"];
+  const candidates = ["/vehiculos-ocasion-logo.png", "https://vehiculosdeocasion.vercel.app/vehiculos-ocasion-logo.png"];
   for (const url of candidates) {
     try {
       const response = await fetch(url, { cache: "no-store" });
@@ -498,7 +493,7 @@ function getPatent(item: CatalogItem): string {
   const raw = item.raw as Record<string, unknown>;
   const patent = [raw.patente, raw.PATENTE, raw.PPU, raw.stock_number]
     .find((value) => typeof value === "string" && value.trim().length > 0) as string | undefined;
-  return patent?.toUpperCase().replace(/\s+/g, "").replace(/-/g, "") ?? "—";
+  return patent?.toUpperCase().replace(/\s+/g, "").replace(/-/g, "") ?? "-";
 }
 
 function getModel(item: CatalogItem): string {
@@ -642,7 +637,7 @@ function getVehicleCategoryLabel(value?: string): string {
   const normalized = normalizeVehicleCategoryValue(value);
   const known = VEHICLE_CATEGORY_OPTIONS.find((option) => option.value === normalized);
   if (known) return known.label;
-  if (!value) return "—";
+  if (!value) return "-";
   return value.replace(/_/g, " ");
 }
 
@@ -733,11 +728,11 @@ function formatAuctionCountdownClock(diffMs: number): string {
 }
 
 function formatAuctionCountdownHours(targetDate: Date | null, nowMs: number): string {
-  if (!targetDate) return "Próximo remate en 0 (Cuenta regresiva) horas";
+  if (!targetDate) return "Proximo remate en 0 (Cuenta regresiva) horas";
   const diffMs = targetDate.getTime() - nowMs;
   const diffHours = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60)));
   const clock = formatAuctionCountdownClock(diffMs);
-  return `Próximo remate en ${diffHours} (${clock}) horas`;
+  return `Proximo remate en ${diffHours} (${clock}) horas`;
 }
 
 function isRecentAuctionDate(value?: string): boolean {
@@ -766,23 +761,23 @@ function parseAnalyticsTimestamp(value: unknown): Date | null {
 function getAnalyticsEventLabel(eventName: string): string {
   const labels: Record<string, string> = {
     page_view_home: "Vista al home",
-    vehicle_detail_open: "Apertura de detalle de vehículo",
-    home_search_change: "Búsqueda en home",
-    quick_filter_toggle: "Uso de filtro rápido",
-    compare_toggle: "Comparar vehículos",
-    whatsapp_click_modal_mobile: "Click WhatsApp desde modal (móvil)",
+    vehicle_detail_open: "Apertura de detalle de vehiculo",
+    home_search_change: "Busqueda en home",
+    quick_filter_toggle: "Uso de filtro rapido",
+    compare_toggle: "Comparar vehiculos",
+    whatsapp_click_modal_mobile: "Click WhatsApp desde modal (movil)",
     whatsapp_click_modal: "Click WhatsApp desde modal",
     whatsapp_click_card: "Click WhatsApp en tarjeta",
-    whatsapp_click_floating: "Click WhatsApp en botón flotante",
+    whatsapp_click_floating: "Click WhatsApp en boton flotante",
     home_sort_change: "Cambio de orden en listado",
     calendar_pdf_download: "Descarga de PDF del calendario",
     login_modal_open: "Apertura de modal de login",
     offer_modal_open: "Apertura de modal de oferta",
     favorite_toggle: "Agregar/quitar favorito",
-    top_filter_click: "Click en sección superior",
-    vehicle_share: "Compartir vehículo",
-    lead_form_submit: "Envío de formulario de contacto",
-    card_open: "Apertura de tarjeta de vehículo",
+    top_filter_click: "Click en seccion superior",
+    vehicle_share: "Compartir vehiculo",
+    lead_form_submit: "Envio de formulario de contacto",
+    card_open: "Apertura de tarjeta de vehiculo",
   };
   if (labels[eventName]) return labels[eventName];
   return eventName
@@ -793,20 +788,20 @@ function getAnalyticsEventLabel(eventName: string): string {
 
 function getAnalyticsSectionLabel(sectionName: string): string {
   const labels: Record<string, string> = {
-    "sin-seccion": "Sin sección",
-    "sin-sección": "Sin sección",
+    "sin-seccion": "Sin seccion",
+    "sin-seccion": "Sin seccion",
     all: "Todas las secciones",
-    "proximos-remates": "Próximos remates",
+    "proximos-remates": "Destacados",
     "ventas-directas": "Ventas directas",
     novedades: "Novedades",
-    catalogo: "Catálogo",
+    catalogo: "Catalogo",
     favoritos: "Favoritos",
-    "recien-publicados": "Recién publicados",
-    "recién-publicados": "Recién publicados",
+    "recien-publicados": "Recien publicados",
+    "recien-publicados": "Recien publicados",
   };
   if (labels[sectionName]) return labels[sectionName];
-  if (sectionName.startsWith("managed:")) return "Categoría personalizada";
-  if (sectionName.startsWith("categoria-")) return "Categoría personalizada";
+  if (sectionName.startsWith("managed:")) return "Categoria personalizada";
+  if (sectionName.startsWith("categoria-")) return "Categoria personalizada";
   return sectionName
     .replace(/[_-]+/g, " ")
     .trim()
@@ -967,7 +962,7 @@ function formatExtendedDescriptionHtml(value?: string | null): string {
   const normalized = String(value ?? "")
     .replace(/\/n/g, "\n")
     .trim();
-  if (!normalized) return "Sin descripción adicional para este vehículo.";
+  if (!normalized) return "Sin descripcion adicional para este vehiculo.";
   const maybeDecoded =
     /&lt;[a-z][\s\S]*&gt;/i.test(normalized) && !/<[a-z][\s\S]*>/i.test(normalized)
       ? decodeBasicHtmlEntities(normalized)
@@ -1175,7 +1170,7 @@ function buildDetailsDraft(item: CatalogItem, override?: EditorVehicleDetails): 
       String(
         getLookupValue(lookup, [
           "condicion",
-          "condición",
+          "condicion",
           "condicion_vehiculo",
           "estado_vehiculo",
           "estado",
@@ -1412,7 +1407,6 @@ type FeaturedStripProps = {
 };
 
 function FeaturedStrip({ items, onOpenVehicle }: FeaturedStripProps) {
-  if (items.length === 0) return null;
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -1433,12 +1427,13 @@ function FeaturedStrip({ items, onOpenVehicle }: FeaturedStripProps) {
   useEffect(() => {
     const node = scrollRef.current;
     if (!node) return;
-    updateScrollArrows();
+    const raf = window.requestAnimationFrame(() => updateScrollArrows());
     const onScroll = () => updateScrollArrows();
     const onResize = () => updateScrollArrows();
     node.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onResize);
     return () => {
+      window.cancelAnimationFrame(raf);
       node.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);
     };
@@ -1486,6 +1481,8 @@ function FeaturedStrip({ items, onOpenVehicle }: FeaturedStripProps) {
       scrollByAmount("right");
     }
   };
+
+  if (items.length === 0) return null;
 
   return (
     <section className="section-shell">
@@ -1554,7 +1551,7 @@ function FeaturedStrip({ items, onOpenVehicle }: FeaturedStripProps) {
               />
               <div className="featured-overlay" />
               <div className="featured-content">
-                <p className="line-clamp-1 text-sm font-semibold uppercase tracking-wide text-cyan-700">
+                <p className="line-clamp-1 text-sm font-semibold uppercase tracking-wide text-amber-800">
                   {item.status ?? "Unidad disponible"}
                 </p>
                 <h3 className="line-clamp-2 text-xl font-bold text-white">{item.title}</h3>
@@ -1563,6 +1560,115 @@ function FeaturedStrip({ items, onOpenVehicle }: FeaturedStripProps) {
                 </div>
               </div>
             </button>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function InstagramGalleryStrip() {
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const updateScrollArrows = useCallback(() => {
+    const node = scrollRef.current;
+    if (!node) return;
+    const maxScrollLeft = Math.max(0, node.scrollWidth - node.clientWidth);
+    const hasOverflow = maxScrollLeft > 4;
+    setCanScrollLeft(hasOverflow && node.scrollLeft > 4);
+    setCanScrollRight(hasOverflow && node.scrollLeft < maxScrollLeft - 4);
+  }, []);
+
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (!node) return;
+    const raf = window.requestAnimationFrame(() => updateScrollArrows());
+    const onScroll = () => updateScrollArrows();
+    const onResize = () => updateScrollArrows();
+    node.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.cancelAnimationFrame(raf);
+      node.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [updateScrollArrows]);
+
+  const scrollByAmount = (direction: "left" | "right") => {
+    const node = scrollRef.current;
+    if (!node) return;
+    const amount = Math.max(280, Math.round(node.clientWidth * 0.72));
+    node.scrollBy({ left: direction === "left" ? -amount : amount, behavior: "smooth" });
+    window.setTimeout(() => updateScrollArrows(), 320);
+  };
+
+  return (
+    <section className="section-shell">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <p className="premium-kicker">Instagram</p>
+          <h2 className="text-2xl font-bold text-slate-900">Galeria social</h2>
+        </div>
+        <a
+          href={INSTAGRAM_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="ui-focus rounded-full border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-50"
+        >
+          Ver perfil {INSTAGRAM_HANDLE}
+        </a>
+      </div>
+      <div className="featured-strip-shell relative">
+        <button
+          type="button"
+          onClick={() => scrollByAmount("left")}
+          className={`ui-focus absolute left-2 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-slate-900/25 text-white backdrop-blur-sm transition hover:bg-slate-900/45 md:inline-flex ${
+            canScrollLeft ? "opacity-100" : "pointer-events-none opacity-0"
+          }`}
+          aria-label="Desplazar galeria hacia la izquierda"
+          title="Anterior"
+        >
+          <svg viewBox="0 0 20 20" className="h-5 w-5" fill="currentColor" aria-hidden="true">
+            <path fillRule="evenodd" d="M12.78 4.22a.75.75 0 0 1 0 1.06L8.06 10l4.72 4.72a.75.75 0 1 1-1.06 1.06l-5.25-5.25a.75.75 0 0 1 0-1.06l5.25-5.25a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          onClick={() => scrollByAmount("right")}
+          className={`ui-focus absolute right-2 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-slate-900/25 text-white backdrop-blur-sm transition hover:bg-slate-900/45 md:inline-flex ${
+            canScrollRight ? "opacity-100" : "pointer-events-none opacity-0"
+          }`}
+          aria-label="Desplazar galeria hacia la derecha"
+          title="Siguiente"
+        >
+          <svg viewBox="0 0 20 20" className="h-5 w-5" fill="currentColor" aria-hidden="true">
+            <path fillRule="evenodd" d="M7.22 15.78a.75.75 0 0 1 0-1.06L11.94 10 7.22 5.28a.75.75 0 1 1 1.06-1.06l5.25 5.25a.75.75 0 0 1 0 1.06l-5.25 5.25a.75.75 0 0 1-1.06 0Z" clipRule="evenodd" />
+          </svg>
+        </button>
+        <div ref={scrollRef} className="featured-strip" tabIndex={0} role="region" aria-label="Galeria de Instagram">
+          {INSTAGRAM_GALLERY.map((image) => (
+            <a
+              key={image.src}
+              href={INSTAGRAM_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="featured-item text-left"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={image.src} alt={image.title} className="featured-image" loading="lazy" />
+              <div className="featured-overlay" />
+              <div className="featured-content">
+                <p className="line-clamp-1 text-sm font-semibold uppercase tracking-wide text-amber-300">
+                  {INSTAGRAM_HANDLE}
+                </p>
+                <h3 className="line-clamp-2 text-xl font-bold text-white">{image.title}</h3>
+                <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-100">
+                  <span className="featured-chip">{image.subtitle}</span>
+                </div>
+              </div>
+            </a>
           ))}
         </div>
       </div>
@@ -1630,12 +1736,13 @@ function HorizontalCardsRail({
   useEffect(() => {
     const node = scrollRef.current;
     if (!node) return;
-    updateScrollArrows();
+    const raf = window.requestAnimationFrame(() => updateScrollArrows());
     const onScroll = () => updateScrollArrows();
     const onResize = () => updateScrollArrows();
     node.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onResize);
     return () => {
+      window.cancelAnimationFrame(raf);
       node.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);
     };
@@ -1779,14 +1886,14 @@ function Section({
           <h2 className="text-2xl font-bold text-slate-900">{title}</h2>
           <p className="mt-1 text-sm text-slate-600">{subtitle}</p>
         </div>
-        <span className="inline-flex w-fit rounded-full bg-cyan-100 px-3 py-1 text-xs font-semibold text-cyan-900">
+        <span className="inline-flex w-fit rounded-full bg-stone-200 px-3 py-1 text-xs font-semibold text-cyan-900">
           {items.length} publicaciones
         </span>
       </header>
 
       {items.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500">
-          No encontramos unidades en esta sección. Prueba limpiar filtros o cambiar el tipo de vehículo.
+          No encontramos unidades en esta seccion. Prueba limpiar filtros o cambiar el tipo de vehiculo.
         </div>
       ) : (
         <HorizontalCardsRail
@@ -1836,9 +1943,9 @@ function UpcomingAuctionsSection({
     <section id="proximos-remates" className="section-shell scroll-mt-24">
       <header className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="premium-kicker">Agenda de remates</p>
-          <h2 className="text-2xl font-bold text-slate-900">Próximos remates</h2>
-          <p className="mt-1 text-sm text-slate-600">Cada remate funciona como categoría con fecha y vehículos asignados.</p>
+          <p className="premium-kicker">Vitrina destacada</p>
+          <h2 className="text-2xl font-bold text-slate-900">Destacados</h2>
+          <p className="mt-1 text-sm text-slate-600">Unidades priorizadas y organizadas para facilitar tu decision de compra.</p>
         </div>
       </header>
       <div className="space-y-8">
@@ -1847,7 +1954,7 @@ function UpcomingAuctionsSection({
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-100 bg-indigo-50/50 px-3 py-2">
               <h3 className="text-base font-semibold text-indigo-900">{auction.name}</h3>
               <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-indigo-700">
-                {formatAuctionDateLabel(auction.date)} · {items.length} vehículos
+                {formatAuctionDateLabel(auction.date)}  ·  {items.length} vehiculos
               </span>
             </div>
             <HorizontalCardsRail
@@ -2063,7 +2170,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     ];
     for (const field of dateFields) {
       if (!isValidDateValue(String(editingDetails[field] ?? ""))) {
-        errors[field] = "Formato válido: YYYY-MM-DD o DD/MM/YYYY.";
+        errors[field] = "Formato valido: YYYY-MM-DD o DD/MM/YYYY.";
       }
     }
 
@@ -2263,7 +2370,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   const heroToolbarButtonClass = useCallback((isActive: boolean) => (
     `ui-focus rounded border px-2 py-1 text-xs font-semibold transition ${
       isActive
-        ? "border-cyan-400 bg-cyan-100 text-cyan-800"
+        ? "border-amber-400 bg-stone-200 text-amber-900"
         : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
     }`
   ), []);
@@ -2746,7 +2853,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       const auction = auctionsById.get(auctionId);
       if (!auction) continue;
       const dateLabel = formatAuctionDateLabel(auction.date);
-      labels[vehicleKey] = dateLabel ? `${auction.name} · ${dateLabel}` : auction.name;
+      labels[vehicleKey] = dateLabel ? `${auction.name}  ·  ${dateLabel}` : auction.name;
     }
     return labels;
   }, [config.upcomingAuctions, config.vehicleUpcomingAuctionIds]);
@@ -2873,7 +2980,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     const buildRow = (item: CatalogItem): CalendarPdfRow => {
       const key = getVehicleKey(item);
       return {
-        title: item.title?.trim() || "Vehículo sin título",
+        title: item.title?.trim() || "Vehiculo sin titulo",
         patent: getPatent(item),
         model: getModel(item),
         auctionLabel:
@@ -2898,7 +3005,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     } else if (proximosRemates.length > 0) {
       sections.push({
         categoryTitle: "Remates disponibles",
-        categorySubtitle: "Vehículos activos en próximos remates.",
+        categorySubtitle: "Vehiculos activos en proximos remates.",
         rows: proximosRemates.map(buildRow),
       });
     }
@@ -2906,7 +3013,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     if (ventasDirectas.length > 0) {
       sections.push({
         categoryTitle: "Ventas directas",
-        categorySubtitle: config.sectionTexts["ventas-directas"].subtitle || "Stock disponible para cierre rápido.",
+        categorySubtitle: config.sectionTexts["ventas-directas"].subtitle || "Stock disponible para cierre rapido.",
         rows: ventasDirectas.map(buildRow),
       });
     }
@@ -2991,7 +3098,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         white: [255, 255, 255] as const,
       };
       const stats = [
-        { label: "Categorías visibles", value: String(calendarPdfSections.length) },
+        { label: "Categorias visibles", value: String(calendarPdfSections.length) },
         { label: "Publicaciones visibles", value: String(totalRows) },
       ];
 
@@ -3039,7 +3146,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         hour: "2-digit",
         minute: "2-digit",
       });
-      doc.text(`Actualizado ${coverDate} · ${coverTime}`, pageWidth / 2, 282, { align: "center" });
+      doc.text(`Actualizado ${coverDate}  ·  ${coverTime}`, pageWidth / 2, 282, { align: "center" });
 
       const cardGap = 12;
       const cardWidth = (usableWidth - cardGap * (stats.length - 1) - 16) / stats.length;
@@ -3075,7 +3182,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11);
       doc.setTextColor(...BRAND.indigo);
-      doc.text("VEDISA REMATES", pageWidth / 2, pageHeight - 54, { align: "center" });
+      doc.text("Vehículos de Ocasión", pageWidth / 2, pageHeight - 54, { align: "center" });
 
       // Seccion detallada
       doc.addPage();
@@ -3101,7 +3208,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       };
 
       const tableColumns = [
-        { key: "title" as const, label: "Publicación", width: Math.floor(usableWidth * 0.27), align: "left" as const },
+        { key: "title" as const, label: "Publicacion", width: Math.floor(usableWidth * 0.27), align: "left" as const },
         { key: "patent" as const, label: "Patente", width: Math.floor(usableWidth * 0.12), align: "left" as const },
         { key: "model" as const, label: "Modelo", width: Math.floor(usableWidth * 0.19), align: "left" as const },
         { key: "auctionLabel" as const, label: "Calendario", width: Math.floor(usableWidth * 0.27), align: "left" as const },
@@ -3205,7 +3312,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           const lineHeight = 10;
           const cellPaddingX = 8;
           const values = tableColumns.map((column) =>
-            String(row[column.key] ?? "—"),
+            String(row[column.key] ?? "-"),
           );
           const linesByCol = values.map((value, index) =>
             doc.splitTextToSize(value, Math.max(24, tableColumns[index].width - cellPaddingX * 2)),
@@ -3250,7 +3357,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         doc.setFontSize(8);
         doc.setTextColor(...BRAND.slateMuted);
         doc.text(
-          `CatalogoVedisa · Pagina ${page} de ${totalPages}`,
+          `CatalogoVedisa  ·  Pagina ${page} de ${totalPages}`,
           pageWidth / 2,
           pageHeight - 18,
           { align: "center" },
@@ -3266,13 +3373,13 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       showSystemNotice(
         "success",
         "PDF generado",
-        `Se descargó correctamente: ${exportFileName}`,
+        `Se descargo correctamente: ${exportFileName}`,
       );
     } catch {
       showSystemNotice(
         "error",
         "No se pudo generar el PDF",
-        "Intenta nuevamente. Si el problema persiste, recarga la página.",
+        "Intenta nuevamente. Si el problema persiste, recarga la pagina.",
       );
     } finally {
       setIsDownloadingCalendarPdf(false);
@@ -3403,8 +3510,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     if (!selectedVehicle) return "";
     const patent = getPatent(selectedVehicle);
     const label = getModel(selectedVehicle);
-    const shareLink = selectedVehicleShareUrl || "https://catalogo.vedisaremates.cl/#catalogo";
-    const text = `Hola, me interesa este vehículo: ${patent} - ${label}. ¿Me puedes asesorar? ${shareLink}`;
+    const shareLink = selectedVehicleShareUrl || "https://vehiculosdeocasion.vercel.app/#catalogo";
+    const text = `Hola, me interesa este vehiculo: ${patent} - ${label}. ¿Me puedes asesorar? ${shareLink}`;
     return `https://api.whatsapp.com/send/?phone=${WHATSAPP_PHONE}&text=${encodeURIComponent(
       text,
     )}&type=phone_number&app_absent=0`;
@@ -3416,7 +3523,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     if (overrideValue?.trim()) return overrideValue.trim();
     const rawValue = getLookupValue(selectedVehicleLookup, [
       "condicion",
-      "condición",
+      "condicion",
       "condicion_vehiculo",
       "estado_vehiculo",
       "estado",
@@ -3433,10 +3540,10 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   );
   const selectedVehiclePrimaryCtaLabel = useMemo(() => {
     const sample = normalizeText(selectedVehicleConditionLabel ?? "");
-    if (!sample) return "Solicitar asesoría por WhatsApp";
-    if (/100% operativo|operativo/.test(sample)) return "Me interesa este vehículo";
-    if (/no arranca|desarme/.test(sample)) return "Consultar condición y retiro";
-    return "Quiero más información de esta unidad";
+    if (!sample) return "Solicitar asesoria por WhatsApp";
+    if (/100% operativo|operativo/.test(sample)) return "Me interesa este vehiculo";
+    if (/no arranca|desarme/.test(sample)) return "Consultar condicion y retiro";
+    return "Quiero mas informacion de esta unidad";
   }, [selectedVehicleConditionLabel]);
 
   const selectedVehicleReferencePriceDisplay = useMemo(
@@ -3494,9 +3601,9 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   const selectedVehicleTabs = useMemo(
     () => {
       const tabs: Array<{ id: VehicleDetailTabId; label: string }> = [
-        { id: "general", label: "Información del vehículo" },
-        { id: "descripcion", label: "Descripción" },
-        { id: "tecnica", label: "Detalles técnicos" },
+        { id: "general", label: "Informacion del vehiculo" },
+        { id: "descripcion", label: "Descripcion" },
+        { id: "tecnica", label: "Detalles tecnicos" },
       ];
       if (selectedVehicleGalleryImages.length > 0) {
         tabs.push({ id: "fotos", label: "Fotos" });
@@ -3612,7 +3719,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
 
     const formatYesNo = (value: unknown): string => {
       const sample = String(value ?? "").trim().toLowerCase();
-      if (["si", "sí", "yes", "y", "true", "1"].includes(sample)) return "Sí";
+      if (["si", "si", "yes", "y", "true", "1"].includes(sample)) return "Si";
       if (["no", "false", "0", "n"].includes(sample)) return "No";
       return String(value);
     };
@@ -3658,9 +3765,9 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         },
         { label: "Marca", value: getLookupValue(selectedVehicleLookup, ["marca", "brand", "make", "glo3d.make"]) ?? raw.marca },
         { label: "Modelo", value: getLookupValue(selectedVehicleLookup, ["modelo", "model"]) ?? getModel(selectedVehicle) },
-        { label: "Año", value: getLookupValue(selectedVehicleLookup, ["ano", "anio", "year", "glo3d.year"]) },
+        { label: "Ano", value: getLookupValue(selectedVehicleLookup, ["ano", "anio", "year", "glo3d.year"]) },
         {
-          label: "Tipo de vehículo",
+          label: "Tipo de vehiculo",
           value: getLookupValue(selectedVehicleLookup, [
             "tipo_de_vehiculo",
             "tipo_vehiculo",
@@ -3672,7 +3779,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           ]),
         },
         {
-          label: "Categoría",
+          label: "Categoria",
           value: getVehicleCategoryLabel(
             String(
               selectedVehicleOverride?.category ??
@@ -3682,12 +3789,12 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           ),
         },
         {
-          label: "Condición",
+          label: "Condicion",
           value:
             selectedVehicleOverride?.vehicleCondition ??
             getLookupValue(selectedVehicleLookup, [
               "condicion",
-              "condición",
+              "condicion",
               "condicion_vehiculo",
               "estado_vehiculo",
               "estado",
@@ -3704,7 +3811,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             "km",
             "kms",
             "odometro",
-            "odómetro",
+            "odometro",
             "mileage",
             "odometer",
             "cav_campos.kilometraje",
@@ -3742,10 +3849,10 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           ]),
         },
         {
-          label: "Transmisión",
+          label: "Transmision",
           value: getLookupValue(selectedVehicleLookup, [
             "transmision",
-            "transmisión",
+            "transmision",
             "caja",
             "tipo_caja",
             "transmission",
@@ -3760,10 +3867,10 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           ]),
         },
         {
-          label: "Tracción",
+          label: "Traccion",
           value: getLookupValue(selectedVehicleLookup, [
             "traccion",
-            "tracción",
+            "traccion",
             "tipo_traccion",
             "drivetrain",
             "traction",
@@ -3802,10 +3909,10 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           formatter: formatYesNo,
         },
         {
-          label: "Único propietario",
+          label: "Unico propietario",
           value: getLookupValue(selectedVehicleLookup, [
             "unico_propietario",
-            "único_propietario",
+            "unico_propietario",
             "single_owner",
             "one_owner",
             "glo3d.unico_propietario",
@@ -3866,7 +3973,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           ]),
         },
         {
-          label: "Versión",
+          label: "Version",
           value: getLookupValue(selectedVehicleLookup, [
             "version",
             "ver",
@@ -3912,7 +4019,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           ]),
         },
         {
-          label: "Ubicación física",
+          label: "Ubicacion fisica",
           value: getLookupValue(selectedVehicleLookup, [
             "ubicacion_fisica",
             "ubicacion",
@@ -3957,7 +4064,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           ]),
         },
         {
-          label: "Vencimiento revisión técnica",
+          label: "Vencimiento revision tecnica",
           value: getLookupValue(selectedVehicleLookup, [
             "vencimiento_revision_tecnica",
             "revision_tecnica_vencimiento",
@@ -3967,7 +4074,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           ]),
         },
         {
-          label: "Vencimiento permiso circulación",
+          label: "Vencimiento permiso circulacion",
           value: getLookupValue(selectedVehicleLookup, [
             "vencimiento_permiso_circulacion",
             "permiso_circulacion_vencimiento",
@@ -4057,14 +4164,14 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   }, [selectedVehicle, selectedVehicleLookup, selectedVehicleOverride]);
 
   const leadWhatsappUrl = useMemo(() => {
-    const base = "https://api.whatsapp.com/send/?phone=56989323397";
-    const text = `Hola, soy ${leadForm.name || "cliente"} y me interesa ${leadForm.interest || "recibir asesoría para ofertar"}. Mi contacto: ${leadForm.phone || "sin teléfono"}.`;
+    const base = "https://api.whatsapp.com/send/?phone=5694550660";
+    const text = `Hola, soy ${leadForm.name || "cliente"} y me interesa ${leadForm.interest || "recibir asesoria comercial"}. Mi contacto: ${leadForm.phone || "sin telefono"}.`;
     return `${base}&text=${encodeURIComponent(text)}&type=phone_number&app_absent=0`;
   }, [leadForm]);
 
   const submitLeadForm = () => {
     if (!leadForm.name.trim() || !leadForm.phone.trim()) {
-      setLeadMessage("Completa nombre y teléfono para continuar.");
+      setLeadMessage("Completa nombre y telefono para continuar.");
       trackEvent("lead_form_invalid");
       return;
     }
@@ -4079,7 +4186,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       showSystemNotice(
         "info",
         "Precio no disponible",
-        "Este vehículo no tiene precio referencial cargado. Contáctanos por WhatsApp para ofertar.",
+        "Este vehiculo no tiene precio referencial cargado. Contactanos por WhatsApp para ofertar.",
       );
       return;
     }
@@ -4101,12 +4208,12 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     const offerAmount = parseCurrencyAmount(offerForm.offerAmount);
 
     if (!customerName || !customerEmail || !customerPhone || offerAmount <= 0) {
-      showSystemNotice("error", "Campos obligatorios", "Completa nombre, mail, teléfono y oferta para enviar.");
+      showSystemNotice("error", "Campos obligatorios", "Completa nombre, mail, telefono y oferta para enviar.");
       trackEvent("offer_submit_invalid", { itemKey: selectedVehicleKey });
       return;
     }
     if (!isValidEmailAddress(customerEmail)) {
-      showSystemNotice("error", "Correo inválido", "Ingresa un mail válido para contactarte.");
+      showSystemNotice("error", "Correo invalido", "Ingresa un mail valido para contactarte.");
       trackEvent("offer_submit_invalid_email", { itemKey: selectedVehicleKey });
       return;
     }
@@ -4114,7 +4221,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       showSystemNotice(
         "error",
         "Precio referencial no disponible",
-        "No podemos registrar la oferta porque falta el precio referencial de este vehículo.",
+        "No podemos registrar la oferta porque falta el precio referencial de este vehiculo.",
       );
       return;
     }
@@ -4175,8 +4282,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     if (!selectedVehicle) return;
     const shareUrl = selectedVehicleShareUrl;
     if (!shareUrl) return;
-    const title = `${getPatent(selectedVehicle)} · ${getModel(selectedVehicle)}`;
-    const text = `Revisa este vehículo en Catálogo Vedisa: ${title}`;
+    const title = `${getPatent(selectedVehicle)}  ·  ${getModel(selectedVehicle)}`;
+    const text = `Revisa este vehiculo en Catalogo Vedisa: ${title}`;
     const canUseNativeShare = typeof navigator.share === "function";
     try {
       if (canUseNativeShare) {
@@ -4191,8 +4298,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         "success",
         "Enlace listo",
         canUseNativeShare
-          ? "Se compartió el vehículo correctamente."
-          : "Copiamos el enlace del vehículo para compartir.",
+          ? "Se compartio el vehiculo correctamente."
+          : "Copiamos el enlace del vehiculo para compartir.",
       );
     } catch {
       showSystemNotice("error", "No se pudo compartir", "Intenta nuevamente en unos segundos.");
@@ -4203,17 +4310,17 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     () => ({
       "@context": "https://schema.org",
       "@type": "Organization",
-      name: "VEDISA REMATES",
-      url: "https://vedisaremates.vercel.app",
-      logo: "https://vedisaremates.vercel.app/vedisa-logo.png",
+      name: "Vehículos de Ocasión",
+      url: "https://vehiculosdeocasion.vercel.app",
+      logo: "https://vehiculosdeocasion.vercel.app/vehiculos-ocasion-logo.png",
       contactPoint: {
         "@type": "ContactPoint",
-        telephone: "+56-9-8932-3397",
+        telephone: "+56-9-4550-660",
         contactType: "customer service",
         areaServed: "CL",
         availableLanguage: "es",
       },
-      sameAs: ["https://vehiculoschocados.cl/"],
+      sameAs: ["https://www.instagram.com/autosdeoc?igsh=YzRqbHQwZ2Q4YTg3"],
     }),
     [],
   );
@@ -4222,11 +4329,11 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     () => ({
       "@context": "https://schema.org",
       "@type": "WebSite",
-      name: "Catálogo VEDISA REMATES",
-      url: "https://vedisaremates.vercel.app",
+      name: "Catalogo Vehículos de Ocasión",
+      url: "https://vehiculosdeocasion.vercel.app",
       potentialAction: {
         "@type": "SearchAction",
-        target: "https://vedisaremates.vercel.app/?q={search_term_string}",
+        target: "https://vehiculosdeocasion.vercel.app/?q={search_term_string}",
         "query-input": "required name=search_term_string",
       },
     }),
@@ -4240,7 +4347,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       ? activeInventoryItems.filter((item) => {
           if (patentTokens.length > 0) {
             const itemPatent = getPatent(item);
-            if (itemPatent !== "—") {
+            if (itemPatent !== "-") {
               return patentTokens.includes(normalizePatentToken(itemPatent));
             }
             return patentTokens.includes(normalizePatentToken(getVehicleKey(item)));
@@ -4404,10 +4511,10 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         else set.delete(categoryKey);
         showSystemNotice(
           "success",
-          willHide ? "Categoría oculta del home" : "Categoría visible en home",
+          willHide ? "Categoria oculta del home" : "Categoria visible en home",
           willHide
-            ? `${label} quedó oculta del home sin eliminar vehículos.`
-            : `${label} volvió a mostrarse en el home.`,
+            ? `${label} quedo oculta del home sin eliminar vehiculos.`
+            : `${label} volvio a mostrarse en el home.`,
         );
         return { ...prev, hiddenCategoryIds: Array.from(set) };
       });
@@ -4443,7 +4550,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         return "Novedades";
       }
       if ((currentConfig.sectionVehicleIds.catalogo ?? []).includes(vehicleKey)) {
-        return "Catálogo";
+        return "Catalogo";
       }
 
       const managedCategory = (currentConfig.managedCategories ?? []).find((category) =>
@@ -4451,11 +4558,11 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       );
       if (managedCategory) {
         return managedCategory.name?.trim()
-          ? `Categoría: ${managedCategory.name.trim()}`
-          : "Categoría personalizada";
+          ? `Categoria: ${managedCategory.name.trim()}`
+          : "Categoria personalizada";
       }
 
-      return "Sin categoría";
+      return "Sin categoria";
     },
     [],
   );
@@ -4708,7 +4815,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     showSystemNotice(
       "info",
       "Layout restablecido",
-      "Se restauró la configuración base del Home Layout.",
+      "Se restauro la configuracion base del Home Layout.",
     );
   };
 
@@ -4773,7 +4880,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     const name = newCategoryName.trim();
     const description = newCategoryDescription.trim();
     if (!name) {
-      showSystemNotice("error", "Categoría", "Ingresa un nombre para la nueva categoría.");
+      showSystemNotice("error", "Categoria", "Ingresa un nombre para la nueva categoria.");
       return;
     }
     const normalizedName = normalizeText(name);
@@ -4781,13 +4888,13 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       (category) => normalizeText(category.name) === normalizedName,
     );
     if (exists) {
-      showSystemNotice("error", "Categoría duplicada", "Ya existe una categoría con ese nombre.");
+      showSystemNotice("error", "Categoria duplicada", "Ya existe una categoria con ese nombre.");
       return;
     }
     const next: ManagedCategory = {
       id: `cat-${crypto.randomUUID()}`,
       name,
-      description: description || "Categoría personalizada",
+      description: description || "Categoria personalizada",
       vehicleIds: [],
       visible: true,
     };
@@ -4804,8 +4911,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     setShowCreateCategoryForm(false);
     showSystemNotice(
       "success",
-      "Categoría creada",
-      openAssign ? "Selecciona las unidades para esta categoría." : "Ahora puedes asignar vehículos.",
+      "Categoria creada",
+      openAssign ? "Selecciona las unidades para esta categoria." : "Ahora puedes asignar vehiculos.",
     );
   };
 
@@ -4869,7 +4976,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   const addBatchVehiclesToTarget = () => {
     if (!batchAssignTarget) return;
     if (batchAssignSelectedKeys.length === 0) {
-      showSystemNotice("info", "Sin selección", "Selecciona al menos un vehículo para agregar.");
+      showSystemNotice("info", "Sin seleccion", "Selecciona al menos un vehiculo para agregar.");
       return;
     }
     if (batchAssignTarget.type === "auction") {
@@ -4896,7 +5003,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     showSystemNotice(
       "success",
       "Unidades agregadas",
-      `${batchAssignSelectedKeys.length} vehículos agregados en ${batchAssignTargetLabel}.`,
+      `${batchAssignSelectedKeys.length} vehiculos agregados en ${batchAssignTargetLabel}.`,
     );
     closeBatchAssignModal();
   };
@@ -4913,7 +5020,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   const uploadManualFiles = async (files: File[]) => {
     const validFiles = files.filter((file) => file.type.startsWith("image/"));
     if (validFiles.length === 0) {
-      showSystemNotice("error", "Archivos inválidos", "Selecciona archivos de imagen válidos.");
+      showSystemNotice("error", "Archivos invalidos", "Selecciona archivos de imagen validos.");
       return;
     }
     setManualUploading(true);
@@ -4934,14 +5041,14 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       if (!response.ok || !body.ok) {
         showSystemNotice(
           "error",
-          "Error subiendo imágenes",
-          body.error ?? "No fue posible subir imágenes a Cloudinary.",
+          "Error subiendo imagenes",
+          body.error ?? "No fue posible subir imagenes a Cloudinary.",
         );
         return;
       }
       const urls = body.urls ?? [];
       setManualUploadedImages((prev) => Array.from(new Set([...prev, ...urls])));
-      showSystemNotice("success", "Imágenes cargadas", `${urls.length} imagen(es) subida(s) correctamente.`);
+      showSystemNotice("success", "Imagenes cargadas", `${urls.length} imagen(es) subida(s) correctamente.`);
     } finally {
       setManualUploading(false);
       if (manualFileInputRef.current) manualFileInputRef.current.value = "";
@@ -4978,7 +5085,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   const createManualPublication = () => {
     const title = manualDraft.title.trim();
     if (!title) {
-      showSystemNotice("error", "Publicación manual", "La publicación manual necesita al menos un título.");
+      showSystemNotice("error", "Publicacion manual", "La publicacion manual necesita al menos un titulo.");
       return;
     }
     const cloudinaryImages = Array.from(
@@ -4987,7 +5094,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     if (cloudinaryImages.length === 0) {
       showSystemNotice(
         "error",
-        "Imágenes requeridas",
+        "Imagenes requeridas",
         "Debes ingresar al menos una URL de imagen de Cloudinary.",
       );
       return;
@@ -5001,7 +5108,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       showSystemNotice(
         "error",
         "Precio promocional",
-        "Activa un precio de oferta antes de crear la publicación.",
+        "Activa un precio de oferta antes de crear la publicacion.",
       );
       return;
     }
@@ -5060,7 +5167,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     });
 
     resetManualCreation();
-    showSystemNotice("success", "Unidad creada", "La nueva unidad se agregó correctamente al inventario.");
+    showSystemNotice("success", "Unidad creada", "La nueva unidad se agrego correctamente al inventario.");
   };
 
   const deleteManualPublication = (manualId: string) => {
@@ -5222,7 +5329,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     if (Object.keys(blockingValidationErrors).length > 0) {
       showSystemNotice(
         "error",
-        "Campos inválidos",
+        "Campos invalidos",
         "Corrige los campos marcados en rojo antes de guardar.",
       );
       return;
@@ -5258,7 +5365,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       showSystemNotice(
         "info",
         "Guardado local activo",
-        "Los cambios se guardaron en este navegador. El guardado central en servidor está temporalmente no disponible.",
+        "Los cambios se guardaron en este navegador. El guardado central en servidor esta temporalmente no disponible.",
       );
       return;
     }
@@ -5291,7 +5398,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       showSystemNotice(
         "success",
         "Inventario actualizado",
-        "El catálogo se actualizó con los vehículos en bodega del sistema interno. Recarga la página para ver los cambios.",
+        "El catalogo se actualizo con los vehiculos en bodega del sistema interno. Recarga la pagina para ver los cambios.",
       );
     } catch {
       showSystemNotice(
@@ -5313,8 +5420,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       body: JSON.stringify({ email: loginEmail, password: loginPassword }),
     });
     if (!response.ok) {
-      const payload = (await response.json().catch(() => ({ error: "No se pudo iniciar sesión." }))) as { error?: string };
-      setLoginError(payload.error ?? "No se pudo iniciar sesión.");
+      const payload = (await response.json().catch(() => ({ error: "No se pudo iniciar sesion." }))) as { error?: string };
+      setLoginError(payload.error ?? "No se pudo iniciar sesion.");
       trackEvent("admin_login_failed");
       return;
     }
@@ -5335,7 +5442,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   };
 
   const topSectionTabs: Array<{ id: SectionId; label: string }> = [
-    { id: "proximos-remates", label: "Proximos remates" },
+    { id: "proximos-remates", label: "Destacados" },
     { id: "ventas-directas", label: "Ventas directas" },
     { id: "novedades", label: "Novedades" },
     { id: "catalogo", label: "Catalogo" },
@@ -5483,7 +5590,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         );
         return;
       }
-      const header = ["Patente", "Modelo", "Categoría venta", "Origen", "Fecha venta", "ID vehículo"];
+      const header = ["Patente", "Modelo", "Categoria venta", "Origen", "Fecha venta", "ID vehiculo"];
       const lines = rows.map((row) => [
         toCsvCell(row.patent),
         toCsvCell(row.title),
@@ -5505,8 +5612,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       URL.revokeObjectURL(url);
       showSystemNotice(
         "success",
-        "Exportación lista",
-        `Se descargó el archivo para Excel (${scope}) con ${rows.length} registro(s).`,
+        "Exportacion lista",
+        `Se descargo el archivo para Excel (${scope}) con ${rows.length} registro(s).`,
       );
     },
     [getSoldCategoryLabel, showSystemNotice],
@@ -5678,7 +5785,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           itemKey,
           total,
           patent: item ? getPatent(item) : itemKey,
-          model: item ? getModel(item) : "Vehículo no disponible",
+          model: item ? getModel(item) : "Vehiculo no disponible",
         };
       })
       .sort((a, b) => b.total - a.total)
@@ -5910,8 +6017,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       URL.revokeObjectURL(url);
       showSystemNotice(
         "success",
-        "Exportación lista",
-        `Se descargó el archivo para Excel con ${rows.length} registro(s).`,
+        "Exportacion lista",
+        `Se descargo el archivo para Excel con ${rows.length} registro(s).`,
       );
     },
     [analyticsChartMetricLabel, showSystemNotice],
@@ -5961,7 +6068,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
       />
 
-      <section className="sticky top-0 z-30 border-b border-cyan-100/80 bg-white/88 shadow-[0_8px_24px_rgba(87,141,167,0.08)] backdrop-blur-xl">
+      <section className="sticky top-0 z-30 border-b border-stone-200/80 bg-white/88 shadow-[0_8px_24px_rgba(87,141,167,0.08)] backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:px-6 md:py-4 lg:px-8">
           <div className="flex items-center justify-between gap-3 md:gap-4">
             <Link
@@ -5977,8 +6084,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               }}
             >
               <Image
-                src="/vedisa-logo.png"
-                alt="Logo Vedisa Remates"
+                src="/vehiculos-ocasion-logo.png"
+                alt="Logo Vehículos de Ocasión"
                 width={208}
                 height={43}
                 priority
@@ -5989,7 +6096,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               type="button"
               onClick={() => setMobileMenuOpen((prev) => !prev)}
               className="ui-focus inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-2 py-1 text-slate-700 md:hidden"
-              aria-label="Abrir menú"
+              aria-label="Abrir menu"
               aria-expanded={mobileMenuOpen}
               aria-controls="mobile-main-menu"
             >
@@ -6003,7 +6110,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                     type="button"
                     onClick={() => handleTopSectionTabClick(tab.id)}
                     className={`premium-link-pill ui-focus ${
-                      topSectionFilter === tab.id ? "border-cyan-400 bg-cyan-600 text-white" : ""
+                      topSectionFilter === tab.id ? "border-amber-400 bg-amber-700 text-white" : ""
                     }`}
                   >
                     {tab.label}
@@ -6021,7 +6128,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                     </button>
                   ) : (
                     <button
-                      className="ui-focus rounded-full border border-cyan-300 bg-cyan-50 px-3 py-1 text-xs text-cyan-700 transition hover:-translate-y-0.5 hover:bg-cyan-100"
+                      className="ui-focus rounded-full border border-amber-300 bg-stone-100 px-3 py-1 text-xs text-amber-800 transition hover:-translate-y-0.5 hover:bg-stone-200"
                       onClick={() => setAdminView("editor")}
                     >
                       Volver al editor
@@ -6032,7 +6139,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   </button>
                 </>
               ) : (
-                <button className="ui-focus rounded-full bg-cyan-600 px-3 py-1 text-xs text-white transition hover:-translate-y-0.5 hover:bg-cyan-500" onClick={() => { setShowLogin(true); trackEvent("login_modal_open"); }}>
+                <button className="ui-focus rounded-full bg-amber-700 px-3 py-1 text-xs text-white transition hover:-translate-y-0.5 hover:bg-amber-600" onClick={() => { setShowLogin(true); trackEvent("login_modal_open"); }}>
                   Login
                 </button>
               )}
@@ -6050,7 +6157,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       setMobileMenuOpen(false);
                     }}
                     className={`premium-link-pill ui-focus text-center ${
-                      topSectionFilter === tab.id ? "border-cyan-400 bg-cyan-600 text-white" : ""
+                      topSectionFilter === tab.id ? "border-amber-400 bg-amber-700 text-white" : ""
                     }`}
                   >
                     {tab.label}
@@ -6072,7 +6179,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       </button>
                     ) : (
                       <button
-                        className="ui-focus flex-1 rounded-full border border-cyan-300 bg-cyan-50 px-3 py-1 text-xs text-cyan-700"
+                        className="ui-focus flex-1 rounded-full border border-amber-300 bg-stone-100 px-3 py-1 text-xs text-amber-800"
                         onClick={() => {
                           setAdminView("editor");
                           setMobileMenuOpen(false);
@@ -6086,7 +6193,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                     </button>
                   </>
                 ) : (
-                  <button className="ui-focus w-full rounded-full bg-cyan-600 px-3 py-1 text-xs text-white" onClick={() => { setShowLogin(true); setMobileMenuOpen(false); trackEvent("login_modal_open"); }}>
+                  <button className="ui-focus w-full rounded-full bg-amber-700 px-3 py-1 text-xs text-white" onClick={() => { setShowLogin(true); setMobileMenuOpen(false); trackEvent("login_modal_open"); }}>
                     Login
                   </button>
                 )}
@@ -6105,7 +6212,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-lg font-semibold text-slate-900">Modo editor administrador</h3>
-                <p className="text-xs text-slate-500">Lista limpia de unidades con gestión individual de remates, categorías, visibilidad y precio.</p>
+                <p className="text-xs text-slate-500">Lista limpia de unidades con gestion individual de remates, categorias, visibilidad y precio.</p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <span
@@ -6120,12 +6227,12 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   }`}
                 >
                   {autoSaveState === "error"
-                    ? "Guardado automático con respaldo local"
+                    ? "Guardado automatico con respaldo local"
                     : autoSaveState === "saving" || saving
                       ? "Guardando cambios..."
                       : autoSaveState === "saved"
-                        ? `Guardado automático ${lastAutoSaveAt ? `· ${lastAutoSaveAt}` : ""}`
-                        : "Guardado automático activo"}
+                        ? `Guardado automatico ${lastAutoSaveAt ? ` ·  ${lastAutoSaveAt}` : ""}`
+                        : "Guardado automatico activo"}
                 </span>
                 <button
                   onClick={revalidateInventory}
@@ -6142,7 +6249,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
               {([
                 ["vehiculos", "Inventario"],
-                ["categorias", "Categorías"],
+                ["categorias", "Categorias"],
                 ["layout", "Editar Home"],
                 ["analytics", "Analytics"],
                 ["ofertas", "Ofertas recibidas"],
@@ -6153,7 +6260,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   onClick={() => setAdminTab(tabId)}
                   className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold transition ${
                     adminTab === tabId
-                      ? "bg-cyan-600 text-white"
+                      ? "bg-amber-700 text-white"
                       : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
                   }`}
                 >
@@ -6192,7 +6299,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       setSearchTerm(event.target.value);
                       setEditorPage(1);
                     }}
-                    placeholder="Buscar vehículo para editar..."
+                    placeholder="Buscar vehiculo para editar..."
                     className="ui-focus w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
                   />
                   <div className="relative">
@@ -6244,9 +6351,9 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                             }}
                             className="ui-focus w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
                           >
-                            <option value="all">Todas las categorías</option>
-                            <option value="livianos">Vehículos livianos</option>
-                            <option value="pesados">Vehículos pesados</option>
+                            <option value="all">Todas las categorias</option>
+                            <option value="livianos">Vehiculos livianos</option>
+                            <option value="pesados">Vehiculos pesados</option>
                             <option value="maquinaria">Maquinaria</option>
                             <option value="chatarra">Chatarra</option>
                             <option value="otros">Otros</option>
@@ -6278,10 +6385,10 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                             className="ui-focus w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
                           >
                             <option value="all">Todos los grupos</option>
-                            <option value="proximos-remates">Próximos remates</option>
+                            <option value="proximos-remates">Proximos remates</option>
                             <option value="ventas-directas">Ventas directas</option>
                             <option value="novedades">Novedades</option>
-                            <option value="catalogo">Catálogo</option>
+                            <option value="catalogo">Catalogo</option>
                             {(config.managedCategories ?? []).map((category) => (
                               <option key={`group-filter-${category.id}`} value={`managed:${category.id}`}>
                                 {category.name}
@@ -6317,7 +6424,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                           showSystemNotice(
                             "info",
                             "Selecciona un remate",
-                            "Para agregar en próximos remates, elige un remate específico primero.",
+                            "Para agregar en proximos remates, elige un remate especifico primero.",
                           );
                           return;
                         }
@@ -6327,14 +6434,14 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       showSystemNotice(
                         "info",
                         "Elige un grupo",
-                        "Selecciona una categoría o remate para agregar unidades del inventario.",
+                        "Selecciona una categoria o remate para agregar unidades del inventario.",
                       );
                     }}
-                    className="ui-focus inline-flex h-full min-h-10 items-center justify-center rounded-md border border-cyan-300 bg-cyan-50 px-3 text-cyan-700 transition hover:bg-cyan-100"
+                    className="ui-focus inline-flex h-full min-h-10 items-center justify-center rounded-md border border-amber-300 bg-stone-100 px-3 text-amber-800 transition hover:bg-stone-200"
                     aria-label="Agregar unidades del inventario o crear unidad manual"
                     title="Agregar o crear unidad"
                   >
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-cyan-600 text-xs text-white">
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-700 text-xs text-white">
                       +
                     </span>
                   </button>
@@ -6372,10 +6479,10 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                             {[
                               isDirect ? "Venta directa" : null,
                               isNovelty ? "Novedad" : null,
-                              isCatalog ? "Catálogo" : null,
+                              isCatalog ? "Catalogo" : null,
                             ]
                               .filter(Boolean)
-                              .join(" · ") || "Sin canal asignado"}
+                              .join("  ·  ") || "Sin canal asignado"}
                           </p>
                         </div>
                         <div className="mx-auto h-12 w-20 overflow-hidden rounded-md border border-slate-200 bg-slate-100">
@@ -6398,7 +6505,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                           <button
                             type="button"
                             onClick={() => setManagingVehicleKey(key)}
-                            className="ui-focus inline-flex h-7 w-7 items-center justify-center rounded border border-cyan-300 bg-cyan-50 text-cyan-700 transition hover:bg-cyan-100"
+                            className="ui-focus inline-flex h-7 w-7 items-center justify-center rounded border border-amber-300 bg-stone-100 text-amber-800 transition hover:bg-stone-200"
                             aria-label={`Gestionar unidad ${getPatent(item)}`}
                             title="Gestionar unidad"
                           >
@@ -6415,8 +6522,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                                 "success",
                                 nextHidden ? "Unidad oculta del home" : "Unidad visible en home",
                                 nextHidden
-                                  ? `${getPatent(item)} quedó oculta del home, sin eliminarse del inventario.`
-                                  : `${getPatent(item)} volvió a mostrarse en el home.`,
+                                  ? `${getPatent(item)} quedo oculta del home, sin eliminarse del inventario.`
+                                  : `${getPatent(item)} volvio a mostrarse en el home.`,
                               );
                             }}
                             className={`ui-focus inline-flex h-7 w-7 items-center justify-center rounded border transition ${
@@ -6445,7 +6552,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                               showSystemNotice(
                                 "success",
                                 "Unidad vendida",
-                                `${getPatent(item)} pasó a historial y dejó de estar visible en inventario/catálogo.`,
+                                `${getPatent(item)} paso a historial y dejo de estar visible en inventario/catalogo.`,
                               );
                             }}
                             className="ui-focus inline-flex h-7 w-7 items-center justify-center rounded border border-amber-300 bg-amber-50 text-amber-700 transition hover:bg-amber-100"
@@ -6492,7 +6599,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 {inventorySubtab === "vendidas" ? (
                   <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-3">
                     <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">
-                      Unidades vendidas (tabla dinámica)
+                      Unidades vendidas (tabla dinamica)
                     </p>
                     <p className="mt-1 text-sm text-slate-600">
                       Busca, filtra y exporta el historial de ventas. Puedes revertir una venta desde esta tabla.
@@ -6562,7 +6669,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                               <option value="all">Buscar en todas las columnas</option>
                               <option value="patent">Patente</option>
                               <option value="title">Modelo</option>
-                              <option value="soldCategory">Categoría de venta</option>
+                              <option value="soldCategory">Categoria de venta</option>
                               <option value="auctionName">Origen de venta</option>
                             </select>
                             <select
@@ -6570,7 +6677,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                               onChange={(event) => setSoldAuctionFilter(event.target.value)}
                               className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
                             >
-                              <option value="all">Todos los orígenes</option>
+                              <option value="all">Todos los origenes</option>
                               {soldAuctionOptions.map((option) => (
                                 <option key={`sold-origin-${option}`} value={option}>
                                   {option}
@@ -6618,7 +6725,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                         <table className="min-w-[980px] w-full text-left text-xs">
                           <thead className="bg-slate-50 text-slate-600">
                             <tr>
-                              {["Fecha venta", "Patente", "Modelo", "Categoría venta", "Origen", "ID vehículo", "Acciones"].map((label) => (
+                              {["Fecha venta", "Patente", "Modelo", "Categoria venta", "Origen", "ID vehiculo", "Acciones"].map((label) => (
                                 <th key={`sold-col-${label}`} className="px-3 py-2 font-semibold uppercase tracking-wide">
                                   {label}
                                 </th>
@@ -6646,7 +6753,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                                   <button
                                     type="button"
                                     onClick={() => setPendingRevertSale(entry)}
-                                    className="ui-focus inline-flex h-7 w-7 items-center justify-center rounded border border-cyan-300 bg-cyan-50 text-cyan-700 transition hover:bg-cyan-100"
+                                    className="ui-focus inline-flex h-7 w-7 items-center justify-center rounded border border-amber-300 bg-stone-100 text-amber-800 transition hover:bg-stone-200"
                                     aria-label={`Revertir venta ${entry.patent}`}
                                     title="Revertir venta"
                                   >
@@ -6674,28 +6781,28 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       Secciones base del home
                     </p>
                     <p className="text-sm text-slate-600">
-                      Gestiona todos los grupos desde este panel: base, remates y categorías personalizadas.
+                      Gestiona todos los grupos desde este panel: base, remates y categorias personalizadas.
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => setShowCreateCategoryForm((prev) => !prev)}
-                    className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded-full bg-cyan-600 text-lg font-bold leading-none text-white transition hover:bg-cyan-500"
-                    aria-label={showCreateCategoryForm ? "Cerrar creación de grupo" : "Abrir creación de grupo"}
+                    className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-700 text-lg font-bold leading-none text-white transition hover:bg-amber-600"
+                    aria-label={showCreateCategoryForm ? "Cerrar creacion de grupo" : "Abrir creacion de grupo"}
                     title={showCreateCategoryForm ? "Cerrar" : "Crear grupo"}
                   >
-                    {showCreateCategoryForm ? "−" : "+"}
+                    {showCreateCategoryForm ? "-" : "+"}
                   </button>
                 </div>
 
                 {showCreateCategoryForm ? (
-                  <div className="mt-3 grid gap-2 rounded-lg border border-cyan-100 bg-cyan-50/40 p-2 md:grid-cols-[auto_1fr_1fr_auto_auto]">
+                  <div className="mt-3 grid gap-2 rounded-lg border border-stone-200 bg-stone-100/40 p-2 md:grid-cols-[auto_1fr_1fr_auto_auto]">
                     <select
                       value={createGroupKind}
                       onChange={(event) => setCreateGroupKind(event.target.value as "categoria" | "remate")}
-                      className="ui-focus rounded-md border border-cyan-200 bg-white px-2.5 py-2 text-sm"
+                      className="ui-focus rounded-md border border-stone-300 bg-white px-2.5 py-2 text-sm"
                     >
-                      <option value="categoria">Categoría</option>
+                      <option value="categoria">Categoria</option>
                       <option value="remate">Remate</option>
                     </select>
                     {createGroupKind === "remate" ? (
@@ -6704,18 +6811,18 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                           value={newAuctionName}
                           onChange={(event) => setNewAuctionName(event.target.value)}
                           placeholder="Nombre del remate"
-                          className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
+                          className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
                         />
                         <input
                           type="date"
                           value={newAuctionDate}
                           onChange={(event) => setNewAuctionDate(event.target.value)}
-                          className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
+                          className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
                         />
                         <button
                           type="button"
                           onClick={createUpcomingAuction}
-                          className="ui-focus rounded-md border border-cyan-300 bg-white px-3 py-2 text-sm font-semibold text-cyan-700 transition hover:bg-cyan-50"
+                          className="ui-focus rounded-md border border-amber-300 bg-white px-3 py-2 text-sm font-semibold text-amber-800 transition hover:bg-stone-100"
                         >
                           Crear remate
                         </button>
@@ -6733,7 +6840,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                             createUpcomingAuction();
                             setShowCreateCategoryForm(false);
                           }}
-                          className="ui-focus rounded-md bg-cyan-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500"
+                          className="ui-focus rounded-md bg-amber-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-amber-600"
                         >
                           Crear y cerrar
                         </button>
@@ -6743,26 +6850,26 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                         <input
                           value={newCategoryName}
                           onChange={(event) => setNewCategoryName(event.target.value)}
-                          placeholder="Nombre categoría"
-                          className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
+                          placeholder="Nombre categoria"
+                          className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
                         />
                         <input
                           value={newCategoryDescription}
                           onChange={(event) => setNewCategoryDescription(event.target.value)}
-                          placeholder="Descripción categoría"
-                          className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
+                          placeholder="Descripcion categoria"
+                          className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
                         />
                         <button
                           type="button"
                           onClick={() => createManagedCategory(false)}
-                          className="ui-focus rounded-md border border-cyan-300 bg-white px-3 py-2 text-sm font-semibold text-cyan-700 transition hover:bg-cyan-50"
+                          className="ui-focus rounded-md border border-amber-300 bg-white px-3 py-2 text-sm font-semibold text-amber-800 transition hover:bg-stone-100"
                         >
                           Guardar
                         </button>
                         <button
                           type="button"
                           onClick={() => createManagedCategory(true)}
-                          className="ui-focus rounded-md bg-cyan-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500"
+                          className="ui-focus rounded-md bg-amber-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-amber-600"
                         >
                           Agregar unidades
                         </button>
@@ -6774,10 +6881,10 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
-                      Recién publicados
+                      Recien publicados
                     </p>
                     <p className="text-xs text-slate-500">
-                      Sección opcional del home para destacar últimas unidades.
+                      Seccion opcional del home para destacar ultimas unidades.
                     </p>
                   </div>
                   <label className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700">
@@ -6795,7 +6902,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 <div className="mt-3 space-y-2">
                   <div className="hidden gap-2 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500 md:grid md:grid-cols-[minmax(170px,1.1fr)_minmax(300px,1.8fr)_72px_228px]">
                     <span>Grupo</span>
-                    <span>Descripción / textos</span>
+                    <span>Descripcion / textos</span>
                     <span className="text-center">Unidades</span>
                     <span className="text-right">Acciones</span>
                   </div>
@@ -6823,20 +6930,20 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                                 <input
                                   value={config.sectionTexts[sectionId]?.title ?? ""}
                                   onChange={(event) => setSectionText(sectionId, "title", event.target.value)}
-                                  placeholder="Título"
+                                  placeholder="Titulo"
                                   className="ui-focus rounded-md border border-slate-200 bg-white px-2 py-1 text-xs"
                                 />
                                 <input
                                   value={config.sectionTexts[sectionId]?.subtitle ?? ""}
                                   onChange={(event) => setSectionText(sectionId, "subtitle", event.target.value)}
-                                  placeholder="Descripción"
+                                  placeholder="Descripcion"
                                   className="ui-focus rounded-md border border-slate-200 bg-white px-2 py-1 text-xs"
                                 />
                                 <button
                                   type="button"
                                   onClick={() => setEditingSectionTextId(null)}
                                   className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-emerald-300 bg-emerald-50 text-emerald-700"
-                                  aria-label={`Cerrar edición de ${SECTION_LABELS[sectionId]}`}
+                                  aria-label={`Cerrar edicion de ${SECTION_LABELS[sectionId]}`}
                                   title="Listo"
                                 >
                                   <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
@@ -6851,7 +6958,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                                     {config.sectionTexts[sectionId]?.title ?? SECTION_LABELS[sectionId]}
                                   </p>
                                   <p className="line-clamp-1 text-xs text-slate-500">
-                                    {config.sectionTexts[sectionId]?.subtitle ?? "Sin descripción"}
+                                    {config.sectionTexts[sectionId]?.subtitle ?? "Sin descripcion"}
                                   </p>
                                 </div>
                                 <button
@@ -6903,7 +7010,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                               setEditorPage(1);
                               setAdminTab("vehiculos");
                             }}
-                            className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-cyan-300 bg-cyan-50 text-cyan-700"
+                            className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-amber-300 bg-stone-100 text-amber-800"
                             aria-label={`Ver y gestionar ${SECTION_LABELS[sectionId]}`}
                             title="Ver y gestionar"
                           >
@@ -6991,7 +7098,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                                 setEditorPage(1);
                                 setAdminTab("vehiculos");
                               }}
-                              className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-cyan-300 bg-cyan-50 text-cyan-700"
+                              className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-amber-300 bg-stone-100 text-amber-800"
                               aria-label={`Ver y gestionar ${auction.name}`}
                               title="Ver y gestionar"
                             >
@@ -7041,11 +7148,11 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   )}
 
                   <p className="px-2 pt-2 text-[11px] font-semibold uppercase tracking-wide text-indigo-600">
-                    Categorías personalizadas
+                    Categorias personalizadas
                   </p>
                   {(config.managedCategories ?? []).length === 0 ? (
                     <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3 text-sm text-slate-500">
-                      No hay categorías personalizadas aún.
+                      No hay categorias personalizadas aun.
                     </div>
                   ) : (
                     (config.managedCategories ?? []).map((category) => {
@@ -7102,9 +7209,9 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                                 setAssignCategoryId(category.id);
                                 setAssignSearchTerm("");
                               }}
-                              className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-cyan-300 bg-cyan-50 text-cyan-700"
-                              aria-label={`Asignar vehículos a ${category.name}`}
-                              title="Asignar vehículos"
+                              className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-amber-300 bg-stone-100 text-amber-800"
+                              aria-label={`Asignar vehiculos a ${category.name}`}
+                              title="Asignar vehiculos"
                             >
                               +
                             </button>
@@ -7136,10 +7243,10 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       Constructor del Home
                     </p>
                     <h4 className="text-base font-bold text-slate-900">
-                      Simulación del home (edición directa)
+                      Simulacion del home (edicion directa)
                     </h4>
                     <p className="mt-1 text-sm text-slate-600">
-                      Todo se edita desde esta única vista: textos HTML, visibilidad de bloques y orden de secciones.
+                      Todo se edita desde esta unica vista: textos HTML, visibilidad de bloques y orden de secciones.
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -7156,7 +7263,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-3">
                   <div className="mb-2 flex items-center justify-between">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Simulación del home (tiempo real)
+                      Simulacion del home (tiempo real)
                     </p>
                     <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
                       Auto guardado activo
@@ -7170,7 +7277,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                           ? "border-indigo-200 bg-indigo-50"
                           : config.homeLayout.heroTheme === "slate"
                             ? "border-slate-300 bg-slate-100"
-                            : "border-cyan-200 bg-cyan-50"
+                            : "border-stone-300 bg-stone-100"
                       }`}
                     >
                       <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
@@ -7181,13 +7288,13 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                           <div className="mb-2 space-y-2 rounded-md border border-slate-200 bg-slate-50 p-2">
                             <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
                               <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 font-semibold">
-                                Editor: {activeHeroRichEditor === "title" ? "Título" : "Subtítulo"}
+                                Editor: {activeHeroRichEditor === "title" ? "Titulo" : "Subtitulo"}
                               </span>
                               <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 font-semibold">
                                 Fuente: {heroToolbarState.fontFamily}
                               </span>
                               <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 font-semibold">
-                                Tamaño: {heroToolbarState.fontSize}
+                                Tamano: {heroToolbarState.fontSize}
                               </span>
                               <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 font-semibold">
                                 Formato: {heroToolbarState.formatBlock.toUpperCase()}
@@ -7205,9 +7312,9 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                                 className="ui-focus rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700"
                                 title="Tipo de bloque"
                               >
-                                <option value="p">Párrafo</option>
-                                <option value="h2">Título H2</option>
-                                <option value="h3">Subtítulo H3</option>
+                                <option value="p">Parrafo</option>
+                                <option value="h2">Titulo H2</option>
+                                <option value="h3">Subtitulo H3</option>
                               </select>
                               <select
                                 value={heroToolbarState.fontFamily}
@@ -7227,10 +7334,10 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                               <button type="button" onClick={() => runHeroHtmlCommand("bold")} className={heroToolbarButtonClass(heroToolbarState.bold)} title="Negrita">B</button>
                               <button type="button" onClick={() => runHeroHtmlCommand("italic")} className={heroToolbarButtonClass(heroToolbarState.italic)} title="Cursiva">I</button>
                               <button type="button" onClick={() => runHeroHtmlCommand("underline")} className={heroToolbarButtonClass(heroToolbarState.underline)} title="Subrayado">U</button>
-                              <button type="button" onClick={() => runHeroHtmlCommand("justifyLeft")} className={heroToolbarButtonClass(heroToolbarState.align === "left")} title="Alinear izquierda">↤</button>
-                              <button type="button" onClick={() => runHeroHtmlCommand("justifyCenter")} className={heroToolbarButtonClass(heroToolbarState.align === "center")} title="Centrar">↔</button>
-                              <button type="button" onClick={() => runHeroHtmlCommand("justifyRight")} className={heroToolbarButtonClass(heroToolbarState.align === "right")} title="Alinear derecha">↦</button>
-                              <button type="button" onClick={() => runHeroHtmlCommand("insertUnorderedList")} className={heroToolbarButtonClass(heroToolbarState.unorderedList)}>Lista •</button>
+                              <button type="button" onClick={() => runHeroHtmlCommand("justifyLeft")} className={heroToolbarButtonClass(heroToolbarState.align === "left")} title="Alinear izquierda">Izq</button>
+                              <button type="button" onClick={() => runHeroHtmlCommand("justifyCenter")} className={heroToolbarButtonClass(heroToolbarState.align === "center")} title="Centrar">Ctr</button>
+                              <button type="button" onClick={() => runHeroHtmlCommand("justifyRight")} className={heroToolbarButtonClass(heroToolbarState.align === "right")} title="Alinear derecha">Der</button>
+                              <button type="button" onClick={() => runHeroHtmlCommand("insertUnorderedList")} className={heroToolbarButtonClass(heroToolbarState.unorderedList)}>Lista *</button>
                               <button type="button" onClick={() => runHeroHtmlCommand("insertOrderedList")} className={heroToolbarButtonClass(heroToolbarState.orderedList)}>Lista 1.</button>
                               <label className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
                                 Color
@@ -7263,8 +7370,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                                 Enlace
                               </button>
                               <button type="button" onClick={() => runHeroHtmlCommand("unlink")} className={heroToolbarButtonClass(false)}>Quitar enlace</button>
-                              <button type="button" onClick={() => runHeroHtmlCommand("undo")} className={heroToolbarButtonClass(false)}>↶</button>
-                              <button type="button" onClick={() => runHeroHtmlCommand("redo")} className={heroToolbarButtonClass(false)}>↷</button>
+                              <button type="button" onClick={() => runHeroHtmlCommand("undo")} className={heroToolbarButtonClass(false)}>Undo</button>
+                              <button type="button" onClick={() => runHeroHtmlCommand("redo")} className={heroToolbarButtonClass(false)}>Redo</button>
                               <button type="button" onClick={() => runHeroHtmlCommand("removeFormat")} className={heroToolbarButtonClass(false)}>Limpiar</button>
                             </div>
                           </div>
@@ -7277,11 +7384,11 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                                 ? "text-indigo-700"
                                 : config.homeLayout.heroTheme === "slate"
                                   ? "text-slate-700"
-                                  : "text-cyan-700"
+                                  : "text-amber-800"
                             }`}
                           />
                           <div className="mb-2 rounded-md border border-slate-200 bg-slate-50 p-2">
-                            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Título</p>
+                            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Titulo</p>
                             <div
                               ref={heroTitleEditorRef}
                               contentEditable
@@ -7294,11 +7401,11 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                                 setHomeLayout("heroTitle", event.currentTarget.innerHTML);
                                 syncHeroToolbarState();
                               }}
-                              className="ui-focus w-full min-h-12 rounded-md border border-slate-300 bg-white px-3 py-2 text-3xl font-black leading-tight text-slate-900 md:text-[2.7rem] [&_a]:text-cyan-700 [&_a]:underline [&_b]:font-black [&_strong]:font-black [&_em]:italic [&_i]:italic [&_u]:underline"
+                              className="ui-focus w-full min-h-12 rounded-md border border-slate-300 bg-white px-3 py-2 text-3xl font-black leading-tight text-slate-900 md:text-[2.7rem] [&_a]:text-amber-800 [&_a]:underline [&_b]:font-black [&_strong]:font-black [&_em]:italic [&_i]:italic [&_u]:underline"
                             />
                           </div>
                           <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
-                            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Subtítulo</p>
+                            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Subtitulo</p>
                             <div
                               ref={heroSubtitleEditorRef}
                               contentEditable
@@ -7311,7 +7418,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                                 setHomeLayout("heroDescription", event.currentTarget.innerHTML);
                                 syncHeroToolbarState();
                               }}
-                              className="ui-focus w-full min-h-20 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm leading-relaxed text-slate-600 md:text-[15px] [&_a]:text-cyan-700 [&_a]:underline [&_b]:font-bold [&_strong]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_p]:mb-2"
+                              className="ui-focus w-full min-h-20 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm leading-relaxed text-slate-600 md:text-[15px] [&_a]:text-amber-800 [&_a]:underline [&_b]:font-bold [&_strong]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_p]:mb-2"
                             />
                           </div>
                         </div>
@@ -7326,7 +7433,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                         {resolvedHomeSectionOrder.map((sectionId) => {
                           const label = isBaseHomeSectionOrderId(sectionId)
                             ? SECTION_LABELS[sectionId]
-                            : managedCategoryOrderLabelById.get(sectionId) ?? "Categoría personalizada";
+                            : managedCategoryOrderLabelById.get(sectionId) ?? "Categoria personalizada";
                           const count = homeSectionCountById.get(sectionId) ?? 0;
                           const isDragging = draggedLayoutSectionId === sectionId;
                           return (
@@ -7345,12 +7452,12 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                               }}
                               className={`ui-focus flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition ${
                                 isDragging
-                                  ? "border-cyan-400 bg-cyan-100 text-cyan-900"
+                                  ? "border-amber-400 bg-stone-200 text-cyan-900"
                                   : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
                               }`}
                             >
                               <span className="inline-flex items-center gap-2">
-                                <span aria-hidden="true" className="text-base leading-none text-slate-400">⋮⋮</span>
+                                <span aria-hidden="true" className="text-base leading-none text-slate-400">::</span>
                                 <span className="font-semibold">{label}</span>
                               </span>
                               <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold">
@@ -7375,7 +7482,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                         Analytics
                       </p>
                       <p className="text-sm text-slate-600">
-                        Analiza visitas, interacciones, ranking de vehículos y efectividad comercial.
+                        Analiza visitas, interacciones, ranking de vehiculos y efectividad comercial.
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -7386,11 +7493,11 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                           onClick={() => setAnalyticsRangeDays(days)}
                           className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold ${
                             analyticsRangeDays === days
-                              ? "bg-cyan-600 text-white"
+                              ? "bg-amber-700 text-white"
                               : "border border-slate-300 bg-white text-slate-700"
                           }`}
                         >
-                          {days} días
+                          {days} dias
                         </button>
                       ))}
                     </div>
@@ -7400,7 +7507,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       type="button"
                       onClick={() => setAnalyticsViewMode("simple")}
                       className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold ${
-                        analyticsViewMode === "simple" ? "bg-cyan-600 text-white" : "text-slate-700"
+                        analyticsViewMode === "simple" ? "bg-amber-700 text-white" : "text-slate-700"
                       }`}
                     >
                       Vista simple
@@ -7409,7 +7516,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       type="button"
                       onClick={() => setAnalyticsViewMode("advanced")}
                       className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold ${
-                        analyticsViewMode === "advanced" ? "bg-cyan-600 text-white" : "text-slate-700"
+                        analyticsViewMode === "advanced" ? "bg-amber-700 text-white" : "text-slate-700"
                       }`}
                     >
                       Vista avanzada
@@ -7498,7 +7605,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                   {[
                     ["Visitas", formatCompactNumber(analyticsOverview.visits)],
-                    ["Visitantes únicos", formatCompactNumber(analyticsOverview.uniqueVisitors)],
+                    ["Visitantes unicos", formatCompactNumber(analyticsOverview.uniqueVisitors)],
                     ["Clicks WhatsApp", formatCompactNumber(analyticsOverview.whatsappClicks)],
                     ["Leads", formatCompactNumber(analyticsOverview.leads)],
                   ].map(([label, value]) => (
@@ -7522,14 +7629,14 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   <div className="rounded-xl border border-slate-200 bg-white p-3 xl:col-span-1">
                     <div className="mb-2 grid grid-cols-[1fr_112px] items-center gap-2 px-1">
                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        Top vehículos
+                        Top vehiculos
                       </p>
                       <p className="text-right text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                         Interacciones
                       </p>
                     </div>
                     {analyticsTopVehicles.length === 0 ? (
-                      <p className="text-sm text-slate-500">Aún no hay datos de vehículos para este rango.</p>
+                      <p className="text-sm text-slate-500">Aun no hay datos de vehiculos para este rango.</p>
                     ) : (
                       <div className="space-y-2">
                         {analyticsTopVehicles.slice(0, analyticsViewMode === "simple" ? 5 : 10).map((row, index) => (
@@ -7538,7 +7645,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                             className="grid grid-cols-[1fr_112px] items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2"
                           >
                             <div className="min-w-0">
-                              <p className="text-xs font-semibold text-slate-500">#{index + 1} · {row.patent}</p>
+                              <p className="text-xs font-semibold text-slate-500">#{index + 1}  ·  {row.patent}</p>
                               <p className="line-clamp-1 text-sm font-semibold text-slate-900">{row.model}</p>
                             </div>
                             <span className="text-right text-base font-black text-slate-900">
@@ -7557,7 +7664,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                           Actividad diaria
                         </p>
                         <p className="mt-1 text-xs text-slate-500">
-                          Horizonte mínimo de 7 días siempre visible. Usa rueda del mouse para ajustar zoom temporal.
+                          Horizonte minimo de 7 dias siempre visible. Usa rueda del mouse para ajustar zoom temporal.
                         </p>
                       </div>
                       <div className="relative">
@@ -7566,11 +7673,11 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                           onClick={() => setShowAnalyticsChartMenu((prev) => !prev)}
                           className={`ui-focus inline-flex h-9 w-9 items-center justify-center rounded-md border transition ${
                             showAnalyticsChartMenu
-                              ? "border-cyan-400 bg-cyan-50 text-cyan-700"
+                              ? "border-amber-400 bg-stone-100 text-amber-800"
                               : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
                           }`}
-                          aria-label="Opciones del gráfico de actividad diaria"
-                          title="Opciones del gráfico"
+                          aria-label="Opciones del grafico de actividad diaria"
+                          title="Opciones del grafico"
                         >
                           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
                             <path d="M4 7h9M4 17h5M14 17h6M17 7h3" strokeLinecap="round" />
@@ -7581,7 +7688,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                         {showAnalyticsChartMenu ? (
                           <div className="absolute right-0 z-20 mt-2 w-[19rem] rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
                             <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                              Opciones del gráfico
+                              Opciones del grafico
                             </p>
                             <div className="space-y-2">
                               <select
@@ -7591,9 +7698,9 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                                 }
                                 className="ui-focus w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
                               >
-                                <option value="bar">Gráfico de barras</option>
-                                <option value="line">Gráfico de línea</option>
-                                <option value="area">Gráfico de área</option>
+                                <option value="bar">Grafico de barras</option>
+                                <option value="line">Grafico de linea</option>
+                                <option value="area">Grafico de area</option>
                               </select>
                               <select
                                 value={analyticsTimelineMetric}
@@ -7602,11 +7709,11 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                                 }
                                 className="ui-focus w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
                               >
-                                <option value="eventos">Métrica: Eventos</option>
-                                <option value="visitas">Métrica: Visitas</option>
-                                <option value="detalle">Métrica: Detalle abierto</option>
-                                <option value="whatsapp">Métrica: Clicks WhatsApp</option>
-                                <option value="leads">Métrica: Leads</option>
+                                <option value="eventos">Metrica: Eventos</option>
+                                <option value="visitas">Metrica: Visitas</option>
+                                <option value="detalle">Metrica: Detalle abierto</option>
+                                <option value="whatsapp">Metrica: Clicks WhatsApp</option>
+                                <option value="leads">Metrica: Leads</option>
                               </select>
                               <div className="grid grid-cols-2 gap-2">
                                 <input
@@ -7633,7 +7740,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                                   className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100"
                                   title="Alejar"
                                 >
-                                  −
+                                  -
                                 </button>
                                 <span className="min-w-16 text-center text-xs font-semibold text-slate-700">
                                   Zoom {Math.round(analyticsChartZoom * 100)}%
@@ -7681,7 +7788,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                     ) : (
                       <div className="space-y-3">
                         <p className="text-xs text-slate-500">
-                          Mostrando <span className="font-semibold text-slate-700">{analyticsChartMetricLabel}</span> por día
+                          Mostrando <span className="font-semibold text-slate-700">{analyticsChartMetricLabel}</span> por dia
                           ({analyticsChartRows.length} registros).
                         </p>
                         <div
@@ -7692,7 +7799,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                           <svg
                             viewBox="0 0 1000 260"
                             className="h-72 w-full"
-                            aria-label={`${analyticsChartType === "line" ? "Línea" : analyticsChartType === "area" ? "Área" : "Barras"} de ${analyticsChartMetricLabel}`}
+                            aria-label={`${analyticsChartType === "line" ? "Linea" : analyticsChartType === "area" ? "Area" : "Barras"} de ${analyticsChartMetricLabel}`}
                           >
                             <line x1="40" y1="220" x2="960" y2="220" stroke="#cbd5e1" strokeWidth="1" />
                             {analyticsChartType === "bar"
@@ -7711,7 +7818,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                                         rx="2"
                                         fill="#0891b2"
                                       >
-                                        <title>{`${formatAuctionDateLabel(row.date)} · ${analyticsChartMetricLabel}: ${row.value}`}</title>
+                                        <title>{`${formatAuctionDateLabel(row.date)}  ·  ${analyticsChartMetricLabel}: ${row.value}`}</title>
                                       </rect>
                                       {(analyticsChartPoints.length <= 16 ||
                                         index === analyticsChartPoints.length - 1 ||
@@ -7762,7 +7869,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                                 {analyticsChartPoints.map((point, index) => (
                                   <g key={`analytics-point-${point.date}`}>
                                     <circle cx={point.x} cy={point.y} r="4" fill="#0e7490">
-                                      <title>{`${formatAuctionDateLabel(point.date)} · ${analyticsChartMetricLabel}: ${point.value}`}</title>
+                                      <title>{`${formatAuctionDateLabel(point.date)}  ·  ${analyticsChartMetricLabel}: ${point.value}`}</title>
                                     </circle>
                                     {(analyticsChartPoints.length <= 16 ||
                                       index === 0 ||
@@ -7792,7 +7899,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                             Zoom: <span className="font-semibold text-slate-800">{Math.round(analyticsChartZoom * 100)}%</span>
                           </span>
                           <span>
-                            Horizonte: <span className="font-semibold text-slate-800">{analyticsChartRows.length} día(s)</span>
+                            Horizonte: <span className="font-semibold text-slate-800">{analyticsChartRows.length} dia(s)</span>
                           </span>
                           <span className="text-slate-500">
                             Doble clic para resetear zoom
@@ -7805,7 +7912,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   {analyticsViewMode === "advanced" ? (
                   <div className="rounded-xl border border-slate-200 bg-white p-3">
                     <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Eventos más frecuentes
+                      Eventos mas frecuentes
                     </p>
                     {analyticsTopEvents.length === 0 ? (
                       <p className="text-sm text-slate-500">Sin eventos para este rango.</p>
@@ -7829,10 +7936,10 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   <div className="grid gap-4 xl:grid-cols-2">
                     <div className="rounded-xl border border-slate-200 bg-white p-3">
                       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        Actividad por sección
+                        Actividad por seccion
                       </p>
                       {analyticsTopSections.length === 0 ? (
-                        <p className="text-sm text-slate-500">Sin datos por sección.</p>
+                        <p className="text-sm text-slate-500">Sin datos por seccion.</p>
                       ) : (
                         <div className="space-y-2">
                           {analyticsTopSections.map((row) => (
@@ -7850,7 +7957,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                     </div>
                     <div className="rounded-xl border border-slate-200 bg-white p-3">
                       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        Línea completa de tiempo
+                        Linea completa de tiempo
                       </p>
                       {analyticsTimelineFiltered.length === 0 ? (
                         <p className="text-sm text-slate-500">Sin actividad en el rango seleccionado.</p>
@@ -7871,7 +7978,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 <details className="rounded-xl border border-slate-200 bg-white p-3" open={analyticsViewMode === "advanced"}>
                   <div className="mb-2 flex items-center justify-between">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Últimos eventos ({analyticsScopedEvents.length}) {analyticsViewMode === "simple" ? "· expandible" : ""}
+                      Ultimos eventos ({analyticsScopedEvents.length}) {analyticsViewMode === "simple" ? " ·  expandible" : ""}
                     </p>
                   </div>
                   {analyticsScopedEvents.length === 0 ? (
@@ -7890,7 +7997,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                               typeof event.section === "string" ? event.section : "sin-seccion",
                             )}
                           </span>
-                          <span className="line-clamp-1 text-slate-600">{event.itemKey ?? "—"}</span>
+                          <span className="line-clamp-1 text-slate-600">{event.itemKey ?? "-"}</span>
                           <span className="line-clamp-1 text-slate-500">
                             {event.timestamp ? new Date(event.timestamp).toLocaleString("es-CL") : "sin fecha"}
                           </span>
@@ -7909,7 +8016,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                     Ofertas recibidas
                   </p>
                   <p className="mt-1 text-sm text-slate-600">
-                    Tabla dinámica con filtros por vehículo, cliente y fecha. Puedes buscar en cualquier columna.
+                    Tabla dinamica con filtros por vehiculo, cliente y fecha. Puedes buscar en cualquier columna.
                   </p>
                   <div className="relative mt-3 flex flex-wrap items-center gap-2">
                     <input
@@ -7937,7 +8044,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       </svg>
                       <span>Filtros</span>
                       {offersFiltersActiveCount > 0 ? (
-                        <span className="rounded-full bg-cyan-600 px-1.5 py-0.5 text-[10px] text-white">
+                        <span className="rounded-full bg-amber-700 px-1.5 py-0.5 text-[10px] text-white">
                           {offersFiltersActiveCount}
                         </span>
                       ) : null}
@@ -7959,18 +8066,18 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                             className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
                           >
                             <option value="all">Buscar en todas las columnas</option>
-                            <option value="vehicleTitle">Vehículo</option>
+                            <option value="vehicleTitle">Vehiculo</option>
                             <option value="patent">Patente</option>
                             <option value="customerName">Cliente</option>
                             <option value="customerEmail">Mail</option>
-                            <option value="customerPhone">Teléfono</option>
+                            <option value="customerPhone">Telefono</option>
                           </select>
                           <select
                             value={offersVehicleFilter}
                             onChange={(event) => setOffersVehicleFilter(event.target.value)}
                             className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-xs"
                           >
-                            <option value="all">Todos los vehículos</option>
+                            <option value="all">Todos los vehiculos</option>
                             {offersVehicleOptions.map((vehicle) => (
                               <option key={`offer-vehicle-${vehicle}`} value={vehicle}>
                                 {vehicle}
@@ -8044,10 +8151,10 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                           {[
                             "Fecha",
                             "Patente",
-                            "Vehículo",
+                            "Vehiculo",
                             "Cliente",
                             "Mail",
-                            "Teléfono",
+                            "Telefono",
                             "Oferta",
                             "Referencial",
                             "Diferencia",
@@ -8064,14 +8171,14 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                           return (
                             <tr key={row.id} className="border-b border-slate-100 align-top">
                               <td className="whitespace-nowrap px-3 py-2 text-slate-700">
-                                {row.createdAt ? new Date(row.createdAt).toLocaleString("es-CL") : "—"}
+                                {row.createdAt ? new Date(row.createdAt).toLocaleString("es-CL") : "-"}
                               </td>
-                              <td className="whitespace-nowrap px-3 py-2 font-semibold text-slate-800">{row.patent || "—"}</td>
-                              <td className="min-w-64 px-3 py-2 text-slate-800">{row.vehicleTitle || "—"}</td>
-                              <td className="whitespace-nowrap px-3 py-2 text-slate-700">{row.customerName || "—"}</td>
-                              <td className="whitespace-nowrap px-3 py-2 text-slate-700">{row.customerEmail || "—"}</td>
-                              <td className="whitespace-nowrap px-3 py-2 text-slate-700">{row.customerPhone || "—"}</td>
-                              <td className="whitespace-nowrap px-3 py-2 font-semibold text-cyan-700">
+                              <td className="whitespace-nowrap px-3 py-2 font-semibold text-slate-800">{row.patent || "-"}</td>
+                              <td className="min-w-64 px-3 py-2 text-slate-800">{row.vehicleTitle || "-"}</td>
+                              <td className="whitespace-nowrap px-3 py-2 text-slate-700">{row.customerName || "-"}</td>
+                              <td className="whitespace-nowrap px-3 py-2 text-slate-700">{row.customerEmail || "-"}</td>
+                              <td className="whitespace-nowrap px-3 py-2 text-slate-700">{row.customerPhone || "-"}</td>
+                              <td className="whitespace-nowrap px-3 py-2 font-semibold text-amber-800">
                                 {formatCurrencyAmount(row.offerAmount)}
                               </td>
                               <td className="whitespace-nowrap px-3 py-2 text-slate-700">
@@ -8125,7 +8232,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
             <div className="w-full">
               <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                Búsqueda de inventario
+                Busqueda de inventario
               </p>
               <div className="relative">
                 <svg
@@ -8143,9 +8250,9 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                     setHomeSearchTerm(event.target.value);
                     trackEvent("home_search_change", { query: event.target.value });
                   }}
-                  placeholder="Buscar por patente, marca, modelo o categoría..."
+                  placeholder="Buscar por patente, marca, modelo o categoria..."
                   className="ui-focus w-full rounded-xl border-2 border-slate-300 bg-white py-3 pl-10 pr-28 text-sm font-medium text-slate-800 shadow-sm placeholder:text-slate-500"
-                  aria-label="Buscar vehículos por patente, marca, modelo o categoría"
+                  aria-label="Buscar vehiculos por patente, marca, modelo o categoria"
                 />
                 {homeSearchTerm ? (
                   <button
@@ -8166,7 +8273,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 {homeVisibleItems.length} resultado(s)
               </span>
               <span className="sr-only" aria-live="polite">
-                {homeVisibleItems.length} resultados encontrados en catálogo.
+                {homeVisibleItems.length} resultados encontrados en catalogo.
               </span>
               {config.homeLayout.showSortSelector ? (
                 <details className="relative">
@@ -8183,10 +8290,10 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                     {([
                       ["recomendado", "Recomendado"],
                       ["relevancia", "Relevancia"],
-                      ["fecha-remate", "Fecha remate"],
+                      ["fecha-remate", "Fecha publicacion"],
                       ["precio-asc", "Precio menor"],
                       ["precio-desc", "Precio mayor"],
-                      ["titulo", "Título A-Z"],
+                      ["titulo", "Titulo A-Z"],
                     ] as Array<[SortOption, string]>).map(([value, label]) => (
                       <button
                         key={`sort-${value}`}
@@ -8204,7 +8311,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                         }`}
                       >
                         <span>{label}</span>
-                        {homeSort === value ? <span>✓</span> : null}
+                        {homeSort === value ? <span>OK</span> : null}
                       </button>
                     ))}
                   </div>
@@ -8241,7 +8348,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               className={`ui-focus ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
                 isDownloadingCalendarPdf
                   ? "cursor-wait border-slate-300 bg-slate-100 text-slate-500"
-                  : "border-cyan-300 bg-cyan-50 text-cyan-800 hover:bg-cyan-100"
+                  : "border-amber-300 bg-stone-100 text-amber-900 hover:bg-stone-200"
               }`}
               title="Descargar PDF profesional del calendario visible"
             >
@@ -8253,7 +8360,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           </div>
           ) : null}
           {config.homeLayout.showQuickFilters && quickFilters.length > 0 ? (
-            <div className="mt-3 flex items-center gap-2 overflow-x-auto border-t border-cyan-100 pt-3 whitespace-nowrap">
+            <div className="mt-3 flex items-center gap-2 overflow-x-auto border-t border-stone-200 pt-3 whitespace-nowrap">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Filtros activos
               </p>
@@ -8262,7 +8369,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   key={`active-${filterId}`}
                   type="button"
                   onClick={() => toggleQuickFilter(filterId)}
-                  className="ui-focus shrink-0 rounded-full border border-cyan-300 bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-800"
+                  className="ui-focus shrink-0 rounded-full border border-amber-300 bg-stone-100 px-3 py-1 text-xs font-semibold text-amber-900"
                 >
                   {QUICK_FILTER_LABELS[filterId]} ×
                 </button>
@@ -8293,7 +8400,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 ? "border-indigo-200 bg-indigo-50/40"
                 : config.homeLayout.heroTheme === "slate"
                   ? "border-slate-300 bg-slate-100/70"
-                  : "border-cyan-200 bg-cyan-50/30"
+                  : "border-stone-300 bg-stone-100/30"
             } ${config.homeLayout.heroAlignment === "center" ? "text-center" : "text-left"}`}
           >
             <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${
@@ -8301,16 +8408,16 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 ? "text-indigo-700"
                 : config.homeLayout.heroTheme === "slate"
                   ? "text-slate-700"
-                  : "text-cyan-700"
+                  : "text-amber-800"
             }`}>{config.homeLayout.heroKicker}</p>
             <h1
-              className="mt-2 text-3xl font-black leading-tight text-slate-900 md:text-[2.7rem] [&_a]:text-cyan-700 [&_a]:underline [&_b]:font-black [&_strong]:font-black [&_em]:italic [&_i]:italic [&_u]:underline"
+              className="mt-2 text-3xl font-black leading-tight text-slate-900 md:text-[2.7rem] [&_a]:text-amber-800 [&_a]:underline [&_b]:font-black [&_strong]:font-black [&_em]:italic [&_i]:italic [&_u]:underline"
               dangerouslySetInnerHTML={{
-                __html: formatHomeHeroHtml(config.homeLayout.heroTitle) || "Sin título",
+                __html: formatHomeHeroHtml(config.homeLayout.heroTitle) || "Sin titulo",
               }}
             />
             <div
-              className={`mt-3 text-sm leading-relaxed text-slate-600 md:text-[15px] [&_a]:text-cyan-700 [&_a]:underline [&_b]:font-bold [&_strong]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_p]:mb-2 ${
+              className={`mt-3 text-sm leading-relaxed text-slate-600 md:text-[15px] [&_a]:text-amber-800 [&_a]:underline [&_b]:font-bold [&_strong]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_p]:mb-2 ${
                 config.homeLayout.heroAlignment === "center"
                   ? config.homeLayout.heroMaxWidth === "xl"
                     ? "mx-auto max-w-xl"
@@ -8330,51 +8437,47 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             {config.homeLayout.showHeroChips ? (
             <div className={`mt-4 flex flex-wrap gap-2 ${config.homeLayout.heroAlignment === "center" ? "justify-center" : ""}`}>
               <span className="rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">Visor 3D</span>
-              <span className="rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">Agenda por remate</span>
-              <span className="rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">Trazabilidad técnica</span>
+              <span className="rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">Seleccion curada</span>
+              <span className="rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">Trazabilidad tecnica</span>
             </div>
             ) : null}
             {config.homeLayout.showHeroCtas ? (
             <div className={`mt-4 flex flex-wrap gap-3 border-t border-slate-200 pt-4 ${config.homeLayout.heroAlignment === "center" ? "justify-center" : ""}`}>
               <a href={config.homeLayout.heroPrimaryCtaHref || "#catalogo"} className="premium-btn-primary ui-focus">
-                {config.homeLayout.heroPrimaryCtaLabel || "Ver catálogo completo"}
+                {config.homeLayout.heroPrimaryCtaLabel || "Ver catalogo completo"}
               </a>
-              <a href={config.homeLayout.heroSecondaryCtaHref || "#como-participar"} className="premium-btn-secondary ui-focus">
+              <a href={config.homeLayout.heroSecondaryCtaHref || "#contacto"} className="premium-btn-secondary ui-focus">
                 {config.homeLayout.heroSecondaryCtaLabel || "Explorar secciones"}
               </a>
             </div>
             ) : null}
             <div className={`mt-4 inline-flex w-fit flex-wrap items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 ${config.homeLayout.heroAlignment === "center" ? "mx-auto justify-center" : ""}`}>
-              <span>{nextAuctionUrgencyLabel}</span>
-              {nextAuction ? (
-                <>
-                  <span className="text-amber-800">-</span>
-                  <span>{nextAuction.auction.name}</span>
-                  <span className="text-amber-800">-</span>
-                  <span>{formatDateDash(new Date())}</span>
-                </>
-              ) : null}
+              <span>Atencion comercial activa</span>
+              <span className="text-amber-800">-</span>
+              <span>Respuesta directa por WhatsApp</span>
+              <span className="text-amber-800">-</span>
+              <span>{formatDateDash(new Date())}</span>
             </div>
           </div>
           {config.homeLayout.showCommercialPanel ? (
           <div className="premium-panel lg:col-span-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Información comercial</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Informacion comercial</p>
             <div className="mt-4 space-y-3">
               <div className="info-tile">
-                <p className="text-[11px] uppercase tracking-widest text-slate-500">📍 Exhibición presencial</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">Arturo Prat 6457, Noviciado, Pudahuel</p>
+                <p className="text-[11px] uppercase tracking-widest text-slate-500">Canal principal</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">WhatsApp +56 9 4550 660</p>
               </div>
               <div className="info-tile">
-                <p className="text-[11px] uppercase tracking-widest text-slate-500">🕒 Horario</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">Lunes a Viernes 9:00 - 13:00 / 14:00 - 17:00</p>
+                <p className="text-[11px] uppercase tracking-widest text-slate-500">Correo comercial</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">{CONTACT_EMAIL}</p>
               </div>
               <div className="info-tile">
-                <p className="text-[11px] uppercase tracking-widest text-slate-500">💻 Remates 100% online</p>
-              <p className="mt-1 text-sm font-semibold text-slate-900">Plataforma pública con registro multimedia 3D, trazabilidad y soporte de contact center</p>
+                <p className="text-[11px] uppercase tracking-widest text-slate-500">Soporte digital</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">Catalogo online + visor GLO3D para evaluar cada unidad</p>
               </div>
               <div className="info-tile">
-                <p className="text-[11px] uppercase tracking-widest text-slate-500">🏢 Oficinas</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">Américo Vespucio 2880, Piso 7</p>
+                <p className="text-[11px] uppercase tracking-widest text-slate-500">Red social</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">{INSTAGRAM_HANDLE}</p>
               </div>
             </div>
           </div>
@@ -8399,92 +8502,83 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           }`}
         >
           <div className="mb-4">
-            <p className="premium-kicker">Cómo participar</p>
-            <h2 className="text-2xl font-bold text-slate-900">¿Cómo participar en los remates?</h2>
+            <p className="premium-kicker">Como participar</p>
+            <h2 className="text-2xl font-bold text-slate-900">¿Como comprar con nosotros?</h2>
             <p className="mt-2 text-sm text-slate-700">
-              Participar en nuestras subastas online es <strong>fácil y seguro</strong>. Sigue estos pasos:
+              Comprar en Vehiculos de Ocasion es <strong>facil y seguro</strong>. Sigue estos pasos:
             </p>
           </div>
           <div className="howto-rail">
             {[
               {
                 step: "1",
-                title: "Regístrate",
+                title: "Contactanos",
                 icon: "https://img.icons8.com/color/96/user-male-circle.png",
                 body: (
                   <>
-                    Crea tu cuenta en{" "}
+                    Escribenos por{" "}
                     <a
-                      href="https://vehiculoschocados.cl/Account/Register"
+                      href={WHATSAPP_CTA_URL}
                       target="_blank"
                       rel="noreferrer"
-                      className="ui-focus font-semibold text-cyan-700 underline"
+                      className="ui-focus font-semibold text-amber-800 underline"
                     >
-                      este enlace
+                      WhatsApp
                     </a>{" "}
-                    y confirma tu correo electrónico.
+                    para contarte las opciones disponibles segun tu presupuesto.
                   </>
                 ),
               },
               {
                 step: "2",
-                title: "Constituye tu garantía",
+                title: "Revisa el vehiculo",
                 icon: "https://img.icons8.com/color/96/money-bag.png",
                 body: (
                   <>
-                    Para ofertar, debes constituir tu garantía. Contáctanos por{" "}
+                    Te compartimos fotos, informacion tecnica y, cuando este disponible, visor{" "}
                     <a
-                      href="https://wa.me/56989323397?text=Hola%20quiero%20información%20sobre%20la%20garantía"
+                      href="#catalogo"
                       target="_blank"
                       rel="noreferrer"
-                      className="ui-focus font-semibold text-cyan-700 underline"
+                      className="ui-focus font-semibold text-amber-800 underline"
                     >
-                      WhatsApp
+                      GLO3D
                     </a>{" "}
-                    o revisa la ayuda{" "}
-                    <a
-                      href="https://vehiculoschocados.cl/Help"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="ui-focus font-semibold text-cyan-700 underline"
-                    >
-                      aquí
-                    </a>
-                    .
+                    para evaluar con mayor detalle.
                   </>
                 ),
               },
               {
                 step: "3",
-                title: "Revisa los lotes",
+                title: "Reserva o agenda visita",
                 icon: "https://img.icons8.com/color/96/car.png",
                 body: (
                   <>
-                    Explora los{" "}
+                    Si te interesa una unidad, coordinamos por{" "}
                     <a
-                      href="https://vehiculoschocados.cl/Listing"
+                      href={WHATSAPP_CTA_URL}
                       target="_blank"
                       rel="noreferrer"
-                      className="ui-focus font-semibold text-cyan-700 underline"
+                      className="ui-focus font-semibold text-amber-800 underline"
                     >
-                      vehículos disponibles
+                      WhatsApp
                     </a>{" "}
-                    con fotos, videos y descripciones.
+                    la reserva o visita presencial.
                   </>
                 ),
               },
               {
                 step: "4",
-                title: "Ofertar y adjudicación",
+                title: "Cierre comercial",
                 icon: "https://cdn-icons-png.flaticon.com/128/2162/2162183.png",
                 body: (
-                  <>Haz tu oferta en línea. Si ganas, coordinamos tu pago y retiro en nuestras bodegas.</>
+                  <>Te guiamos en el pago y documentacion para cerrar tu compra de forma simple y segura.</>
                 ),
               },
             ].map((step) => (
               <div
                 key={step.step}
-                className="howto-step-card h-full rounded-xl border border-slate-200 bg-white px-4 py-6 text-center shadow-sm transition duration-200 hover:-translate-y-1 hover:border-cyan-200 hover:shadow-md"
+                className="howto-step-card h-full rounded-xl border border-slate-200 bg-white px-4 py-6 text-center shadow-sm transition duration-200 hover:-translate-y-1 hover:border-stone-300 hover:shadow-md"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -8543,7 +8637,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           <section className="section-shell">
             <header className="mb-4">
               <p className="premium-kicker">Nuevas publicaciones</p>
-              <h2 className="text-2xl font-bold text-slate-900">Recién publicados</h2>
+              <h2 className="text-2xl font-bold text-slate-900">Recien publicados</h2>
             </header>
             <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
               {latestItems.map((item) => (
@@ -8680,7 +8774,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   <p className="premium-kicker">Explora y decide</p>
                   <h2 className="text-2xl font-bold text-slate-900">{config.sectionTexts.catalogo.title}</h2>
                   <p className="mt-1 text-sm text-slate-600">
-                    {config.sectionTexts.catalogo.subtitle} Usa filtros y comparación para decidir más rápido.
+                    {config.sectionTexts.catalogo.subtitle} Usa filtros y comparacion para decidir mas rapido.
                   </p>
                 </div>
                 {hasHomePreFilter ? null : (
@@ -8690,7 +8784,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                         key={type}
                         onClick={() => setActiveTypeTab(type)}
                         className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold transition ${
-                          activeTypeTab === type ? "bg-cyan-600 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                          activeTypeTab === type ? "bg-amber-700 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                         }`}
                       >
                         {type === "livianos" ? "Vehiculos livianos" : type === "pesados" ? "Vehiculos pesados" : type === "maquinaria" ? "Maquinaria" : "Otros"}
@@ -8701,9 +8795,9 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               </header>
               {filteredCatalogItems.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500">
-                  No encontramos vehículos para esta combinación.
+                  No encontramos vehiculos para esta combinacion.
                   {" "}
-                  Prueba con “Livianos”, quita filtros activos o busca por patente exacta (ej: SYGD93).
+                  Prueba con Livianos, quita filtros activos o busca por patente exacta (ej: SYGD93).
                 </div>
               ) : (
                 <HorizontalCardsRail
@@ -8725,14 +8819,14 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       </div>
       <section className="relative z-10 mx-auto mb-14 grid max-w-7xl gap-6 px-4 sm:px-6 lg:grid-cols-2 lg:px-8">
         <div className="section-shell">
-          <p className="premium-kicker">Confianza VEDISA</p>
+          <p className="premium-kicker">Confianza Vehículos de Ocasión</p>
           <h2 className="text-2xl font-bold text-slate-900">Experiencia respaldada</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {[
-              ["+40 años de experiencia", "Trayectoria especializada en subastas de vehículos de todo tipo y condición."],
-              ["+2.500 vehículos al mes", "Capacidad operativa para alto volumen con procesos estandarizados y ágiles."],
-              ["+150 clientes satisfechos", "Relaciones de largo plazo con foco en transparencia y recupero."],
-              ["Transferencia en 72 horas", "Gestión administrativa orientada a reducir tiempos y acelerar liquidez."],
+              ["Precios competitivos", "Seleccionamos unidades con una propuesta de valor por debajo del promedio del mercado."],
+              ["Visor GLO3D", "Publicamos vehiculos con una experiencia inmersiva para revisar detalles con mayor confianza."],
+              ["Asesoria directa", "Te apoyamos por WhatsApp durante todo el proceso de compra o reserva de tu unidad."],
+              ["Gestion documental", "Coordinamos el cierre comercial y la documentacion para una compra mas simple."],
             ].map(([title, text]) => (
               <div key={title} className="rounded-xl border border-slate-200 bg-white p-4">
                 <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
@@ -8743,13 +8837,13 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         </div>
         <div className="section-shell">
           <p className="premium-kicker">Preguntas frecuentes</p>
-          <h2 className="text-2xl font-bold text-slate-900">Resuelve dudas rápidas</h2>
+          <h2 className="text-2xl font-bold text-slate-900">Resuelve dudas rapidas</h2>
           <div className="mt-4 space-y-2">
             {[
-              ["¿Cómo oferto en un remate?", "Regístrate, activa garantía y participa online en la fecha de remate."],
-              ["¿Puedo revisar vehículos antes?", "Sí. Puedes visitar la exhibición presencial para inspección pre-compra."],
-              ["¿Todos los vehículos tienen visor 3D?", "No todos, pero los que lo tienen aparecen marcados como 3D."],
-              ["¿Dónde recibo apoyo comercial?", "Nuestro equipo responde por WhatsApp, correo y canales oficiales de VEDISA."],
+              ["¿Como reservo un vehiculo?", "Contactanos por WhatsApp y te guiamos con toda la informacion comercial de la unidad."],
+              ["¿Puedo revisar vehiculos antes?", "Si. Podemos coordinar revision presencial y tambien apoyarte con fotos, video y GLO3D."],
+              ["¿Todos los vehiculos tienen visor 3D?", "No todos, pero los que lo tienen aparecen marcados como 3D."],
+              ["¿Donde recibo apoyo comercial?", "Nuestro equipo responde por WhatsApp e Instagram en horario comercial."],
             ].map(([question, answer]) => (
               <details key={question} className="rounded-lg border border-slate-200 bg-white p-3">
                 <summary className="cursor-pointer text-sm font-semibold text-slate-900">{question}</summary>
@@ -8757,23 +8851,23 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               </details>
             ))}
           </div>
-          <div className="mt-4 rounded-lg border border-cyan-200 bg-cyan-50/70 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-cyan-800">Contacto comercial</p>
+          <div id="contacto" className="mt-4 rounded-lg border border-stone-300 bg-stone-100/70 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-amber-900">Contacto comercial</p>
             <p className="mt-1 text-sm text-slate-700">
-              <a href="mailto:comercial@vedisaremates.cl" className="ui-focus text-cyan-700 underline">
-                comercial@vedisaremates.cl
+              <a href={`mailto:${CONTACT_EMAIL}`} className="ui-focus text-amber-800 underline">
+                {CONTACT_EMAIL}
               </a>
             </p>
             <p className="mt-1 text-sm text-slate-700">
-              Tasaciones:
+              WhatsApp:
               {" "}
-              <a href="mailto:tasaciones@vedisaremates.cl" className="ui-focus text-cyan-700 underline">
-                tasaciones@vedisaremates.cl
+              <a href={WHATSAPP_CTA_URL} target="_blank" rel="noreferrer" className="ui-focus text-amber-800 underline">
+                +56 9 4550 660
               </a>
-              {" "}· Retiros:
+              {" "} · Instagram:
               {" "}
-              <a href="mailto:retiros@vedisaremates.cl" className="ui-focus text-cyan-700 underline">
-                retiros@vedisaremates.cl
+              <a href={INSTAGRAM_URL} target="_blank" rel="noreferrer" className="ui-focus text-amber-800 underline">
+                {INSTAGRAM_HANDLE}
               </a>
             </p>
           </div>
@@ -8781,10 +8875,10 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       </section>
       <section className="relative z-10 mx-auto mb-14 max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="section-shell">
-          <p className="premium-kicker">Asesoría personalizada</p>
-          <h2 className="text-2xl font-bold text-slate-900">Te ayudamos a encontrar tu próxima unidad</h2>
+          <p className="premium-kicker">Asesoria personalizada</p>
+          <h2 className="text-2xl font-bold text-slate-900">Te ayudamos a encontrar tu proxima unidad</h2>
           <p className="mt-2 text-sm text-slate-600">
-            Déjanos tus datos y te contactamos por WhatsApp para guiarte en el proceso de oferta.
+            Dejanos tus datos y te contactamos por WhatsApp para guiarte en la compra de tu vehiculo.
           </p>
           <div className="mt-4 grid gap-3 md:grid-cols-4">
             <input
@@ -8802,8 +8896,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 setLeadForm((prev) => ({ ...prev, phone: event.target.value }))
               }
               className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-              placeholder="Teléfono"
-              aria-label="Teléfono de contacto"
+              placeholder="Telefono"
+              aria-label="Telefono de contacto"
             />
             <input
               value={leadForm.interest}
@@ -8811,23 +8905,26 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 setLeadForm((prev) => ({ ...prev, interest: event.target.value }))
               }
               className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-              placeholder="¿Qué vehículo buscas?"
-              aria-label="Interés de vehículo"
+              placeholder="¿Que vehiculo buscas?"
+              aria-label="Interes de vehiculo"
             />
             <button
               type="button"
               onClick={submitLeadForm}
-              className="ui-focus rounded-md bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500"
+              className="ui-focus rounded-md bg-amber-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-600"
             >
-              Solicitar asesoría
+              Solicitar asesoria
             </button>
           </div>
-          {leadMessage ? <p className="mt-2 text-xs font-semibold text-cyan-700">{leadMessage}</p> : null}
+          {leadMessage ? <p className="mt-2 text-xs font-semibold text-amber-800">{leadMessage}</p> : null}
         </div>
       </section>
       {config.homeLayout.showFeaturedStrip ? (
         <FeaturedStrip items={featuredItems} onOpenVehicle={openVehicleDetail} />
       ) : null}
+      <section className="relative z-10 mx-auto mb-14 max-w-7xl px-4 sm:px-6 lg:px-8">
+        <InstagramGalleryStrip />
+      </section>
 
       {selectedVehicle ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-2 backdrop-blur-sm md:p-5" onClick={closeSelectedVehicle}>
@@ -8842,13 +8939,13 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               <path fillRule="evenodd" d="M4.22 4.22a.75.75 0 0 1 1.06 0L10 8.94l4.72-4.72a.75.75 0 1 1 1.06 1.06L11.06 10l4.72 4.72a.75.75 0 0 1-1.06 1.06L10 11.06l-4.72 4.72a.75.75 0 0 1-1.06-1.06L8.94 10 4.22 5.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
             </svg>
           </button>
-          <div role="dialog" aria-modal="true" aria-label={`Detalle de ${selectedVehicle.title}`} className="max-h-[96vh] w-full max-w-7xl overflow-auto rounded-2xl border border-cyan-100 bg-gradient-to-br from-white via-white to-cyan-50/40 p-3 shadow-2xl md:rounded-3xl md:p-6" onClick={(event) => event.stopPropagation()}>
+          <div role="dialog" aria-modal="true" aria-label={`Detalle de ${selectedVehicle.title}`} className="max-h-[96vh] w-full max-w-7xl overflow-auto rounded-2xl border border-stone-200 bg-gradient-to-br from-white via-white to-stone-100/40 p-3 shadow-2xl md:rounded-3xl md:p-6" onClick={(event) => event.stopPropagation()}>
             <div className="mb-4 rounded-2xl border border-slate-200/80 bg-white/80 p-4 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h3 className="text-xl font-bold text-slate-900">{selectedVehicle.title}</h3>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <span className="whitespace-nowrap rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-800">
+                    <span className="whitespace-nowrap rounded-full border border-stone-300 bg-stone-100 px-3 py-1 text-xs font-semibold text-amber-900">
                       {selectedVehicle.subtitle?.trim() || getPatent(selectedVehicle)}
                     </span>
                     {selectedVehicleConditionLabel ? (
@@ -8865,7 +8962,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                     type="button"
                     onClick={openOfferModal}
                     disabled={selectedVehicleReferencePriceAmount <= 0}
-                    className="ui-focus inline-flex h-9 items-center justify-center rounded-full border border-cyan-300 bg-cyan-50 px-3 text-xs font-semibold text-cyan-700 transition hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="ui-focus inline-flex h-9 items-center justify-center rounded-full border border-amber-300 bg-stone-100 px-3 text-xs font-semibold text-amber-800 transition hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-60"
                     aria-label="Enviar mi precio"
                     title={
                       selectedVehicleReferencePriceAmount > 0
@@ -8886,7 +8983,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                     aria-label={favoriteKeys.includes(selectedVehicleKey) ? "Quitar de guardados" : "Guardar"}
                     title={favoriteKeys.includes(selectedVehicleKey) ? "Quitar de guardados" : "Guardar"}
                   >
-                    <span aria-hidden="true">{favoriteKeys.includes(selectedVehicleKey) ? "★" : "☆"}</span>
+                    <span aria-hidden="true">{favoriteKeys.includes(selectedVehicleKey) ? "*" : "o"}</span>
                   </button>
                   <button
                     type="button"
@@ -8970,8 +9067,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                         onClick={() => setSelectedVehicleImageIndex(index)}
                         className={`ui-focus h-16 w-20 shrink-0 overflow-hidden rounded-lg border transition ${
                           selectedVehicleImageIndex === index
-                            ? "border-cyan-500 ring-2 ring-cyan-200"
-                            : "border-slate-200 hover:border-cyan-300"
+                            ? "border-amber-600 ring-2 ring-stone-300"
+                            : "border-slate-200 hover:border-amber-300"
                         }`}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -8986,7 +9083,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 ) : null}
               </div>
               <div className="h-[420px] overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50/80 p-4 shadow-sm">
-                <h4 className="mb-3 text-base font-semibold text-slate-900">Resumen del vehículo</h4>
+                <h4 className="mb-3 text-base font-semibold text-slate-900">Resumen del vehiculo</h4>
                 <div className="mb-3 flex flex-wrap gap-2">
                   {selectedVehicleTabs.map((tab) => (
                     <button
@@ -8995,7 +9092,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       onClick={() => setSelectedVehicleTab(tab.id)}
                       className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold transition ${
                         selectedVehicleTab === tab.id
-                          ? "bg-cyan-600 text-white"
+                          ? "bg-amber-700 text-white"
                           : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
                       }`}
                     >
@@ -9006,7 +9103,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 {selectedVehicleTab === "fotos" ? (
                   selectedVehicleGalleryImages.length === 0 ? (
                     <p className="rounded-md border border-dashed border-slate-300 bg-white p-3 text-sm text-slate-500">
-                      Este vehículo no tiene fotos disponibles.
+                      Este vehiculo no tiene fotos disponibles.
                     </p>
                   ) : (
                     <div className="space-y-2">
@@ -9033,7 +9130,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                             }}
                             className={`ui-focus overflow-hidden rounded-md border ${
                               selectedVehicleImageIndex === index
-                                ? "border-cyan-500 ring-2 ring-cyan-200"
+                                ? "border-amber-600 ring-2 ring-stone-300"
                                 : "border-slate-200"
                             }`}
                           >
@@ -9050,7 +9147,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   )
                 ) : selectedVehicleTab !== "descripcion" && selectedVehicleFieldsByTab[selectedVehicleTab].length === 0 ? (
                   <p className="rounded-md border border-dashed border-slate-300 bg-white p-3 text-sm text-slate-500">
-                    No hay datos disponibles para esta pestaña.
+                    No hay datos disponibles para esta pestana.
                   </p>
                 ) : (
                   <dl className="grid grid-cols-2 gap-2 text-sm">
@@ -9066,8 +9163,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 )}
                 {selectedVehicleTab === "general" ? (
                   <>
-                    <div className="mt-2 rounded-md border border-cyan-100 bg-cyan-50/60 p-3">
-                      <p className="text-xs uppercase tracking-wide text-cyan-700">Precio referencial</p>
+                    <div className="mt-2 rounded-md border border-stone-200 bg-stone-100/60 p-3">
+                      <p className="text-xs uppercase tracking-wide text-amber-800">Precio referencial</p>
                       {selectedVehiclePromoMeta.promoEnabled &&
                       selectedVehiclePromoMeta.originalPriceLabel &&
                       selectedVehiclePriceLabel ? (
@@ -9091,9 +9188,9 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 ) : null}
                 {selectedVehicleTab === "descripcion" ? (
                   <div className="mt-2 rounded-md border border-slate-200 bg-white p-3">
-                    <p className="text-xs uppercase tracking-wide text-slate-500">Descripción ampliada</p>
+                    <p className="text-xs uppercase tracking-wide text-slate-500">Descripcion ampliada</p>
                     <div
-                      className="mt-1 text-sm text-slate-700 [&_a]:text-cyan-700 [&_a]:underline [&_b]:font-bold [&_strong]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_p]:mb-2"
+                      className="mt-1 text-sm text-slate-700 [&_a]:text-amber-800 [&_a]:underline [&_b]:font-bold [&_strong]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_p]:mb-2"
                       dangerouslySetInnerHTML={{
                         __html: formatExtendedDescriptionHtml(selectedVehicleExpandedDescription),
                       }}
@@ -9124,7 +9221,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       title="Alejar"
                       aria-label="Alejar foto"
                     >
-                      −
+                      -
                     </button>
                     <button
                       type="button"
@@ -9226,7 +9323,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               </button>
             </div>
             <div className="mt-4">
-              <h4 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">Vehículos similares</h4>
+              <h4 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">Vehiculos similares</h4>
               <div className="grid gap-3 md:grid-cols-3">
                 {homeVisibleItems
                   .filter(
@@ -9240,13 +9337,13 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       key={`similar-${item.id}`}
                       type="button"
                       onClick={() => openVehicleDetail(item)}
-                      className="ui-focus rounded-lg border border-slate-200 bg-white p-2.5 text-left transition hover:border-cyan-300 hover:bg-cyan-50/30"
+                      className="ui-focus rounded-lg border border-slate-200 bg-white p-2.5 text-left transition hover:border-amber-300 hover:bg-stone-100/30"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="min-w-0">
                           <p className="line-clamp-1 text-sm font-semibold text-slate-900">{item.title}</p>
                           <p className="line-clamp-1 text-xs text-slate-600">
-                            {item.subtitle ?? "Vehículo relacionado"}
+                            {item.subtitle ?? "Vehiculo relacionado"}
                           </p>
                         </div>
                         <div className="h-12 w-16 shrink-0 overflow-hidden rounded-md border border-slate-200 bg-slate-100">
@@ -9285,7 +9382,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             }}
             className="ui-focus rounded-full bg-indigo-600 px-3 py-1 text-xs font-semibold text-white"
           >
-            Ver comparación
+            Ver comparacion
           </button>
           <button
             type="button"
@@ -9302,9 +9399,9 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
 
       {showComparePanel ? (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/70 p-4" onClick={() => setShowComparePanel(false)}>
-          <div role="dialog" aria-modal="true" aria-label="Comparador de vehículos" className="max-h-[92vh] w-full max-w-6xl overflow-auto rounded-2xl bg-white p-4 shadow-2xl md:p-6" onClick={(event) => event.stopPropagation()}>
+          <div role="dialog" aria-modal="true" aria-label="Comparador de vehiculos" className="max-h-[92vh] w-full max-w-6xl overflow-auto rounded-2xl bg-white p-4 shadow-2xl md:p-6" onClick={(event) => event.stopPropagation()}>
             <div className="mb-4 flex items-center justify-between gap-3">
-              <h3 className="text-lg font-bold text-slate-900">Comparador de vehículos</h3>
+              <h3 className="text-lg font-bold text-slate-900">Comparador de vehiculos</h3>
               <button
                 type="button"
                 className="ui-focus rounded-md border border-slate-300 px-3 py-1 text-xs text-slate-600"
@@ -9314,7 +9411,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               </button>
             </div>
             {compareItems.length === 0 ? (
-              <p className="text-sm text-slate-600">No hay vehículos seleccionados para comparar.</p>
+              <p className="text-sm text-slate-600">No hay vehiculos seleccionados para comparar.</p>
             ) : (
               <div className="overflow-auto rounded-xl border border-slate-200">
                 <table className="min-w-full text-left text-sm">
@@ -9331,14 +9428,14 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   <tbody>
                     {[
                       ["Patente", (item: CatalogItem) => getPatent(item)],
-                      ["Marca", (item: CatalogItem) => String((item.raw as Record<string, unknown>).marca ?? (item.raw as Record<string, unknown>).brand ?? "—")],
+                      ["Marca", (item: CatalogItem) => String((item.raw as Record<string, unknown>).marca ?? (item.raw as Record<string, unknown>).brand ?? "-")],
                       ["Modelo", (item: CatalogItem) => getModel(item)],
-                      ["Año", (item: CatalogItem) => String((item.raw as Record<string, unknown>).ano ?? (item.raw as Record<string, unknown>).anio ?? (item.raw as Record<string, unknown>).year ?? "—")],
+                      ["Ano", (item: CatalogItem) => String((item.raw as Record<string, unknown>).ano ?? (item.raw as Record<string, unknown>).anio ?? (item.raw as Record<string, unknown>).year ?? "-")],
                       ["Estado", (item: CatalogItem) => item.status ?? "Disponible"],
-                      ["Ubicación", (item: CatalogItem) => item.location ?? "—"],
+                      ["Ubicacion", (item: CatalogItem) => item.location ?? "-"],
                       ["Remate", (item: CatalogItem) => upcomingAuctionByVehicleKey[getVehicleKey(item)] ?? "Sin asignar"],
                       ["Precio", (item: CatalogItem) => formatPrice(config.vehiclePrices[getVehicleKey(item)]) ?? "No informado"],
-                      ["Tiene 3D", (item: CatalogItem) => (item.view3dUrl ? "Sí" : "No")],
+                      ["Tiene 3D", (item: CatalogItem) => (item.view3dUrl ? "Si" : "No")],
                     ].map(([label, resolver]) => (
                       <tr key={String(label)} className="border-t border-slate-200">
                         <td className="px-3 py-2 font-semibold text-slate-700">{String(label)}</td>
@@ -9369,11 +9466,11 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
-            <p className="text-xs font-semibold uppercase tracking-wide text-cyan-700">Confirmación</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Confirmacion</p>
             <h3 className="mt-1 text-lg font-bold text-slate-900">¿Revertir esta venta?</h3>
             <p className="mt-2 text-sm text-slate-600">
               La unidad <span className="font-semibold text-slate-900">{pendingRevertSale.patent}</span>{" "}
-              ({pendingRevertSale.title}) volverá al inventario actual.
+              ({pendingRevertSale.title}) volvera al inventario actual.
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <button
@@ -9390,13 +9487,13 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   showSystemNotice(
                     "success",
                     "Venta revertida",
-                    `${pendingRevertSale.patent} volvió al inventario actual.`,
+                    `${pendingRevertSale.patent} volvio al inventario actual.`,
                   );
                   setPendingRevertSale(null);
                 }}
-                className="ui-focus rounded-md bg-cyan-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500"
+                className="ui-focus rounded-md bg-amber-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-amber-600"
               >
-                Sí, revertir
+                Si, revertir
               </button>
             </div>
           </div>
@@ -9433,9 +9530,9 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             </div>
             <div className="space-y-3">
               <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-3">
-                <p className="text-sm font-semibold text-slate-800">¿Qué unidades fueron vendidas?</p>
+                <p className="text-sm font-semibold text-slate-800">¿Que unidades fueron vendidas?</p>
                 <p className="mt-1 text-xs text-slate-600">
-                  Las unidades marcadas como vendidas pasan a historial y salen del catálogo/inventario visible.
+                  Las unidades marcadas como vendidas pasan a historial y salen del catalogo/inventario visible.
                   Las no marcadas permanecen en inventario, pero quedan ocultas.
                 </p>
               </div>
@@ -9555,7 +9652,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               <div>
                 <h3 className="text-lg font-bold text-slate-900">Agregar nueva unidad al inventario</h3>
                 <p className="text-xs text-slate-500">
-                  Carga imágenes desde tu PC (drag & drop o selección múltiple) y crea la publicación manual.
+                  Carga imagenes desde tu PC (drag & drop o seleccion multiple) y crea la publicacion manual.
                 </p>
               </div>
               <button
@@ -9579,22 +9676,22 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 }}
                 className={`rounded-xl border-2 border-dashed p-4 text-center transition ${
                   manualDropActive
-                    ? "border-cyan-500 bg-cyan-50"
-                    : "border-cyan-200 bg-slate-50"
+                    ? "border-amber-600 bg-stone-100"
+                    : "border-stone-300 bg-slate-50"
                 }`}
               >
                 <p className="text-sm font-semibold text-slate-700">
-                  Arrastra aquí múltiples fotos para subirlas a Cloudinary
+                  Arrastra aqui multiples fotos para subirlas a Cloudinary
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
-                  También puedes seleccionar muchas fotos desde tu equipo.
+                  Tambien puedes seleccionar muchas fotos desde tu equipo.
                 </p>
                 <div className="mt-3 flex flex-wrap justify-center gap-2">
                   <button
                     type="button"
                     onClick={() => manualFileInputRef.current?.click()}
                     disabled={manualUploading}
-                    className="ui-focus rounded-md bg-cyan-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-cyan-500 disabled:opacity-60"
+                    className="ui-focus rounded-md bg-amber-700 px-3 py-2 text-xs font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60"
                   >
                     {manualUploading ? "Subiendo..." : "Seleccionar fotos"}
                   </button>
@@ -9615,7 +9712,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               {manualUploadedImages.length > 0 ? (
                 <div className="rounded-xl border border-slate-200 bg-white p-3">
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-600">
-                    Imágenes subidas (arrastra para ordenar)
+                    Imagenes subidas (arrastra para ordenar)
                   </p>
                   <div className="grid gap-2 sm:grid-cols-3 md:grid-cols-4">
                     {manualUploadedImages.map((imageUrl, index) => (
@@ -9655,46 +9752,46 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 <input
                   value={manualDraft.title}
                   onChange={(event) => setManualDraft((prev) => ({ ...prev, title: event.target.value }))}
-                  placeholder="Título publicación"
-                  className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
+                  placeholder="Titulo publicacion"
+                  className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
                 />
                 <input
                   value={manualDraft.subtitle}
                   onChange={(event) => setManualDraft((prev) => ({ ...prev, subtitle: event.target.value }))}
-                  placeholder="Subtítulo"
-                  className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
+                  placeholder="Subtitulo"
+                  className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
                 />
                 <input
                   value={manualDraft.patente}
                   onChange={(event) => setManualDraft((prev) => ({ ...prev, patente: event.target.value }))}
                   placeholder="Patente"
-                  className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
+                  className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
                 />
                 <input
                   value={manualDraft.brand}
                   onChange={(event) => setManualDraft((prev) => ({ ...prev, brand: event.target.value }))}
                   placeholder="Marca"
-                  className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
+                  className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
                 />
                 <input
                   value={manualDraft.model}
                   onChange={(event) => setManualDraft((prev) => ({ ...prev, model: event.target.value }))}
                   placeholder="Modelo"
-                  className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
+                  className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
                 />
                 <input
                   value={manualDraft.year}
                   onChange={(event) => setManualDraft((prev) => ({ ...prev, year: event.target.value }))}
-                  placeholder="Año"
-                  className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
+                  placeholder="Ano"
+                  className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
                 />
-                <div className="space-y-2 rounded-md border border-cyan-200 bg-cyan-50/40 p-2 md:col-span-2">
+                <div className="space-y-2 rounded-md border border-stone-300 bg-stone-100/40 p-2 md:col-span-2">
                   <div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-center">
                     <input
                       value={manualDraft.normalPrice}
                       onChange={(event) => setManualDraft((prev) => ({ ...prev, normalPrice: event.target.value }))}
                       placeholder="Precio normal CLP"
-                      className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
+                      className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
                     />
                     <label className="inline-flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
                       <input
@@ -9720,19 +9817,19 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   value={manualDraft.auctionDate}
                   onChange={(event) => setManualDraft((prev) => ({ ...prev, auctionDate: event.target.value }))}
                   placeholder="Fecha (YYYY-MM-DD)"
-                  className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
+                  className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
                 />
                 <input
                   value={manualDraft.location}
                   onChange={(event) => setManualDraft((prev) => ({ ...prev, location: event.target.value }))}
-                  placeholder="Ubicación"
-                  className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm md:col-span-2"
+                  placeholder="Ubicacion"
+                  className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm md:col-span-2"
                 />
                 <textarea
                   value={manualDraft.description}
                   onChange={(event) => setManualDraft((prev) => ({ ...prev, description: event.target.value }))}
-                  placeholder="Descripción personalizada"
-                  className="ui-focus min-h-20 rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm md:col-span-2"
+                  placeholder="Descripcion personalizada"
+                  className="ui-focus min-h-20 rounded-md border border-stone-300 bg-white px-3 py-2 text-sm md:col-span-2"
                 />
                 <details className="md:col-span-2">
                   <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -9743,26 +9840,26 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       value={manualDraft.imagesCsv}
                       onChange={(event) => setManualDraft((prev) => ({ ...prev, imagesCsv: event.target.value }))}
                       placeholder="URLs adicionales de Cloudinary separadas por coma (opcional)"
-                      className="ui-focus min-h-16 rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
+                      className="ui-focus min-h-16 rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
                     />
                     <input
                       value={manualDraft.thumbnail}
                       onChange={(event) => setManualDraft((prev) => ({ ...prev, thumbnail: event.target.value }))}
                       placeholder="URL portada Cloudinary (opcional, si no se usa la primera)"
-                      className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
+                      className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
                     />
                     <input
                       value={manualDraft.view3dUrl}
                       onChange={(event) => setManualDraft((prev) => ({ ...prev, view3dUrl: event.target.value }))}
                       placeholder="URL visor 3D (opcional)"
-                      className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
+                      className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
                     />
                   </div>
                 </details>
                 <select
                   value={manualDraft.upcomingAuctionId}
                   onChange={(event) => setManualDraft((prev) => ({ ...prev, upcomingAuctionId: event.target.value }))}
-                  className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm"
+                  className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
                 >
                   <option value="">Sin remate</option>
                   {sortedUpcomingAuctions.map((auction) => (
@@ -9783,7 +9880,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
 
               <div className="flex flex-wrap gap-2">
                 {(["proximos-remates", "ventas-directas", "novedades", "catalogo"] as SectionId[]).map((sectionId) => (
-                  <label key={`manual-modal-section-${sectionId}`} className="inline-flex items-center gap-2 rounded-full border border-cyan-200 bg-white px-3 py-1 text-xs text-cyan-800">
+                  <label key={`manual-modal-section-${sectionId}`} className="inline-flex items-center gap-2 rounded-full border border-stone-300 bg-white px-3 py-1 text-xs text-amber-900">
                     <input
                       type="checkbox"
                       checked={manualDraft.sectionIds.includes(sectionId)}
@@ -9805,9 +9902,9 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 <button
                   type="button"
                   onClick={createManualPublication}
-                  className="ui-focus rounded-md bg-cyan-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500"
+                  className="ui-focus rounded-md bg-amber-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-amber-600"
                 >
-                  Crear publicación manual
+                  Crear publicacion manual
                 </button>
               </div>
             </div>
@@ -9829,7 +9926,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           >
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-cyan-700">Enviar mi precio</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Enviar mi precio</p>
                 <h3 className="text-lg font-bold text-slate-900">{getModel(selectedVehicle)}</h3>
                 <p className="text-xs text-slate-500">Patente {getPatent(selectedVehicle)}</p>
               </div>
@@ -9842,8 +9939,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               </button>
             </div>
 
-            <div className="rounded-lg border border-cyan-100 bg-cyan-50/70 p-3">
-              <p className="text-xs uppercase tracking-wide text-cyan-800">Precio referencial</p>
+            <div className="rounded-lg border border-stone-200 bg-stone-100/70 p-3">
+              <p className="text-xs uppercase tracking-wide text-amber-900">Precio referencial</p>
               <p className="mt-1 text-xl font-black text-slate-900">
                 {selectedVehicleReferencePriceDisplay || selectedVehiclePriceLabel || "No informado"}
               </p>
@@ -9877,7 +9974,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 />
               </label>
               <label className="block">
-                <span className="mb-1 block text-xs font-semibold text-slate-600">Número de teléfono *</span>
+                <span className="mb-1 block text-xs font-semibold text-slate-600">Numero de telefono *</span>
                 <input
                   value={offerForm.customerPhone}
                   onChange={(event) =>
@@ -9917,7 +10014,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   void submitOffer();
                 }}
                 disabled={offerSending}
-                className="ui-focus rounded-md bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500 disabled:opacity-60"
+                className="ui-focus rounded-md bg-amber-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60"
               >
                 {offerSending ? "Enviando..." : "Enviar oferta"}
               </button>
@@ -9940,7 +10037,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           >
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-cyan-700">
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">
                   Agregar desde inventario
                 </p>
                 <h3 className="text-lg font-bold text-slate-900">{batchAssignTargetLabel}</h3>
@@ -9960,13 +10057,13 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             <input
               value={batchAssignSearchTerm}
               onChange={(event) => setBatchAssignSearchTerm(event.target.value)}
-              placeholder="Buscar por patente, modelo o título..."
+              placeholder="Buscar por patente, modelo o titulo..."
               className="ui-focus mb-3 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
             />
 
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-slate-600">
-                {batchAssignCandidates.length} resultados · {batchAssignSelectedKeys.length} seleccionados
+                {batchAssignCandidates.length} resultados  ·  {batchAssignSelectedKeys.length} seleccionados
               </p>
               <button
                 type="button"
@@ -9977,7 +10074,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                     return Array.from(set);
                   })
                 }
-                className="ui-focus rounded border border-cyan-300 bg-cyan-50 px-2.5 py-1 text-xs font-semibold text-cyan-700"
+                className="ui-focus rounded border border-amber-300 bg-stone-100 px-2.5 py-1 text-xs font-semibold text-amber-800"
               >
                 Seleccionar resultados
               </button>
@@ -9995,13 +10092,13 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   <label
                     key={`assign-batch-${key}`}
                     className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm ${
-                      checked ? "border-cyan-300 bg-cyan-50" : "border-slate-200 bg-white"
+                      checked ? "border-amber-300 bg-stone-100" : "border-slate-200 bg-white"
                     }`}
                   >
                     <div>
                       <p className="font-semibold text-slate-900">{getModel(item)}</p>
                       <p className="text-xs text-slate-500">
-                        {getPatent(item)} {alreadyInTarget ? "· ya agregado" : ""}
+                        {getPatent(item)} {alreadyInTarget ? " ·  ya agregado" : ""}
                       </p>
                     </div>
                     <input
@@ -10031,7 +10128,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               <button
                 type="button"
                 onClick={addBatchVehiclesToTarget}
-                className="ui-focus rounded-md bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500"
+                className="ui-focus rounded-md bg-amber-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-600"
               >
                 Agregar seleccionados
               </button>
@@ -10048,14 +10145,14 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Asignar vehículos a categoría"
+            aria-label="Asignar vehiculos a categoria"
             className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-2xl bg-white p-5 shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-cyan-700">
-                  Asignar vehículos
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+                  Asignar vehiculos
                 </p>
                 <h3 className="text-lg font-bold text-slate-900">{activeManagedCategory.name}</h3>
                 <p className="text-xs text-slate-500">{activeManagedCategory.vehicleIds.length} unidades seleccionadas</p>
@@ -10072,7 +10169,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             <input
               value={assignSearchTerm}
               onChange={(event) => setAssignSearchTerm(event.target.value)}
-              placeholder="Buscar por patente, modelo o título..."
+              placeholder="Buscar por patente, modelo o titulo..."
               className="ui-focus mb-3 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
             />
 
@@ -10084,7 +10181,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   <label
                     key={`assign-${activeManagedCategory.id}-${key}`}
                     className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm ${
-                      checked ? "border-cyan-300 bg-cyan-50" : "border-slate-200 bg-white"
+                      checked ? "border-amber-300 bg-stone-100" : "border-slate-200 bg-white"
                     }`}
                   >
                     <div>
@@ -10106,7 +10203,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               <button
                 type="button"
                 onClick={() => setAssignCategoryId(null)}
-                className="ui-focus rounded-md bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500"
+                className="ui-focus rounded-md bg-amber-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-600"
               >
                 Listo
               </button>
@@ -10117,17 +10214,17 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
 
       {showLogin ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
-          <div role="dialog" aria-modal="true" aria-label="Inicio de sesión administrador" className="w-full max-w-sm rounded-xl bg-white p-5 shadow-2xl">
+          <div role="dialog" aria-modal="true" aria-label="Inicio de sesion administrador" className="w-full max-w-sm rounded-xl bg-white p-5 shadow-2xl">
             <h3 className="text-lg font-semibold text-slate-900">Login</h3>
-            <p className="mt-1 text-sm text-slate-500">Solo administradores pueden editar categorías y vehículos.</p>
+            <p className="mt-1 text-sm text-slate-500">Solo administradores pueden editar categorias y vehiculos.</p>
             <div className="mt-4 space-y-2">
               <input value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm" placeholder="Correo" aria-label="Correo de administrador" />
-              <input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm" placeholder="Contraseña" aria-label="Contraseña de administrador" />
+              <input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm" placeholder="Contrasena" aria-label="Contrasena de administrador" />
             </div>
             {loginError ? <p className="mt-2 text-xs text-red-600">{loginError}</p> : null}
             <div className="mt-4 flex justify-end gap-2">
               <button onClick={() => setShowLogin(false)} className="ui-focus rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-600 transition hover:bg-slate-50">Cancelar</button>
-              <button onClick={login} className="ui-focus rounded-md bg-cyan-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500">Entrar</button>
+              <button onClick={login} className="ui-focus rounded-md bg-amber-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-amber-600">Entrar</button>
             </div>
           </div>
         </div>
@@ -10157,7 +10254,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 ? "border-emerald-200 bg-emerald-50/95"
                 : systemNotice.tone === "error"
                   ? "border-rose-200 bg-rose-50/95"
-                  : "border-cyan-200 bg-cyan-50/95"
+                  : "border-stone-300 bg-stone-100/95"
             }`}
           >
             <div className="flex items-start justify-between gap-3">
@@ -10191,7 +10288,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           >
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-cyan-700">
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">
                   Gestionar unidad
                 </p>
                 <h3 className="text-lg font-bold text-slate-900">{getModel(managingItem)}</h3>
@@ -10271,7 +10368,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                     )}
                     onChange={(event) => setVehicleCategory(managingVehicleKey, event.target.value)}
                   >
-                    <option value="">Seleccionar categoría de vehículo</option>
+                    <option value="">Seleccionar categoria de vehiculo</option>
                     {VEHICLE_CATEGORY_OPTIONS.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
@@ -10283,7 +10380,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
 
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Asignación de remate
+                  Asignacion de remate
                 </p>
                 <select
                   className="ui-focus w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
@@ -10303,7 +10400,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
 
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Canales de publicación
+                  Canales de publicacion
                 </p>
                 <div className="grid gap-2 sm:grid-cols-3">
                   {(["ventas-directas", "novedades", "catalogo"] as SectionId[]).map((sectionId) => {
@@ -10315,7 +10412,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                         key={`manage-${managingVehicleKey}-${sectionId}`}
                         className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm ${
                           selected
-                            ? "border-cyan-300 bg-cyan-50 text-cyan-800"
+                            ? "border-amber-300 bg-stone-100 text-amber-900"
                             : "border-slate-200 bg-white text-slate-700"
                         }`}
                       >
@@ -10341,7 +10438,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       showSystemNotice(
                         "success",
                         "Unidad vendida",
-                        `${getPatent(managingItem)} pasó a historial y dejó de estar visible en inventario/catálogo.`,
+                        `${getPatent(managingItem)} paso a historial y dejo de estar visible en inventario/catalogo.`,
                       );
                     }}
                     className="ui-focus rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700 transition hover:bg-amber-100"
@@ -10354,7 +10451,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       setManagingVehicleKey(null);
                       openDetailsEditor(managingItem);
                     }}
-                    className="ui-focus rounded-md border border-cyan-300 bg-cyan-50 px-3 py-2 text-sm font-semibold text-cyan-700 transition hover:bg-cyan-100"
+                    className="ui-focus rounded-md border border-amber-300 bg-stone-100 px-3 py-2 text-sm font-semibold text-amber-800 transition hover:bg-stone-200"
                   >
                     Editar ficha completa
                   </button>
@@ -10391,7 +10488,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               <div>
                 <h3 className="text-lg font-bold text-slate-900">Editar detalle manual</h3>
                 <p className="text-xs text-slate-500">
-                  {getPatent(editingItem)} · {getModel(editingItem)}
+                  {getPatent(editingItem)}  ·  {getModel(editingItem)}
                 </p>
               </div>
               <button type="button" onClick={cancelDetailsEditor} className="ui-focus rounded border border-slate-300 px-3 py-1 text-xs text-slate-600 transition hover:bg-slate-50">
@@ -10401,8 +10498,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
 
             <div className="mb-3 flex flex-wrap gap-2">
               {([
-                ["general", "Información del vehículo"],
-                ["tecnica", "Detalles técnicos"],
+                ["general", "Informacion del vehiculo"],
+                ["tecnica", "Detalles tecnicos"],
               ] as Array<[DetailEditorTabId, string]>).map(([tabId, label]) => (
                 <button
                   key={tabId}
@@ -10410,7 +10507,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   onClick={() => setDetailEditorTab(tabId)}
                   className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold transition ${
                     detailEditorTab === tabId
-                      ? "bg-cyan-600 text-white"
+                      ? "bg-amber-700 text-white"
                       : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
                   }`}
                 >
@@ -10423,7 +10520,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               <div className="space-y-4">
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Identificación y trazabilidad
+                    Identificacion y trazabilidad
                   </p>
                   <div className="grid gap-3 md:grid-cols-2">
                     <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Patente" value={editingDetails.patente ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), patente: event.target.value }))} />
@@ -10437,14 +10534,14 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Clasificación comercial
+                    Clasificacion comercial
                   </p>
                   <div className="grid gap-3 md:grid-cols-2">
                     <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Marca" value={editingDetails.brand ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), brand: event.target.value }))} />
                     <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Modelo" value={editingDetails.model ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), model: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Año" value={editingDetails.year ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), year: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Versión (ver / trim)" value={editingDetails.version ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), version: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Tipo de vehículo" value={editingDetails.tipoVehiculo ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), tipoVehiculo: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Ano" value={editingDetails.year ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), year: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Version (ver / trim)" value={editingDetails.version ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), version: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Tipo de vehiculo" value={editingDetails.tipoVehiculo ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), tipoVehiculo: event.target.value }))} />
                     <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Tipo" value={editingDetails.tipo ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), tipo: event.target.value }))} />
                     <select
                       className="rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2"
@@ -10456,7 +10553,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                         }))
                       }
                     >
-                      <option value="">Categoría</option>
+                      <option value="">Categoria</option>
                       {VEHICLE_CATEGORY_OPTIONS.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
@@ -10470,14 +10567,14 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               <div className="space-y-4">
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Mecánica y configuración
+                    Mecanica y configuracion
                   </p>
                   <div className="grid gap-3 md:grid-cols-2">
                     <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Kilometraje / KM" value={editingDetails.kilometraje ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), kilometraje: event.target.value }))} />
                     <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Color" value={editingDetails.color ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), color: event.target.value }))} />
                     <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Combustible" value={editingDetails.combustible ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), combustible: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Transmisión" value={editingDetails.transmision ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), transmision: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Tracción" value={editingDetails.traccion ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), traccion: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Transmision" value={editingDetails.transmision ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), transmision: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Traccion" value={editingDetails.traccion ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), traccion: event.target.value }))} />
                     <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Aro" value={editingDetails.aro ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), aro: event.target.value }))} />
                     <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Cilindrada" value={editingDetails.cilindrada ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), cilindrada: event.target.value }))} />
                     <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Estado de airbags" value={editingDetails.estadoAirbags ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), estadoAirbags: event.target.value }))} />
@@ -10485,13 +10582,13 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Pruebas y condición operativa
+                    Pruebas y condicion operativa
                   </p>
                   <div className="grid gap-3 md:grid-cols-2">
                     {([
                       ["llaves", "Llaves (SI/NO)"],
                       ["aireAcondicionado", "Aire acondicionado (SI/NO)"],
-                      ["unicoPropietario", "Único propietario (SI/NO)"],
+                      ["unicoPropietario", "Unico propietario (SI/NO)"],
                       ["condicionado", "Condicionado (SI/NO)"],
                       ["pruebaMotor", "Prueba de motor (SI/NO)"],
                       ["pruebaDesplazamiento", "Prueba de desplazamiento (SI/NO)"],
@@ -10528,20 +10625,20 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Documentación y logística
+                    Documentacion y logistica
                   </p>
                   <div className="grid gap-3 md:grid-cols-2">
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Ubicación física" value={editingDetails.ubicacionFisica ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), ubicacionFisica: event.target.value }))} />
+                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Ubicacion fisica" value={editingDetails.ubicacionFisica ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), ubicacionFisica: event.target.value }))} />
                     <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Transportista" value={editingDetails.transportista ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), transportista: event.target.value }))} />
                     <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Taller" value={editingDetails.taller ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), taller: event.target.value }))} />
                     <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Multas" value={editingDetails.multas ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), multas: event.target.value }))} />
                     <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="TAG" value={editingDetails.tag ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), tag: event.target.value }))} />
                     <div className="space-y-1">
-                      <input className={getEditorInputClass("vencRevisionTecnica")} placeholder="Vencimiento revisión técnica" value={editingDetails.vencRevisionTecnica ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), vencRevisionTecnica: event.target.value }))} />
+                      <input className={getEditorInputClass("vencRevisionTecnica")} placeholder="Vencimiento revision tecnica" value={editingDetails.vencRevisionTecnica ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), vencRevisionTecnica: event.target.value }))} />
                       {getEditorFieldError("vencRevisionTecnica") ? <p className="text-xs text-rose-600">{getEditorFieldError("vencRevisionTecnica")}</p> : null}
                     </div>
                     <div className="space-y-1">
-                      <input className={getEditorInputClass("vencPermisoCirculacion")} placeholder="Vencimiento permiso circulación" value={editingDetails.vencPermisoCirculacion ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), vencPermisoCirculacion: event.target.value }))} />
+                      <input className={getEditorInputClass("vencPermisoCirculacion")} placeholder="Vencimiento permiso circulacion" value={editingDetails.vencPermisoCirculacion ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), vencPermisoCirculacion: event.target.value }))} />
                       {getEditorFieldError("vencPermisoCirculacion") ? <p className="text-xs text-rose-600">{getEditorFieldError("vencPermisoCirculacion")}</p> : null}
                     </div>
                     <div className="space-y-1">
@@ -10563,13 +10660,13 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             )}
 
             {detailEditorTab === "general" ? (
-              <div className="mt-4 rounded-xl border border-cyan-100 bg-cyan-50/40 p-3">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-cyan-700">
-                  Configuración editorial y comercial
+              <div className="mt-4 rounded-xl border border-stone-200 bg-stone-100/40 p-3">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-amber-800">
+                  Configuracion editorial y comercial
                 </p>
                 <p className="mb-3 text-xs text-cyan-900/80">
-                  Esta sección concentra estado comercial, narrativa y campos de publicación.
-                  Los links crudos de Glo3D se administran automáticamente y están ocultos para evitar confusión.
+                  Esta seccion concentra estado comercial, narrativa y campos de publicacion.
+                  Los links crudos de Glo3D se administran automaticamente y estan ocultos para evitar confusion.
                 </p>
                 <div className="grid gap-3 md:grid-cols-2">
                   <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Estado" value={editingDetails.status ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), status: event.target.value }))} />
@@ -10580,14 +10677,14 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       setEditingDetails((prev) => ({ ...(prev ?? {}), vehicleCondition: event.target.value }))
                     }
                   >
-                    <option value="">Condición del vehículo</option>
+                    <option value="">Condicion del vehiculo</option>
                     {VEHICLE_CONDITION_OPTIONS.map((option) => (
                       <option key={option} value={option}>
                         {option}
                       </option>
                     ))}
                   </select>
-                  <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Ubicación comercial" value={editingDetails.location ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), location: event.target.value }))} />
+                  <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Ubicacion comercial" value={editingDetails.location ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), location: event.target.value }))} />
                   <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Lote" value={editingDetails.lot ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), lot: event.target.value }))} />
                   <div className="space-y-1 md:col-span-2">
                     <input className={getEditorInputClass("auctionDate")} placeholder="Fecha remate (YYYY-MM-DD o DD/MM/YYYY)" value={editingDetails.auctionDate ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), auctionDate: event.target.value }))} />
@@ -10608,10 +10705,10 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                         defaultValue="3"
                         onChange={(event) => runObservationsCommand("fontSize", event.target.value)}
                       >
-                        <option value="2">Tamaño S</option>
-                        <option value="3">Tamaño M</option>
-                        <option value="4">Tamaño L</option>
-                        <option value="5">Tamaño XL</option>
+                        <option value="2">Tamano S</option>
+                        <option value="3">Tamano M</option>
+                        <option value="4">Tamano L</option>
+                        <option value="5">Tamano XL</option>
                       </select>
                       <select
                         className="ui-focus rounded border border-slate-300 px-2 py-1 text-xs text-slate-700"
@@ -10647,7 +10744,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                         type="button"
                         onClick={() => {
                           applyObservationsTemplate(DEFAULT_OBSERVATIONS_TEMPLATE_HTML);
-                          showSystemNotice("success", "Plantilla base aplicada", "Se cargó la plantilla de observaciones recomendada.");
+                          showSystemNotice("success", "Plantilla base aplicada", "Se cargo la plantilla de observaciones recomendada.");
                         }}
                         className="ui-focus rounded border border-indigo-300 bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-700"
                       >
@@ -10657,9 +10754,9 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                         type="button"
                         onClick={() => {
                           applyObservationsTemplate(observationsTemplateHtml || DEFAULT_OBSERVATIONS_TEMPLATE_HTML);
-                          showSystemNotice("success", "Plantilla cargada", "Se insertó la plantilla guardada en este navegador.");
+                          showSystemNotice("success", "Plantilla cargada", "Se inserto la plantilla guardada en este navegador.");
                         }}
-                        className="ui-focus rounded border border-cyan-300 bg-cyan-50 px-2 py-1 text-xs font-semibold text-cyan-700"
+                        className="ui-focus rounded border border-amber-300 bg-stone-100 px-2 py-1 text-xs font-semibold text-amber-800"
                       >
                         Usar plantilla guardada
                       </button>
@@ -10668,7 +10765,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                         onClick={() => {
                           const editor = manualObservationsEditorRef.current;
                           if (!editor || !editor.innerHTML.trim()) {
-                            showSystemNotice("error", "Plantilla vacía", "Escribe o pega contenido antes de guardar plantilla.");
+                            showSystemNotice("error", "Plantilla vacia", "Escribe o pega contenido antes de guardar plantilla.");
                             return;
                           }
                           const html = editor.innerHTML;
@@ -10676,7 +10773,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                           if (typeof window !== "undefined") {
                             window.localStorage.setItem(OBSERVATIONS_TEMPLATE_STORAGE_KEY, html);
                           }
-                          showSystemNotice("success", "Plantilla guardada", "La plantilla quedó guardada para próximos vehículos.");
+                          showSystemNotice("success", "Plantilla guardada", "La plantilla quedo guardada para proximos vehiculos.");
                         }}
                         className="ui-focus rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700"
                       >
@@ -10692,7 +10789,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       aria-label="Editor de observaciones con formato HTML"
                     />
                     <p className="text-xs text-slate-500">
-                      Puedes usar negritas, listas, colores, tamaño y tipo de letra. Se guarda como HTML y puedes reutilizar plantillas.
+                      Puedes usar negritas, listas, colores, tamano y tipo de letra. Se guarda como HTML y puedes reutilizar plantillas.
                     </p>
                   </div>
                 </div>
@@ -10703,7 +10800,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               <button type="button" onClick={cancelDetailsEditor} className="ui-focus rounded border border-slate-300 px-4 py-2 text-sm text-slate-700 transition hover:bg-slate-50">
                 Cancelar
               </button>
-              <button type="button" onClick={saveDetailsEditor} className="ui-focus rounded bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500">
+              <button type="button" onClick={saveDetailsEditor} className="ui-focus rounded bg-amber-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-600">
                 Guardar detalle
               </button>
             </div>
@@ -10713,3 +10810,5 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     </main>
   );
 }
+
+

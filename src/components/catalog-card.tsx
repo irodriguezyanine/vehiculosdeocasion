@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import type { CatalogItem } from "@/types/catalog";
 
 type CatalogCardProps = {
@@ -16,7 +16,7 @@ type CatalogCardProps = {
   onWhatsappClick?: () => void;
 };
 
-const WHATSAPP_BASE_URL = "https://api.whatsapp.com/send/?phone=56989323397";
+const WHATSAPP_BASE_URL = "https://api.whatsapp.com/send/?phone=5694550660";
 
 function formatDate(date?: string): string {
   if (!date) return "";
@@ -75,7 +75,7 @@ function getVehicleCondition(item: CatalogItem): string | null {
   const raw = item.raw as Record<string, unknown>;
   const value = [
     raw.condicion,
-    raw.condición,
+    raw["condicion"],
     raw.condicion_vehiculo,
     raw.estado_vehiculo,
     raw.estado,
@@ -140,7 +140,7 @@ export function CatalogCard({
     if (!url.hash) url.hash = "catalogo";
     return url.toString();
   }, [itemKey]);
-  const whatsappText = `Hola, estoy interesado en ofertar por el vehículo ${patent} ${brandModel}`;
+  const whatsappText = `Hola, estoy interesado en ofertar por el vehÃ­culo ${patent} ${brandModel}`;
   const whatsappUrl = `${WHATSAPP_BASE_URL}&text=${encodeURIComponent(
     `${whatsappText}${shareUrl ? `. Link: ${shareUrl}` : ""}`,
   )}&type=phone_number&app_absent=0`;
@@ -151,7 +151,7 @@ export function CatalogCard({
   }, [cover]);
 
   return (
-    <article className="group glass-soft flex h-full w-full flex-col overflow-hidden rounded-2xl text-left shadow-md transition duration-300 hover:-translate-y-1 hover:border-cyan-300 hover:shadow-lg">
+    <article className="group glass-soft flex h-full w-full flex-col overflow-hidden rounded-2xl text-left shadow-md transition duration-300 hover:-translate-y-1 hover:border-amber-300 hover:shadow-lg">
       <button type="button" onClick={onOpen} className="ui-focus flex flex-1 flex-col w-full text-left">
         <div className={`relative w-full bg-slate-100 ${isCompact ? "h-44" : "h-56"}`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -165,7 +165,7 @@ export function CatalogCard({
           <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-transparent" />
           <div className="absolute left-3 top-3 flex flex-wrap gap-1">
             {item.view3dUrl ? (
-              <span className="rounded-full bg-cyan-500 px-2 py-1 text-[10px] font-semibold text-white">3D</span>
+              <span className="rounded-full bg-stone-1000 px-2 py-1 text-[10px] font-semibold text-white">3D</span>
             ) : null}
             {priceLabel ? (
               <span className={`rounded-full px-2 py-1 text-[10px] font-semibold text-white ${promoEnabled ? "bg-rose-500" : "bg-amber-500"}`}>
@@ -226,7 +226,7 @@ export function CatalogCard({
                 <span className="text-xs text-slate-400 line-through">{originalPriceLabel}</span>
               ) : null}
               {priceLabel ? (
-                <span className={`text-sm font-semibold ${promoEnabled ? "text-rose-600" : "text-cyan-700"}`}>
+                <span className={`text-sm font-semibold ${promoEnabled ? "text-rose-600" : "text-amber-800"}`}>
                   {priceLabel}
                 </span>
               ) : null}
@@ -235,7 +235,7 @@ export function CatalogCard({
               </span>
             </div>
             {item.view3dUrl ? (
-              <span className="rounded-md bg-cyan-100 px-3 py-1.5 text-xs font-medium text-cyan-800">
+              <span className="rounded-md bg-stone-200 px-3 py-1.5 text-xs font-medium text-amber-900">
                 Ver detalle 3D
               </span>
             ) : (
@@ -259,7 +259,7 @@ export function CatalogCard({
             title={isFavorite ? "Guardado" : "Guardar"}
           >
             <span aria-hidden="true" className="text-base leading-none">
-              {isFavorite ? "★" : "☆"}
+              {isFavorite ? "â˜…" : "â˜†"}
             </span>
           </button>
           <button
@@ -270,11 +270,11 @@ export function CatalogCard({
                 ? "border-indigo-300 bg-indigo-50 text-indigo-700"
                 : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
             }`}
-            aria-label={isCompared ? `Quitar comparación ${item.title}` : `Comparar ${item.title}`}
+            aria-label={isCompared ? `Quitar comparaciÃ³n ${item.title}` : `Comparar ${item.title}`}
             title={isCompared ? "Comparando" : "Comparar"}
           >
             <span aria-hidden="true" className="text-base leading-none">
-              {isCompared ? "✓" : "+"}
+              {isCompared ? "âœ“" : "+"}
             </span>
           </button>
           <button
@@ -284,7 +284,7 @@ export function CatalogCard({
                 if (navigator.share && shareUrl) {
                   await navigator.share({
                     title: item.title,
-                    text: `Revisa este vehículo: ${patent}`,
+                    text: `Revisa este vehÃ­culo: ${patent}`,
                     url: shareUrl,
                   });
                 } else if (navigator.clipboard && shareUrl) {
@@ -303,7 +303,7 @@ export function CatalogCard({
             title={shareCopied ? "Copiado" : "Compartir"}
           >
             <span aria-hidden="true" className="text-base leading-none">
-              {shareCopied ? "✓" : "↗"}
+              {shareCopied ? "âœ“" : "â†—"}
             </span>
           </button>
           <a
@@ -324,3 +324,4 @@ export function CatalogCard({
     </article>
   );
 }
+

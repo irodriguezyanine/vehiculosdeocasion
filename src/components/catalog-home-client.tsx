@@ -473,7 +473,7 @@ function blobToDataUrl(blob: Blob): Promise<string> {
 
 function getImageDimensionsFromDataUrl(dataUrl: string): Promise<{ width: number; height: number } | null> {
   return new Promise((resolve) => {
-    const img = new Image();
+    const img = document.createElement("img");
     img.onload = () => {
       if (img.naturalWidth > 0 && img.naturalHeight > 0) {
         resolve({ width: img.naturalWidth, height: img.naturalHeight });

@@ -97,8 +97,7 @@ function normalizeConfig(config?: Partial<EditorConfig> | null): EditorConfig {
       showFavoritesSection:
         config?.homeLayout?.showFavoritesSection ?? defaults.homeLayout.showFavoritesSection,
       showHowToSection:
-        (config?.homeLayout?.showHowToSection ?? defaults.homeLayout.showHowToSection) ||
-        normalizedSecondaryHref === "#contacto",
+        false,
       showSearchBar: config?.homeLayout?.showSearchBar ?? defaults.homeLayout.showSearchBar,
       showQuickFilters:
         config?.homeLayout?.showQuickFilters ?? defaults.homeLayout.showQuickFilters,

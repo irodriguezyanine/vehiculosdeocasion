@@ -205,7 +205,7 @@ export function CatalogCard({
             ) : null}
             {formattedDate ? (
               <span className="max-w-full truncate rounded-full bg-slate-100 px-2 py-1">
-                Remate {formattedDate}
+                Fecha {formattedDate}
               </span>
             ) : null}
             {item.location ? (
@@ -215,7 +215,7 @@ export function CatalogCard({
             ) : null}
             {upcomingAuctionLabel ? (
               <span className="max-w-full truncate rounded-full bg-indigo-100 px-2 py-1 font-semibold text-indigo-700">
-                {shortText(`Remate: ${upcomingAuctionLabel}`, 38)}
+                {shortText(`Categoria: ${upcomingAuctionLabel}`, 38)}
               </span>
             ) : null}
           </div>

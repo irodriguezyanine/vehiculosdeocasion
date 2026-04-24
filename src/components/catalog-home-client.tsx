@@ -137,23 +137,6 @@ const WHATSAPP_PHONE = "5694550660";
 const CONTACT_EMAIL = "vehiculosdeocasioncl@gmail.com";
 const INSTAGRAM_URL = "https://www.instagram.com/autosdeoc?igsh=YzRqbHQwZ2Q4YTg3";
 const INSTAGRAM_HANDLE = "@vehiculosdeocasioncl";
-const INSTAGRAM_GALLERY = [
-  {
-    src: "/instagram-galeria-1.png",
-    title: "Perfil de Instagram",
-    subtitle: "Comunidad y novedades de Vehiculos de Ocasion",
-  },
-  {
-    src: "/vehiculos-ocasion-banner.png",
-    title: "Portada corporativa",
-    subtitle: "Imagen oficial de la automotora",
-  },
-  {
-    src: "/vehiculos-ocasion-logo.png",
-    title: "Identidad de marca",
-    subtitle: "Logo oficial Vehiculos de Ocasion",
-  },
-] as const;
 const MAX_COMPARE_ITEMS = 4;
 const ANALYTICS_STORAGE_KEY = "vehiculosdeocasion_analytics_events";
 const ANALYTICS_VISITOR_ID_KEY = "vehiculosdeocasion_analytics_visitor_id";
@@ -196,34 +179,55 @@ function normalizeEditorConfigClient(
   const requestedHeroTitle = "Encuentra tu proximo vehiculo en Vehiculos de Ocasion";
   const requestedHeroDescription =
     "Vehiculos de Ocasion es una empresa especializada en la comercializacion de vehiculos a precios competitivos, por debajo del promedio del mercado.";
+  const requestedHeroKicker = "Automotora y compraventa";
   const requestedPrimaryCta = "Ver catalogo disponible";
   const requestedSecondaryCta = "Contactar por WhatsApp";
   const requestedSecondaryHref = "#contacto";
   const incomingHeroTitle = value?.homeLayout?.heroTitle;
+  const normalizedIncomingHeroTitle = incomingHeroTitle?.trim().toLowerCase() ?? "";
   const normalizedHeroTitle =
-    !incomingHeroTitle || legacyHeroTitles.has(incomingHeroTitle.trim())
+    !incomingHeroTitle ||
+    legacyHeroTitles.has(incomingHeroTitle.trim()) ||
+    normalizedIncomingHeroTitle.includes("remate") ||
+    normalizedIncomingHeroTitle.includes("vedisa")
       ? requestedHeroTitle
       : incomingHeroTitle;
   const incomingHeroDescription = value?.homeLayout?.heroDescription?.trim();
+  const normalizedIncomingHeroDescription = incomingHeroDescription?.toLowerCase() ?? "";
   const normalizedHeroDescription =
     !incomingHeroDescription ||
     incomingHeroDescription ===
-      "Plataforma oficial de ofertas online en vedisaremates.cl. Revisa cada unidad con informacion clara, fotos y trazabilidad comercial para tomar decisiones con confianza."
+      "Plataforma oficial de ofertas online en vedisaremates.cl. Revisa cada unidad con informacion clara, fotos y trazabilidad comercial para tomar decisiones con confianza." ||
+    normalizedIncomingHeroDescription.includes("remate") ||
+    normalizedIncomingHeroDescription.includes("vedisa")
       ? requestedHeroDescription
       : value?.homeLayout?.heroDescription ?? defaults.homeLayout.heroDescription;
+  const incomingHeroKicker = value?.homeLayout?.heroKicker?.trim();
+  const normalizedIncomingHeroKicker = incomingHeroKicker?.toLowerCase() ?? "";
+  const normalizedHeroKicker =
+    !incomingHeroKicker ||
+    normalizedIncomingHeroKicker.includes("remate") ||
+    normalizedIncomingHeroKicker.includes("vedisa")
+      ? requestedHeroKicker
+      : value?.homeLayout?.heroKicker ?? defaults.homeLayout.heroKicker;
   const incomingPrimaryCta = value?.homeLayout?.heroPrimaryCtaLabel?.trim();
   const normalizedPrimaryCta =
     !incomingPrimaryCta || incomingPrimaryCta === "Ver catalogo completo"
       ? requestedPrimaryCta
       : value?.homeLayout?.heroPrimaryCtaLabel ?? defaults.homeLayout.heroPrimaryCtaLabel;
   const incomingSecondaryCta = value?.homeLayout?.heroSecondaryCtaLabel?.trim();
+  const normalizedIncomingSecondaryCta = incomingSecondaryCta?.toLowerCase() ?? "";
   const normalizedSecondaryCta =
-    !incomingSecondaryCta || incomingSecondaryCta === "Explorar secciones"
+    !incomingSecondaryCta ||
+    incomingSecondaryCta === "Explorar secciones" ||
+    normalizedIncomingSecondaryCta.includes("remate")
       ? requestedSecondaryCta
       : value?.homeLayout?.heroSecondaryCtaLabel ?? defaults.homeLayout.heroSecondaryCtaLabel;
   const incomingSecondaryHref = value?.homeLayout?.heroSecondaryCtaHref?.trim();
   const normalizedSecondaryHref =
-    !incomingSecondaryHref || incomingSecondaryHref === "#proximos-remates"
+    !incomingSecondaryHref ||
+    incomingSecondaryHref === "#proximos-remates" ||
+    incomingSecondaryHref === "#como-participar"
       ? requestedSecondaryHref
       : value?.homeLayout?.heroSecondaryCtaHref ?? defaults.homeLayout.heroSecondaryCtaHref;
   return {
@@ -258,7 +262,7 @@ function normalizeEditorConfigClient(
       catalogo: value?.sectionTexts?.catalogo ?? defaults.sectionTexts.catalogo,
     },
     homeLayout: {
-      heroKicker: value?.homeLayout?.heroKicker ?? defaults.homeLayout.heroKicker,
+      heroKicker: normalizedHeroKicker,
       heroTitle: normalizedHeroTitle,
       heroDescription: normalizedHeroDescription,
       heroPrimaryCtaLabel: normalizedPrimaryCta,
@@ -280,8 +284,7 @@ function normalizeEditorConfigClient(
         value?.homeLayout?.showFavoritesSection ??
         defaults.homeLayout.showFavoritesSection,
       showHowToSection:
-        (value?.homeLayout?.showHowToSection ?? defaults.homeLayout.showHowToSection) ||
-        normalizedSecondaryHref === "#como-participar",
+        false,
       showSearchBar: value?.homeLayout?.showSearchBar ?? defaults.homeLayout.showSearchBar,
       showQuickFilters:
         value?.homeLayout?.showQuickFilters ?? defaults.homeLayout.showQuickFilters,
@@ -1565,10 +1568,17 @@ function FeaturedStrip({ items, onOpenVehicle }: FeaturedStripProps) {
   );
 }
 
-function InstagramGalleryStrip() {
+function InstagramGalleryStrip({ galleryItems }: { galleryItems: CatalogItem[] }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
+  const items = useMemo(
+    () =>
+      galleryItems
+        .filter((item) => Boolean(item.thumbnail ?? item.images[0]))
+        .slice(0, 12),
+    [galleryItems],
+  );
 
   const updateScrollArrows = useCallback(() => {
     const node = scrollRef.current;
@@ -1618,7 +1628,26 @@ function InstagramGalleryStrip() {
           Ver perfil {INSTAGRAM_HANDLE}
         </a>
       </div>
-      <div className="featured-strip-shell relative">
+      <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+        <aside className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+            Widget de perfil
+          </p>
+          <p className="mt-2 text-lg font-bold text-slate-900">Vehiculos de Ocasion</p>
+          <p className="text-sm text-slate-600">{INSTAGRAM_HANDLE}</p>
+          <p className="mt-3 text-sm text-slate-600">
+            Accede directo a Instagram para ver publicaciones, reels y contenido actualizado.
+          </p>
+          <a
+            href={INSTAGRAM_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="ui-focus mt-4 inline-flex w-full items-center justify-center rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800 transition hover:bg-amber-100"
+          >
+            Ir al Instagram oficial
+          </a>
+        </aside>
+        <div className="featured-strip-shell relative">
         <button
           type="button"
           onClick={() => scrollByAmount("left")}
@@ -1645,30 +1674,36 @@ function InstagramGalleryStrip() {
             <path fillRule="evenodd" d="M7.22 15.78a.75.75 0 0 1 0-1.06L11.94 10 7.22 5.28a.75.75 0 1 1 1.06-1.06l5.25 5.25a.75.75 0 0 1 0 1.06l-5.25 5.25a.75.75 0 0 1-1.06 0Z" clipRule="evenodd" />
           </svg>
         </button>
-        <div ref={scrollRef} className="featured-strip" tabIndex={0} role="region" aria-label="Galeria de Instagram">
-          {INSTAGRAM_GALLERY.map((image) => (
+        <div ref={scrollRef} className="featured-strip" tabIndex={0} role="region" aria-label="Galeria horizontal estilo Instagram">
+          {items.map((item) => (
             <a
-              key={image.src}
+              key={`instagram-card-${item.id}`}
               href={INSTAGRAM_URL}
               target="_blank"
               rel="noreferrer"
               className="featured-item text-left"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={image.src} alt={image.title} className="featured-image" loading="lazy" />
+              <img
+                src={item.thumbnail ?? item.images[0] ?? "/placeholder-car.svg"}
+                alt={item.title}
+                className="featured-image"
+                loading="lazy"
+              />
               <div className="featured-overlay" />
               <div className="featured-content">
                 <p className="line-clamp-1 text-sm font-semibold uppercase tracking-wide text-amber-300">
                   {INSTAGRAM_HANDLE}
                 </p>
-                <h3 className="line-clamp-2 text-xl font-bold text-white">{image.title}</h3>
+                <h3 className="line-clamp-2 text-xl font-bold text-white">{item.title}</h3>
                 <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-100">
-                  <span className="featured-chip">{image.subtitle}</span>
+                  <span className="featured-chip">Abrir Instagram</span>
                 </div>
               </div>
             </a>
           ))}
         </div>
+      </div>
       </div>
     </section>
   );
@@ -5456,9 +5491,6 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   const showAdminEditor = isAdmin && adminView === "editor";
   const showPublicHome = !isAdmin || adminView === "home";
   const hasActiveSearch = homeSearchTerm.trim().length > 0;
-  const shouldShowHowToSection =
-    config.homeLayout.showHowToSection ||
-    (config.homeLayout.heroSecondaryCtaHref ?? "").trim() === "#como-participar";
   const hasActiveSearchOrQuickFilters =
     hasActiveSearch || quickFilters.length > 0 || topSectionFilter !== "all";
 
@@ -6066,12 +6098,12 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
       />
 
-      <section className="sticky top-0 z-30 border-b border-stone-200/80 bg-white/88 shadow-[0_8px_24px_rgba(87,141,167,0.08)] backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:px-6 md:py-4 lg:px-8">
+      <section className="sticky top-0 z-30 border-b border-stone-200/80 bg-white/92 shadow-[0_6px_16px_rgba(87,141,167,0.06)] backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-2 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-3 md:gap-4">
             <Link
               href="/"
-              className="inline-flex"
+              className="inline-flex items-center gap-2"
               onClick={(event) => {
                 if (isAdmin && adminView === "editor") {
                   event.preventDefault();
@@ -6084,11 +6116,14 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               <Image
                 src="/vehiculos-ocasion-logo.png"
                 alt="Logo Vehículos de Ocasión"
-                width={208}
-                height={43}
+                width={72}
+                height={72}
                 priority
-                className="h-auto w-full max-w-[192px] sm:max-w-[208px] md:max-w-[224px]"
+                className="h-14 w-14 rounded-full object-cover sm:h-16 sm:w-16"
               />
+              <span className="brand-wordmark hidden text-xl text-slate-900 sm:inline-block">
+                Vehiculos de Ocasion
+              </span>
             </Link>
             <button
               type="button"
@@ -8444,9 +8479,6 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               <a href={config.homeLayout.heroPrimaryCtaHref || "#catalogo"} className="premium-btn-primary ui-focus">
                 {config.homeLayout.heroPrimaryCtaLabel || "Ver catalogo completo"}
               </a>
-              <a href={config.homeLayout.heroSecondaryCtaHref || "#contacto"} className="premium-btn-secondary ui-focus">
-                {config.homeLayout.heroSecondaryCtaLabel || "Explorar secciones"}
-              </a>
             </div>
             ) : null}
             <div className={`mt-4 inline-flex w-fit flex-wrap items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 ${config.homeLayout.heroAlignment === "center" ? "mx-auto justify-center" : ""}`}>
@@ -8490,110 +8522,6 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             ? "gap-20"
             : "gap-14"
       } px-4 pb-14 sm:px-6 lg:px-8`}>
-        {shouldShowHowToSection ? (
-        <section
-          id="como-participar"
-          className={`section-shell transition-all duration-500 ease-out ${
-            hasActiveSearchOrQuickFilters
-              ? "pointer-events-none max-h-0 -translate-y-2 overflow-hidden opacity-0"
-              : "max-h-[1400px] translate-y-0 opacity-100"
-          }`}
-        >
-          <div className="mb-4">
-            <p className="premium-kicker">Como participar</p>
-            <h2 className="text-2xl font-bold text-slate-900">¿Como comprar con nosotros?</h2>
-            <p className="mt-2 text-sm text-slate-700">
-              Comprar en Vehiculos de Ocasion es <strong>facil y seguro</strong>. Sigue estos pasos:
-            </p>
-          </div>
-          <div className="howto-rail">
-            {[
-              {
-                step: "1",
-                title: "Contactanos",
-                icon: "https://img.icons8.com/color/96/user-male-circle.png",
-                body: (
-                  <>
-                    Escribenos por{" "}
-                    <a
-                      href={WHATSAPP_CTA_URL}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="ui-focus font-semibold text-amber-800 underline"
-                    >
-                      WhatsApp
-                    </a>{" "}
-                    para contarte las opciones disponibles segun tu presupuesto.
-                  </>
-                ),
-              },
-              {
-                step: "2",
-                title: "Revisa el vehiculo",
-                icon: "https://img.icons8.com/color/96/money-bag.png",
-                body: (
-                  <>
-                    Te compartimos fotos, informacion tecnica y, cuando este disponible, visor{" "}
-                    <a
-                      href="#catalogo"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="ui-focus font-semibold text-amber-800 underline"
-                    >
-                      GLO3D
-                    </a>{" "}
-                    para evaluar con mayor detalle.
-                  </>
-                ),
-              },
-              {
-                step: "3",
-                title: "Reserva o agenda visita",
-                icon: "https://img.icons8.com/color/96/car.png",
-                body: (
-                  <>
-                    Si te interesa una unidad, coordinamos por{" "}
-                    <a
-                      href={WHATSAPP_CTA_URL}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="ui-focus font-semibold text-amber-800 underline"
-                    >
-                      WhatsApp
-                    </a>{" "}
-                    la reserva o visita presencial.
-                  </>
-                ),
-              },
-              {
-                step: "4",
-                title: "Cierre comercial",
-                icon: "https://cdn-icons-png.flaticon.com/128/2162/2162183.png",
-                body: (
-                  <>Te guiamos en el pago y documentacion para cerrar tu compra de forma simple y segura.</>
-                ),
-              },
-            ].map((step) => (
-              <div
-                key={step.step}
-                className="howto-step-card h-full rounded-xl border border-slate-200 bg-white px-4 py-6 text-center shadow-sm transition duration-200 hover:-translate-y-1 hover:border-stone-300 hover:shadow-md"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={step.icon}
-                  alt={step.title}
-                  className="mx-auto mb-4 w-[120px] max-w-full md:w-[96px]"
-                  loading="lazy"
-                />
-                <h3 className="text-base font-bold text-slate-900">
-                  {step.step}. {step.title}
-                </h3>
-                <p className="mt-2 text-sm text-slate-600">{step.body}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-        ) : null}
         {config.homeLayout.showFavoritesSection && favoritesItems.length > 0 ? (
           <section className="section-shell">
             <header className="mb-4 flex items-center justify-between gap-3">
@@ -8921,7 +8849,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         <FeaturedStrip items={featuredItems} onOpenVehicle={openVehicleDetail} />
       ) : null}
       <section className="relative z-10 mx-auto mb-14 max-w-7xl px-4 sm:px-6 lg:px-8">
-        <InstagramGalleryStrip />
+        <InstagramGalleryStrip galleryItems={latestItems.length > 0 ? latestItems : featuredItems} />
       </section>
 
       {selectedVehicle ? (
@@ -9431,7 +9359,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       ["Ano", (item: CatalogItem) => String((item.raw as Record<string, unknown>).ano ?? (item.raw as Record<string, unknown>).anio ?? (item.raw as Record<string, unknown>).year ?? "-")],
                       ["Estado", (item: CatalogItem) => item.status ?? "Disponible"],
                       ["Ubicacion", (item: CatalogItem) => item.location ?? "-"],
-                      ["Remate", (item: CatalogItem) => upcomingAuctionByVehicleKey[getVehicleKey(item)] ?? "Sin asignar"],
+                      ["Categoria", (item: CatalogItem) => upcomingAuctionByVehicleKey[getVehicleKey(item)] ?? "Sin asignar"],
                       ["Precio", (item: CatalogItem) => formatPrice(config.vehiclePrices[getVehicleKey(item)]) ?? "No informado"],
                       ["Tiene 3D", (item: CatalogItem) => (item.view3dUrl ? "Si" : "No")],
                     ].map(([label, resolver]) => (

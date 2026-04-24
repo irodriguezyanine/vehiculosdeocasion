@@ -20,6 +20,19 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+.brand-wordmark {
+  font-family:
+    "ChunkFive",
+    "Rockwell Extra Bold",
+    "Rockwell",
+    "Blackoak Std",
+    "Arial Black",
+    serif;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
 ::selection {
   background: rgba(146, 95, 54, 0.28);
   color: #21150e;

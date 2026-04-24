@@ -2482,8 +2482,39 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       currentSelection?.removeAllRanges();
       currentSelection?.addRange(fallbackRange);
     }
+    const applyInlineStyleToSelection = (cssProperty: "color" | "backgroundColor", cssValue: string) => {
+      const activeSelection = window.getSelection();
+      const activeRange = activeSelection && activeSelection.rangeCount > 0
+        ? activeSelection.getRangeAt(0)
+        : null;
+      const hasTextSelection = Boolean(
+        activeRange &&
+        !activeRange.collapsed &&
+        editor.contains(activeRange.commonAncestorContainer),
+      );
+      if (hasTextSelection && activeRange) {
+        const fragment = activeRange.extractContents();
+        const span = document.createElement("span");
+        span.style.setProperty(cssProperty, cssValue);
+        span.appendChild(fragment);
+        activeRange.insertNode(span);
+        const newRange = document.createRange();
+        newRange.selectNodeContents(span);
+        activeSelection?.removeAllRanges();
+        activeSelection?.addRange(newRange);
+        return;
+      }
+      editor.style.setProperty(cssProperty, cssValue);
+    };
+
     document.execCommand("styleWithCSS", false, "true");
-    document.execCommand(command, false, value);
+    if (command === "foreColor" && value) {
+      applyInlineStyleToSelection("color", value);
+    } else if ((command === "hiliteColor" || command === "backColor") && value) {
+      applyInlineStyleToSelection("backgroundColor", value);
+    } else {
+      document.execCommand(command, false, value);
+    }
     rememberHeroSelection();
     setConfig((prev) => ({
       ...prev,
@@ -7614,11 +7645,19 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                                 <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true"><path d="M4.5 15.5h11M6.5 4.5h7l-1.5 5h-4zM4.5 4.5l11 11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
                               </button>
                             </div>
-                            <details className="rounded border border-slate-200 bg-white px-2 py-1">
-                              <summary className="cursor-pointer text-[11px] font-semibold text-slate-600">
-                                Mas herramientas
+                            <details className="relative">
+                              <summary
+                                className={`${heroToolbarIconButtonClass(false)} list-none cursor-pointer`}
+                                title="Mas herramientas"
+                                aria-label="Mas herramientas"
+                              >
+                                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+                                  <circle cx="5" cy="10" r="1.2" fill="currentColor" />
+                                  <circle cx="10" cy="10" r="1.2" fill="currentColor" />
+                                  <circle cx="15" cy="10" r="1.2" fill="currentColor" />
+                                </svg>
                               </summary>
-                              <div className="mt-2 flex flex-wrap items-center gap-1.5 pb-1">
+                              <div className="absolute right-0 z-20 mt-1 flex items-center gap-1.5 rounded-md border border-slate-200 bg-white p-1.5 shadow-lg">
                                 <button type="button" onClick={() => runHeroHtmlCommand("unlink")} className={heroToolbarIconButtonClass(false)} title="Quitar enlace" aria-label="Quitar enlace">
                                   <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true"><path d="M8 12.5l4-4M4.5 4.5l11 11M6.5 14a3 3 0 0 1 0-4.2l1.3-1.3M13.5 6a3 3 0 0 1 0 4.2l-1.3 1.3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
                                 </button>

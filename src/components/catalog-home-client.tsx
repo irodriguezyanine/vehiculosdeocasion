@@ -789,14 +789,12 @@ function getAnalyticsEventLabel(eventName: string): string {
 function getAnalyticsSectionLabel(sectionName: string): string {
   const labels: Record<string, string> = {
     "sin-seccion": "Sin seccion",
-    "sin-seccion": "Sin seccion",
     all: "Todas las secciones",
     "proximos-remates": "Destacados",
     "ventas-directas": "Ventas directas",
     novedades: "Novedades",
     catalogo: "Catalogo",
     favoritos: "Favoritos",
-    "recien-publicados": "Recien publicados",
     "recien-publicados": "Recien publicados",
   };
   if (labels[sectionName]) return labels[sectionName];

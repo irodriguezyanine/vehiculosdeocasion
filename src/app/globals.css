@@ -33,6 +33,31 @@ body {
   text-transform: uppercase;
 }
 
+.front-public {
+  font-family:
+    "ChunkFive",
+    "Rockwell Extra Bold",
+    "Rockwell",
+    "Blackoak Std",
+    "Arial",
+    sans-serif;
+  letter-spacing: 0.01em;
+}
+
+.front-public h1,
+.front-public h2,
+.front-public h3,
+.front-public .premium-kicker {
+  font-family:
+    "ChunkFive",
+    "Rockwell Extra Bold",
+    "Rockwell",
+    "Blackoak Std",
+    "Arial Black",
+    serif;
+  letter-spacing: 0.02em;
+}
+
 ::selection {
   background: rgba(146, 95, 54, 0.28);
   color: #21150e;

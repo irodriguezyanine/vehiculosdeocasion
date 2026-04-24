@@ -105,6 +105,13 @@ type AnalyticsTimelineRow = {
   leads: number;
 };
 
+type InstagramMediaItem = {
+  id: string;
+  imageUrl: string;
+  permalink: string;
+  caption?: string;
+};
+
 const QUICK_FILTER_LABELS: Record<QuickFilterId, string> = {
   livianos: "Livianos",
   pesados: "Pesados",
@@ -1568,16 +1575,16 @@ function FeaturedStrip({ items, onOpenVehicle }: FeaturedStripProps) {
   );
 }
 
-function InstagramGalleryStrip({ galleryItems }: { galleryItems: CatalogItem[] }) {
+function InstagramGalleryStrip({ mediaItems }: { mediaItems: InstagramMediaItem[] }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
   const items = useMemo(
     () =>
-      galleryItems
-        .filter((item) => Boolean(item.thumbnail ?? item.images[0]))
+      mediaItems
+        .filter((item) => Boolean(item.imageUrl))
         .slice(0, 12),
-    [galleryItems],
+    [mediaItems],
   );
 
   const updateScrollArrows = useCallback(() => {
@@ -1628,26 +1635,17 @@ function InstagramGalleryStrip({ galleryItems }: { galleryItems: CatalogItem[] }
           Ver perfil {INSTAGRAM_HANDLE}
         </a>
       </div>
-      <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <aside className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Widget de perfil
-          </p>
-          <p className="mt-2 text-lg font-bold text-slate-900">Vehiculos de Ocasion</p>
-          <p className="text-sm text-slate-600">{INSTAGRAM_HANDLE}</p>
-          <p className="mt-3 text-sm text-slate-600">
-            Accede directo a Instagram para ver publicaciones, reels y contenido actualizado.
-          </p>
-          <a
-            href={INSTAGRAM_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="ui-focus mt-4 inline-flex w-full items-center justify-center rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800 transition hover:bg-amber-100"
-          >
-            Ir al Instagram oficial
+      {items.length === 0 ? (
+        <div className="rounded-xl border border-stone-200 bg-white p-4 text-sm text-slate-600">
+          No pudimos cargar las fotos de Instagram en este momento.
+          {" "}
+          <a href={INSTAGRAM_URL} target="_blank" rel="noreferrer" className="ui-focus font-semibold text-amber-800 underline">
+            Ver perfil {INSTAGRAM_HANDLE}
           </a>
-        </aside>
-        <div className="featured-strip-shell relative">
+        </div>
+      ) : null}
+      {items.length > 0 ? (
+      <div className="featured-strip-shell relative">
         <button
           type="button"
           onClick={() => scrollByAmount("left")}
@@ -1678,15 +1676,15 @@ function InstagramGalleryStrip({ galleryItems }: { galleryItems: CatalogItem[] }
           {items.map((item) => (
             <a
               key={`instagram-card-${item.id}`}
-              href={INSTAGRAM_URL}
+              href={item.permalink}
               target="_blank"
               rel="noreferrer"
               className="featured-item text-left"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={item.thumbnail ?? item.images[0] ?? "/placeholder-car.svg"}
-                alt={item.title}
+                src={item.imageUrl}
+                alt={item.caption || "Publicacion de Instagram"}
                 className="featured-image"
                 loading="lazy"
               />
@@ -1695,7 +1693,9 @@ function InstagramGalleryStrip({ galleryItems }: { galleryItems: CatalogItem[] }
                 <p className="line-clamp-1 text-sm font-semibold uppercase tracking-wide text-amber-300">
                   {INSTAGRAM_HANDLE}
                 </p>
-                <h3 className="line-clamp-2 text-xl font-bold text-white">{item.title}</h3>
+                <h3 className="line-clamp-2 text-xl font-bold text-white">
+                  {item.caption?.trim() ? item.caption : "Ver publicacion"}
+                </h3>
                 <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-100">
                   <span className="featured-chip">Abrir Instagram</span>
                 </div>
@@ -1704,7 +1704,7 @@ function InstagramGalleryStrip({ galleryItems }: { galleryItems: CatalogItem[] }
           ))}
         </div>
       </div>
-      </div>
+      ) : null}
     </section>
   );
 }
@@ -2064,6 +2064,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     interest: "",
   });
   const [leadMessage, setLeadMessage] = useState("");
+  const [instagramMedia, setInstagramMedia] = useState<InstagramMediaItem[]>([]);
   const [systemNotice, setSystemNotice] = useState<SystemNotice | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [adminTab, setAdminTab] = useState<AdminTabId>("vehiculos");
@@ -2216,6 +2217,26 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   ) => {
     setEditingDetails((prev) => ({ ...(prev ?? {}), [field]: value }));
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadInstagramMedia = async () => {
+      try {
+        const response = await fetch("/api/instagram-feed", { cache: "no-store" });
+        if (!response.ok) return;
+        const payload = (await response.json()) as { items?: InstagramMediaItem[] };
+        if (!cancelled && Array.isArray(payload.items)) {
+          setInstagramMedia(payload.items);
+        }
+      } catch {
+        // sin bloqueo para el home si Instagram no responde
+      }
+    };
+    void loadInstagramMedia();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const getEditorInputClass = (field: keyof EditorVehicleDetails): string =>
     `rounded border px-3 py-2 text-sm ${
@@ -6084,7 +6105,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   );
 
   return (
-    <main className="premium-bg min-h-screen overflow-x-hidden text-slate-900">
+    <main className={`premium-bg min-h-screen overflow-x-hidden text-slate-900 ${showPublicHome ? "front-public" : ""}`}>
       <div className="premium-glow premium-glow-cyan" />
       <div className="premium-glow premium-glow-gold" />
       <script
@@ -6110,7 +6131,12 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   setAdminView("home");
                 }
                 setTopSectionFilter("all");
+                setHomeSearchTerm("");
+                setQuickFilters([]);
                 setMobileMenuOpen(false);
+                if (typeof window !== "undefined") {
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }
               }}
             >
               <Image
@@ -8743,6 +8769,12 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           );
         })}
       </div>
+      <section className="relative z-10 mx-auto mb-14 max-w-7xl px-4 sm:px-6 lg:px-8">
+        <InstagramGalleryStrip mediaItems={instagramMedia} />
+      </section>
+      {config.homeLayout.showFeaturedStrip ? (
+        <FeaturedStrip items={featuredItems} onOpenVehicle={openVehicleDetail} />
+      ) : null}
       <section className="relative z-10 mx-auto mb-14 grid max-w-7xl gap-6 px-4 sm:px-6 lg:grid-cols-2 lg:px-8">
         <div className="section-shell">
           <p className="premium-kicker">Confianza Vehículos de Ocasión</p>
@@ -8844,12 +8876,6 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           </div>
           {leadMessage ? <p className="mt-2 text-xs font-semibold text-amber-800">{leadMessage}</p> : null}
         </div>
-      </section>
-      {config.homeLayout.showFeaturedStrip ? (
-        <FeaturedStrip items={featuredItems} onOpenVehicle={openVehicleDetail} />
-      ) : null}
-      <section className="relative z-10 mx-auto mb-14 max-w-7xl px-4 sm:px-6 lg:px-8">
-        <InstagramGalleryStrip galleryItems={latestItems.length > 0 ? latestItems : featuredItems} />
       </section>
 
       {selectedVehicle ? (

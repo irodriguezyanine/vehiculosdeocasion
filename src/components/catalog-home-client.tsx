@@ -2021,6 +2021,13 @@ function Section({
 }: SectionProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.matchMedia("(max-width: 767px)").matches) {
+      setIsExpanded(true);
+    }
+  }, []);
+
   return (
     <section id={id} className="section-shell scroll-mt-24">
       <header className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">

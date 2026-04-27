@@ -1986,10 +1986,11 @@ function HorizontalCardsRail({
         onMouseLeave={endDrag}
         onKeyDown={onKeyDown}
       >
-        {items.map((item) => (
+        {items.map((item, index) => (
           <div key={`${sectionKey}-${item.id}`} className="catalog-rail-item">
             <CatalogCard
               item={item}
+              imageLoading={index < 4 ? "eager" : "lazy"}
               priceLabel={formatPrice(priceMap[getVehicleKey(item)])}
               upcomingAuctionLabel={upcomingAuctionByVehicleKey?.[getVehicleKey(item)]}
               density={cardDensity}
@@ -2063,10 +2064,11 @@ function Section({
         </div>
       ) : isExpanded ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {items.map((item) => (
+          {items.map((item, index) => (
             <CatalogCard
               key={`${id}-expanded-${item.id}`}
               item={item}
+              imageLoading={index < 8 ? "eager" : "lazy"}
               priceLabel={formatPrice(priceMap[getVehicleKey(item)])}
               upcomingAuctionLabel={upcomingAuctionByVehicleKey?.[getVehicleKey(item)]}
               density={cardDensity}
@@ -2271,7 +2273,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   const [detailEditorTab, setDetailEditorTab] = useState<DetailEditorTabId>("general");
   const [selectedVehicleTab, setSelectedVehicleTab] = useState<VehicleDetailTabId>("general");
   const [revalidating, setRevalidating] = useState(false);
-  const [isBootstrapping, setIsBootstrapping] = useState(false);
+  const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [analyticsRangeDays, setAnalyticsRangeDays] = useState<7 | 30 | 90>(30);
   const [analyticsEvents, setAnalyticsEvents] = useState<AnalyticsEventPayload[]>([]);
   const [serverAnalyticsEvents, setServerAnalyticsEvents] = useState<AnalyticsEventPayload[]>([]);
@@ -2824,6 +2826,11 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   useEffect(() => {
     const timeout = window.setTimeout(() => {
       setHeroVisible(false);
+      if (typeof window !== "undefined" && window.location.hash === "#catalogo") {
+        window.requestAnimationFrame(() => {
+          document.getElementById("catalogo")?.scrollIntoView({ block: "start" });
+        });
+      }
     }, 20_000);
     return () => window.clearTimeout(timeout);
   }, []);

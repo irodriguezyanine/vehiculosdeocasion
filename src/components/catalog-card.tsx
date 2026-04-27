@@ -14,6 +14,7 @@ type CatalogCardProps = {
   isCompared?: boolean;
   onToggleCompare?: () => void;
   onWhatsappClick?: () => void;
+  imageLoading?: "lazy" | "eager";
 };
 
 const WHATSAPP_BASE_URL = "https://api.whatsapp.com/send/?phone=5694550660";
@@ -109,6 +110,7 @@ export function CatalogCard({
   isCompared,
   onToggleCompare,
   onWhatsappClick,
+  imageLoading = "lazy",
 }: CatalogCardProps) {
   const raw = item.raw as Record<string, unknown>;
   const coverCandidate = item.thumbnail ?? item.images[0];
@@ -159,7 +161,7 @@ export function CatalogCard({
             src={coverSrc}
             alt={item.title}
             className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-            loading="lazy"
+            loading={imageLoading}
             onError={() => setCoverSrc("/placeholder-car.svg")}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-transparent" />

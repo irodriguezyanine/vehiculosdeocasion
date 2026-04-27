@@ -6568,7 +6568,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
       />
 
-      <section className="sticky top-0 z-30 border-b border-amber-200/70 bg-white/92 shadow-[0_10px_22px_rgba(72,43,24,0.12)] backdrop-blur-xl">
+      <section className="top-nav-shell sticky top-0 z-30">
         <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-2 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-3 md:gap-4">
             <Link
@@ -8805,7 +8805,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       ) : null}
       {config.homeLayout.showSearchBar ? (
       <section className="relative z-50 mx-auto w-full max-w-7xl px-3 pt-3 pb-2 sm:px-6 lg:px-8">
-        <div className="overflow-visible rounded-2xl border border-amber-400/60 bg-[#3a2518] p-3 shadow-[0_14px_34px_rgba(32,18,10,0.42)] md:p-4">
+        <div className="inventory-search-shell overflow-visible rounded-2xl p-3 md:p-4">
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
             <div className="w-full">
               <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-100">
@@ -9420,10 +9420,10 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             role="dialog"
             aria-modal="true"
             aria-label={`Detalle de ${selectedVehicle.title}`}
-            className="max-h-[96vh] w-full max-w-7xl overflow-auto rounded-2xl border border-stone-200 bg-gradient-to-br from-white via-white to-stone-100/40 p-3 pb-[calc(env(safe-area-inset-bottom)+14px)] shadow-2xl md:rounded-3xl md:p-6"
+            className="vehicle-detail-shell max-h-[96vh] w-full max-w-7xl overflow-auto rounded-2xl p-3 pb-[calc(env(safe-area-inset-bottom)+14px)] md:rounded-3xl md:p-6"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="mb-4 rounded-2xl border border-slate-200/80 bg-white/80 p-4 shadow-sm">
+            <div className="vehicle-detail-hero mb-4 rounded-2xl p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h3 className="text-xl font-bold text-slate-900">{selectedVehicle.title}</h3>
@@ -9440,7 +9440,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                     ) : null}
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 max-md:w-full">
+                <div className="vehicle-detail-actions flex flex-wrap items-center gap-2 max-md:w-full">
                   <button
                     type="button"
                     onClick={openOfferModal}
@@ -9565,7 +9565,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   </div>
                 ) : null}
               </div>
-              <div className="h-[420px] overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50/80 p-4 shadow-sm">
+              <div className="vehicle-detail-summary h-[420px] overflow-y-auto rounded-2xl p-4 shadow-sm">
                 <h4 className="mb-3 text-base font-semibold text-slate-900">Resumen del vehiculo</h4>
                 <div className="mb-3 flex flex-wrap gap-2">
                   {selectedVehicleTabs.map((tab) => (
@@ -9573,7 +9573,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       key={tab.id}
                       type="button"
                       onClick={() => setSelectedVehicleTab(tab.id)}
-                      className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold transition ${
+                      className={`vehicle-tab-pill ui-focus rounded-full px-3 py-1 text-xs font-semibold transition ${
                         selectedVehicleTab === tab.id
                           ? "bg-amber-700 text-white"
                           : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"

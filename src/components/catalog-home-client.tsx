@@ -2829,6 +2829,39 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   }, []);
 
   useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    const closeOpenMenus = (target: EventTarget | null) => {
+      const openDetails = Array.from(
+        document.querySelectorAll<HTMLDetailsElement>("details[open]"),
+      );
+      for (const detail of openDetails) {
+        if (target instanceof Node && detail.contains(target)) continue;
+        detail.removeAttribute("open");
+      }
+    };
+
+    const onPointerDown = (event: MouseEvent | TouchEvent) => {
+      closeOpenMenus(event.target);
+    };
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      closeOpenMenus(null);
+    };
+
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("touchstart", onPointerDown, { passive: true });
+    document.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("touchstart", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(favoriteKeys));
   }, [favoriteKeys]);
 

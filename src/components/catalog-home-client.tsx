@@ -645,6 +645,28 @@ function getRawPromoMeta(raw: Record<string, unknown>): {
   return { promoEnabled, originalPriceLabel, promoPriceLabel };
 }
 
+function getRawExpenseMeta(raw: Record<string, unknown>): {
+  taxFeeLabel: string | null;
+  transferFeeLabel: string | null;
+} {
+  const taxFeeLabel = pickFirstTextValue([
+    raw.gasto_impuesto,
+    raw.gastos_impuesto,
+    raw.impuesto,
+    raw.impuestos,
+    raw.tax_fee,
+    raw.tax_cost,
+  ]);
+  const transferFeeLabel = pickFirstTextValue([
+    raw.gasto_transferencia,
+    raw.gastos_transferencia,
+    raw.transferencia,
+    raw.transfer_fee,
+    raw.transfer_cost,
+  ]);
+  return { taxFeeLabel, transferFeeLabel };
+}
+
 function getConditionBadgeClasses(condition?: string | null): string {
   const sample = normalizeText(condition ?? "");
   if (!sample) return "border-amber-200 bg-[#f6ebe1] text-[#6f4a2e]";
@@ -1158,6 +1180,7 @@ function buildDetailsDraft(item: CatalogItem, override?: EditorVehicleDetails): 
   const raw = item.raw as Record<string, unknown>;
   const lookup = buildVehicleLookup(raw);
   const cav = (raw.cav_campos as Record<string, unknown> | undefined) ?? {};
+  const rawPromoMeta = getRawPromoMeta(raw);
   const baseImages = item.images.filter((url) => url.startsWith("http")).join(", ");
   return {
     title: override?.title ?? item.title,
@@ -1304,6 +1327,26 @@ function buildDetailsDraft(item: CatalogItem, override?: EditorVehicleDetails): 
     thumbnail: override?.thumbnail ?? (item.thumbnail ?? ""),
     view3dUrl: override?.view3dUrl ?? (item.view3dUrl ?? ""),
     imagesCsv: override?.imagesCsv ?? baseImages,
+    originalPrice: override?.originalPrice ?? rawPromoMeta.originalPriceLabel ?? "",
+    promoPrice: override?.promoPrice ?? rawPromoMeta.promoPriceLabel ?? "",
+    promoEnabled:
+      typeof override?.promoEnabled === "boolean" ? override.promoEnabled : rawPromoMeta.promoEnabled,
+    taxFee:
+      override?.taxFee ??
+      String(
+        getLookupValue(lookup, ["gasto_impuesto", "gastos_impuesto", "impuesto", "impuestos", "tax_fee"]) ??
+          "",
+      ),
+    transferFee:
+      override?.transferFee ??
+      String(
+        getLookupValue(lookup, [
+          "gasto_transferencia",
+          "gastos_transferencia",
+          "transferencia",
+          "transfer_fee",
+        ]) ?? "",
+      ),
   };
 }
 
@@ -1360,6 +1403,11 @@ function sanitizeDetails(details: EditorVehicleDetails): EditorVehicleDetails | 
     thumbnail: cleanOptional(details.thumbnail),
     view3dUrl: cleanOptional(details.view3dUrl),
     imagesCsv: cleanOptional(details.imagesCsv),
+    originalPrice: cleanOptional(details.originalPrice),
+    promoPrice: cleanOptional(details.promoPrice),
+    promoEnabled: typeof details.promoEnabled === "boolean" ? details.promoEnabled : undefined,
+    taxFee: cleanOptional(details.taxFee),
+    transferFee: cleanOptional(details.transferFee),
   };
 
   if (Object.values(clean).every((value) => !value)) return undefined;
@@ -1433,6 +1481,22 @@ function applyDetailsOverride(item: CatalogItem, override?: EditorVehicleDetails
       ...(override.nombrePropietarioAnterior ? { nombre_propietario_anterior: override.nombrePropietarioAnterior, npa: override.nombrePropietarioAnterior } : {}),
       ...(override.rutPropietarioAnterior ? { rut_propietario_anterior: override.rutPropietarioAnterior, rpa: override.rutPropietarioAnterior } : {}),
       ...(override.rutVerificador ? { rut_verificador: override.rutVerificador, verifier_rut: override.rutVerificador } : {}),
+      ...(override.taxFee
+        ? {
+            gasto_impuesto: override.taxFee,
+            gastos_impuesto: override.taxFee,
+            impuesto: override.taxFee,
+            tax_fee: override.taxFee,
+          }
+        : {}),
+      ...(override.transferFee
+        ? {
+            gasto_transferencia: override.transferFee,
+            gastos_transferencia: override.transferFee,
+            transferencia: override.transferFee,
+            transfer_fee: override.transferFee,
+          }
+        : {}),
     },
   };
 }
@@ -3738,17 +3802,54 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     [selectedVehiclePriceLabel],
   );
   const selectedVehiclePromoMeta = useMemo(() => {
-    if (!selectedVehicle) return { promoEnabled: false, originalPriceLabel: null as string | null };
+    if (!selectedVehicle) {
+      return {
+        promoEnabled: false,
+        originalPriceLabel: null as string | null,
+        taxFeeLabel: null as string | null,
+        transferFeeLabel: null as string | null,
+      };
+    }
     const raw = selectedVehicle.raw as Record<string, unknown>;
     const rawMeta = getRawPromoMeta(raw);
+    const rawExpenseMeta = getRawExpenseMeta(raw);
     const override = selectedVehicleOverride;
     const promoEnabled =
       typeof override?.promoEnabled === "boolean" ? override.promoEnabled : rawMeta.promoEnabled;
     const originalPriceLabel = override?.originalPrice?.trim()
       ? override.originalPrice.trim()
       : rawMeta.originalPriceLabel;
-    return { promoEnabled, originalPriceLabel };
+    const taxFeeLabel = override?.taxFee?.trim()
+      ? override.taxFee.trim()
+      : rawExpenseMeta.taxFeeLabel;
+    const transferFeeLabel = override?.transferFee?.trim()
+      ? override.transferFee.trim()
+      : rawExpenseMeta.transferFeeLabel;
+    return { promoEnabled, originalPriceLabel, taxFeeLabel, transferFeeLabel };
   }, [selectedVehicle, selectedVehicleOverride]);
+  const selectedVehicleTaxFeeAmount = useMemo(
+    () => parseCurrencyAmount(selectedVehiclePromoMeta.taxFeeLabel),
+    [selectedVehiclePromoMeta.taxFeeLabel],
+  );
+  const selectedVehicleTransferFeeAmount = useMemo(
+    () => parseCurrencyAmount(selectedVehiclePromoMeta.transferFeeLabel),
+    [selectedVehiclePromoMeta.transferFeeLabel],
+  );
+  const selectedVehicleTotalWithFeesAmount = useMemo(
+    () =>
+      selectedVehicleReferencePriceAmount +
+      selectedVehicleTaxFeeAmount +
+      selectedVehicleTransferFeeAmount,
+    [
+      selectedVehicleReferencePriceAmount,
+      selectedVehicleTaxFeeAmount,
+      selectedVehicleTransferFeeAmount,
+    ],
+  );
+  const selectedVehicleHasFeeBreakdown = useMemo(
+    () => selectedVehicleTaxFeeAmount > 0 || selectedVehicleTransferFeeAmount > 0,
+    [selectedVehicleTaxFeeAmount, selectedVehicleTransferFeeAmount],
+  );
 
   const selectedVehicleShareUrl = useMemo(() => {
     if (!selectedVehicle || typeof window === "undefined") return "";
@@ -3801,6 +3902,18 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   const selectedVehicleReferencePriceDisplay = useMemo(
     () => formatCurrencyAmount(selectedVehicleReferencePriceAmount),
     [selectedVehicleReferencePriceAmount],
+  );
+  const selectedVehicleTaxFeeDisplay = useMemo(
+    () => formatCurrencyAmount(selectedVehicleTaxFeeAmount),
+    [selectedVehicleTaxFeeAmount],
+  );
+  const selectedVehicleTransferFeeDisplay = useMemo(
+    () => formatCurrencyAmount(selectedVehicleTransferFeeAmount),
+    [selectedVehicleTransferFeeAmount],
+  );
+  const selectedVehicleTotalWithFeesDisplay = useMemo(
+    () => formatCurrencyAmount(selectedVehicleTotalWithFeesAmount),
+    [selectedVehicleTotalWithFeesAmount],
   );
 
   const selectedVehicleGalleryImages = useMemo(() => {
@@ -4944,7 +5057,12 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
 
   const updateVehiclePromoSettings = (
     itemKey: string,
-    patch: Partial<Pick<EditorVehicleDetails, "originalPrice" | "promoPrice" | "promoEnabled">>,
+    patch: Partial<
+      Pick<
+        EditorVehicleDetails,
+        "originalPrice" | "promoPrice" | "promoEnabled" | "taxFee" | "transferFee"
+      >
+    >,
   ) => {
     setConfig((prev) => {
       const nextDetails = { ...prev.vehicleDetails };
@@ -4961,6 +5079,12 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           : (currentDetails.originalPrice ?? "");
       const nextPromoPriceRaw =
         typeof patch.promoPrice === "string" ? patch.promoPrice : (currentDetails.promoPrice ?? "");
+      const nextTaxFeeRaw =
+        typeof patch.taxFee === "string" ? patch.taxFee : (currentDetails.taxFee ?? "");
+      const nextTransferFeeRaw =
+        typeof patch.transferFee === "string"
+          ? patch.transferFee
+          : (currentDetails.transferFee ?? "");
       const nextOriginalPrice = nextOriginalPriceRaw.trim();
       const nextPromoPrice = nextPromoPriceRaw.trim();
       const activePrice = nextPromoEnabled && nextPromoPrice ? nextPromoPriceRaw : nextOriginalPriceRaw;
@@ -4968,6 +5092,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       currentDetails.originalPrice = nextOriginalPriceRaw;
       currentDetails.promoPrice = nextPromoPriceRaw;
       currentDetails.promoEnabled = nextPromoEnabled;
+      currentDetails.taxFee = nextTaxFeeRaw;
+      currentDetails.transferFee = nextTransferFeeRaw;
       nextDetails[itemKey] = currentDetails;
 
       const nextVehiclePrices = { ...prev.vehiclePrices, [itemKey]: activePrice };
@@ -5731,9 +5857,12 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         originalPrice: "",
         promoPrice: "",
         promoEnabled: false,
+        taxFee: "",
+        transferFee: "",
       };
     }
     const rawMeta = getRawPromoMeta(managingItem.raw as Record<string, unknown>);
+    const rawExpenseMeta = getRawExpenseMeta(managingItem.raw as Record<string, unknown>);
     const details = config.vehicleDetails[managingVehicleKey];
     const originalPrice =
       details?.originalPrice?.trim() ??
@@ -5745,7 +5874,9 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       details?.promoPrice?.trim() ??
       rawMeta.promoPriceLabel ??
       (promoEnabled ? (config.vehiclePrices[managingVehicleKey] ?? "") : "");
-    return { originalPrice, promoPrice, promoEnabled };
+    const taxFee = details?.taxFee?.trim() ?? rawExpenseMeta.taxFeeLabel ?? "";
+    const transferFee = details?.transferFee?.trim() ?? rawExpenseMeta.transferFeeLabel ?? "";
+    return { originalPrice, promoPrice, promoEnabled, taxFee, transferFee };
   }, [config.vehicleDetails, config.vehiclePrices, managingItem, managingVehicleKey]);
   const finalizeAuction = useMemo(
     () =>
@@ -9413,9 +9544,38 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                           Precio promocional
                         </p>
                       ) : null}
-                      <p className="mt-1 text-xs text-slate-600">
-                        Valor + gastos de impuesto y transferencia.
-                      </p>
+                      {selectedVehicleHasFeeBreakdown ? (
+                        <div className="mt-2 rounded-md border border-stone-200 bg-white px-2 py-2 text-xs text-slate-700">
+                          <p className="font-semibold text-slate-800">Desglose referencial</p>
+                          <div className="mt-1 space-y-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <span>Valor base</span>
+                              <span className="font-medium">
+                                {selectedVehicleReferencePriceDisplay || selectedVehiclePriceLabel || "No informado"}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-2">
+                              <span>Impuestos</span>
+                              <span className="font-medium">{selectedVehicleTaxFeeDisplay || "No informado"}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-2">
+                              <span>Transferencia</span>
+                              <span className="font-medium">
+                                {selectedVehicleTransferFeeDisplay || "No informado"}
+                              </span>
+                            </div>
+                            <div className="mt-1 flex items-center justify-between gap-2 border-t border-stone-200 pt-1 text-sm font-bold text-slate-900">
+                              <span>Total</span>
+                              <span>{selectedVehicleTotalWithFeesDisplay || "No informado"}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="mt-1 text-xs text-slate-600">
+                          Valor referencial. Si se cargan impuestos y transferencia se mostraran en el
+                          desglose con total.
+                        </p>
+                      )}
                     </div>
                   </>
                 ) : null}
@@ -10585,6 +10745,26 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                         }
                       />
                     ) : null}
+                    <input
+                      className="ui-focus w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                      placeholder="Gasto impuestos CLP"
+                      value={managingVehiclePromoMeta.taxFee}
+                      onChange={(event) =>
+                        updateVehiclePromoSettings(managingVehicleKey, {
+                          taxFee: event.target.value,
+                        })
+                      }
+                    />
+                    <input
+                      className="ui-focus w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                      placeholder="Gasto transferencia CLP"
+                      value={managingVehiclePromoMeta.transferFee}
+                      onChange={(event) =>
+                        updateVehiclePromoSettings(managingVehicleKey, {
+                          transferFee: event.target.value,
+                        })
+                      }
+                    />
                   </div>
                   <select
                     className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm sm:col-span-2"

@@ -3850,6 +3850,14 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     () => selectedVehicleTaxFeeAmount > 0 || selectedVehicleTransferFeeAmount > 0,
     [selectedVehicleTaxFeeAmount, selectedVehicleTransferFeeAmount],
   );
+  const selectedVehicleHasTaxFee = useMemo(
+    () => selectedVehicleTaxFeeAmount > 0,
+    [selectedVehicleTaxFeeAmount],
+  );
+  const selectedVehicleHasTransferFee = useMemo(
+    () => selectedVehicleTransferFeeAmount > 0,
+    [selectedVehicleTransferFeeAmount],
+  );
 
   const selectedVehicleShareUrl = useMemo(() => {
     if (!selectedVehicle || typeof window === "undefined") return "";
@@ -5876,7 +5884,13 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       (promoEnabled ? (config.vehiclePrices[managingVehicleKey] ?? "") : "");
     const taxFee = details?.taxFee?.trim() ?? rawExpenseMeta.taxFeeLabel ?? "";
     const transferFee = details?.transferFee?.trim() ?? rawExpenseMeta.transferFeeLabel ?? "";
-    return { originalPrice, promoPrice, promoEnabled, taxFee, transferFee };
+    return {
+      originalPrice: toCurrencyInput(originalPrice),
+      promoPrice: toCurrencyInput(promoPrice),
+      promoEnabled,
+      taxFee: toCurrencyInput(taxFee),
+      transferFee: toCurrencyInput(transferFee),
+    };
   }, [config.vehicleDetails, config.vehiclePrices, managingItem, managingVehicleKey]);
   const finalizeAuction = useMemo(
     () =>
@@ -9554,16 +9568,18 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                                 {selectedVehicleReferencePriceDisplay || selectedVehiclePriceLabel || "No informado"}
                               </span>
                             </div>
-                            <div className="flex items-center justify-between gap-2">
-                              <span>Impuestos</span>
-                              <span className="font-medium">{selectedVehicleTaxFeeDisplay || "No informado"}</span>
-                            </div>
-                            <div className="flex items-center justify-between gap-2">
-                              <span>Transferencia</span>
-                              <span className="font-medium">
-                                {selectedVehicleTransferFeeDisplay || "No informado"}
-                              </span>
-                            </div>
+                            {selectedVehicleHasTaxFee ? (
+                              <div className="flex items-center justify-between gap-2">
+                                <span>Impuestos</span>
+                                <span className="font-medium">{selectedVehicleTaxFeeDisplay}</span>
+                              </div>
+                            ) : null}
+                            {selectedVehicleHasTransferFee ? (
+                              <div className="flex items-center justify-between gap-2">
+                                <span>Transferencia</span>
+                                <span className="font-medium">{selectedVehicleTransferFeeDisplay}</span>
+                              </div>
+                            ) : null}
                             <div className="mt-1 flex items-center justify-between gap-2 border-t border-stone-200 pt-1 text-sm font-bold text-slate-900">
                               <span>Total</span>
                               <span>{selectedVehicleTotalWithFeesDisplay || "No informado"}</span>
@@ -10717,7 +10733,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       value={managingVehiclePromoMeta.originalPrice}
                       onChange={(event) =>
                         updateVehiclePromoSettings(managingVehicleKey, {
-                          originalPrice: event.target.value,
+                          originalPrice: toCurrencyInput(event.target.value),
                         })
                       }
                     />
@@ -10740,7 +10756,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                         value={managingVehiclePromoMeta.promoPrice}
                         onChange={(event) =>
                           updateVehiclePromoSettings(managingVehicleKey, {
-                            promoPrice: event.target.value,
+                            promoPrice: toCurrencyInput(event.target.value),
                           })
                         }
                       />
@@ -10751,7 +10767,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       value={managingVehiclePromoMeta.taxFee}
                       onChange={(event) =>
                         updateVehiclePromoSettings(managingVehicleKey, {
-                          taxFee: event.target.value,
+                          taxFee: toCurrencyInput(event.target.value),
                         })
                       }
                     />
@@ -10761,7 +10777,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       value={managingVehiclePromoMeta.transferFee}
                       onChange={(event) =>
                         updateVehiclePromoSettings(managingVehicleKey, {
-                          transferFee: event.target.value,
+                          transferFee: toCurrencyInput(event.target.value),
                         })
                       }
                     />

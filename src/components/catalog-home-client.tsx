@@ -1889,6 +1889,16 @@ function HorizontalCardsRail({
     };
   }, [items.length, updateScrollArrows]);
 
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (!node) return;
+    // Evita "espacios en blanco" cuando cambia el set de tarjetas y el rail
+    // conserva un scroll horizontal previo fuera de rango.
+    node.scrollLeft = 0;
+    const raf = window.requestAnimationFrame(() => updateScrollArrows());
+    return () => window.cancelAnimationFrame(raf);
+  }, [sectionKey, items, updateScrollArrows]);
+
   const scrollByAmount = (direction: "left" | "right") => {
     const node = scrollRef.current;
     if (!node) return;
@@ -2019,14 +2029,7 @@ function Section({
   onOpenVehicle,
   cardDensity,
 }: SectionProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (window.matchMedia("(max-width: 767px)").matches) {
-      setIsExpanded(true);
-    }
-  }, []);
+  const [isExpanded, setIsExpanded] = useState(true);
 
   return (
     <section id={id} className="section-shell scroll-mt-24">
@@ -2182,6 +2185,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   const [homeSearchTerm, setHomeSearchTerm] = useState("");
   const [homeSort, setHomeSort] = useState<SortOption>("recomendado");
   const [topSectionFilter, setTopSectionFilter] = useState<"all" | SectionId>("all");
+  const [heroVisible, setHeroVisible] = useState(true);
   const [quickFilters, setQuickFilters] = useState<QuickFilterId[]>(() => {
     if (typeof window === "undefined") return [];
     try {
@@ -2815,6 +2819,13 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         setIsBootstrapping(false);
       }
     })();
+  }, []);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setHeroVisible(false);
+    }, 20_000);
+    return () => window.clearTimeout(timeout);
   }, []);
 
   useEffect(() => {
@@ -8914,7 +8925,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       ) : null}
       <div
         className={`transition-all duration-500 ease-out ${
-          hasActiveSearchOrQuickFilters
+          hasActiveSearchOrQuickFilters || !heroVisible
             ? "pointer-events-none max-h-0 -translate-y-2 overflow-hidden opacity-0"
             : "max-h-[1200px] translate-y-0 opacity-100"
         }`}
@@ -9350,7 +9361,10 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       </section>
 
       {selectedVehicle ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-2 backdrop-blur-sm md:p-5" onClick={closeSelectedVehicle}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-2 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-[calc(env(safe-area-inset-top)+6px)] backdrop-blur-sm md:p-5"
+          onClick={closeSelectedVehicle}
+        >
           <button
             type="button"
             onClick={closeSelectedVehicle}
@@ -9362,7 +9376,13 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               <path fillRule="evenodd" d="M4.22 4.22a.75.75 0 0 1 1.06 0L10 8.94l4.72-4.72a.75.75 0 1 1 1.06 1.06L11.06 10l4.72 4.72a.75.75 0 0 1-1.06 1.06L10 11.06l-4.72 4.72a.75.75 0 0 1-1.06-1.06L8.94 10 4.22 5.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
             </svg>
           </button>
-          <div role="dialog" aria-modal="true" aria-label={`Detalle de ${selectedVehicle.title}`} className="max-h-[96vh] w-full max-w-7xl overflow-auto rounded-2xl border border-stone-200 bg-gradient-to-br from-white via-white to-stone-100/40 p-3 shadow-2xl md:rounded-3xl md:p-6" onClick={(event) => event.stopPropagation()}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Detalle de ${selectedVehicle.title}`}
+            className="max-h-[96vh] w-full max-w-7xl overflow-auto rounded-2xl border border-stone-200 bg-gradient-to-br from-white via-white to-stone-100/40 p-3 pb-[calc(env(safe-area-inset-bottom)+14px)] shadow-2xl md:rounded-3xl md:p-6"
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="mb-4 rounded-2xl border border-slate-200/80 bg-white/80 p-4 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -9755,7 +9775,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 </div>
               </div>
             ) : null}
-            <div className="sticky bottom-0 z-20 mt-3 flex items-center gap-2 rounded-xl border border-slate-200 bg-white/95 p-2 shadow md:hidden">
+            <div className="sticky bottom-[calc(env(safe-area-inset-bottom)+6px)] z-20 mt-3 flex items-center gap-2 rounded-xl border border-slate-200 bg-white/95 p-2 shadow md:hidden">
               <a
                 href={selectedVehicleWhatsappUrl}
                 target="_blank"

@@ -870,6 +870,15 @@ function formatCompactNumber(value: number): string {
   return new Intl.NumberFormat("es-CL").format(value);
 }
 
+function formatMileageValue(value: unknown): string {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  const digits = raw.replace(/[^\d]/g, "");
+  const amount = Number(digits);
+  if (!Number.isFinite(amount) || amount <= 0) return raw;
+  return new Intl.NumberFormat("es-CL", { maximumFractionDigits: 0 }).format(Math.round(amount));
+}
+
 function parseCurrencyAmount(value?: string | null): number {
   if (!value?.trim()) return 0;
   const digits = value.replace(/[^\d]/g, "");
@@ -4152,14 +4161,23 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           ]),
         },
         {
-          label: "Categoria",
-          value: getVehicleCategoryLabel(
-            String(
-              selectedVehicleOverride?.category ??
-                getLookupValue(selectedVehicleLookup, ["categoria", "tipo_vehiculo", "tipo"]) ??
-                inferVehicleType(selectedVehicle),
-            ),
-          ),
+          label: "Kilometraje",
+          value: getLookupValue(selectedVehicleLookup, [
+            "kilometraje",
+            "km",
+            "kms",
+            "odometro",
+            "odometro",
+            "mileage",
+            "odometer",
+            "cav_campos.kilometraje",
+            "cav_campos.km",
+            "autored.kilometraje",
+            "autored.km",
+            "autored.odometro",
+            "autored.odometer",
+          ]),
+          formatter: formatMileageValue,
         },
         {
           label: "Condicion",
@@ -4177,24 +4195,6 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       ]),
       descripcion: [] as Array<[string, string]>,
       tecnica: toPairs([
-        {
-          label: "Kilometraje",
-          value: getLookupValue(selectedVehicleLookup, [
-            "kilometraje",
-            "km",
-            "kms",
-            "odometro",
-            "odometro",
-            "mileage",
-            "odometer",
-            "cav_campos.kilometraje",
-            "cav_campos.km",
-            "autored.kilometraje",
-            "autored.km",
-            "autored.odometro",
-            "autored.odometer",
-          ]),
-        },
         {
           label: "Color",
           value: getLookupValue(selectedVehicleLookup, [
@@ -9588,8 +9588,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                         </div>
                       ) : (
                         <p className="mt-1 text-xs text-slate-600">
-                          Valor referencial. Si se cargan impuestos y transferencia se mostraran en el
-                          desglose con total.
+                          Valor referencial.
                         </p>
                       )}
                     </div>

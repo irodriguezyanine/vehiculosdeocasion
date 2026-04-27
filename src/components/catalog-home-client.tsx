@@ -2019,6 +2019,8 @@ function Section({
   onOpenVehicle,
   cardDensity,
 }: SectionProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
   return (
     <section id={id} className="section-shell scroll-mt-24">
       <header className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -2027,14 +2029,50 @@ function Section({
           <h2 className="text-2xl font-bold text-[#2f1e13]">{title}</h2>
           <p className="mt-1 text-sm text-[#6f563f]">{subtitle}</p>
         </div>
-        <span className="inline-flex w-fit rounded-full border border-amber-300/70 bg-[#f3e3d4] px-3 py-1 text-xs font-semibold text-[#6b3d1e]">
-          {items.length} publicaciones
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="inline-flex w-fit rounded-full border border-amber-300/70 bg-[#f3e3d4] px-3 py-1 text-xs font-semibold text-[#6b3d1e]">
+            {items.length} publicaciones
+          </span>
+          {items.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => setIsExpanded((prev) => !prev)}
+              className="ui-focus inline-flex rounded-full border border-amber-300/70 bg-white px-3 py-1 text-xs font-semibold text-[#6b3d1e] transition hover:bg-[#fff6ec]"
+              aria-expanded={isExpanded}
+              aria-label={`${isExpanded ? "Contraer" : "Expandir"} seccion ${title}`}
+            >
+              {isExpanded ? "Contraer" : "Expandir"}
+            </button>
+          ) : null}
+        </div>
       </header>
 
       {items.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-amber-300/70 bg-[#f9efe5] p-6 text-sm text-[#7a614d]">
           No encontramos unidades en esta seccion. Prueba limpiar filtros o cambiar el tipo de vehiculo.
+        </div>
+      ) : isExpanded ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {items.map((item) => (
+            <CatalogCard
+              key={`${id}-expanded-${item.id}`}
+              item={item}
+              priceLabel={formatPrice(priceMap[getVehicleKey(item)])}
+              upcomingAuctionLabel={upcomingAuctionByVehicleKey?.[getVehicleKey(item)]}
+              density={cardDensity}
+              onOpen={() => onOpenVehicle(item)}
+              isFavorite={favoriteKeys.includes(getVehicleKey(item))}
+              onToggleFavorite={() => onToggleFavorite(getVehicleKey(item))}
+              isCompared={compareKeys.includes(getVehicleKey(item))}
+              onToggleCompare={() => onToggleCompare(getVehicleKey(item))}
+              onWhatsappClick={() =>
+                trackEvent("whatsapp_click_card", {
+                  section: id,
+                  itemKey: getVehicleKey(item),
+                })
+              }
+            />
+          ))}
         </div>
       ) : (
         <HorizontalCardsRail

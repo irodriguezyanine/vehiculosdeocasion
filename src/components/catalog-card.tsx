@@ -119,6 +119,7 @@ function getVehicleSpecs(
   key: string;
   label: string;
   icon: "km" | "year" | "fuel" | "gear" | "engineTest" | "movementTest";
+  wide?: boolean;
 }> {
   const raw = item.raw as Record<string, unknown>;
   const mileage = normalizeMileage(
@@ -152,17 +153,19 @@ function getVehicleSpecs(
     key: string;
     label: string;
     icon: "km" | "year" | "fuel" | "gear" | "engineTest" | "movementTest";
+    wide?: boolean;
   }> = [];
   if (mileage) specs.push({ key: "km", label: mileage, icon: "km" });
   if (year) specs.push({ key: "year", label: year, icon: "year" });
   if (fuel) specs.push({ key: "fuel", label: fuel, icon: "fuel" });
   if (transmission) specs.push({ key: "gear", label: transmission, icon: "gear" });
-  if (motorTest) specs.push({ key: "engineTest", label: `Motor: ${motorTest}`, icon: "engineTest" });
+  if (motorTest) specs.push({ key: "engineTest", label: motorTest, icon: "engineTest", wide: true });
   if (movementTest) {
     specs.push({
       key: "movementTest",
-      label: `Desplazamiento: ${movementTest}`,
+      label: movementTest,
       icon: "movementTest",
+      wide: true,
     });
   }
   return specs.slice(0, 6);
@@ -467,13 +470,20 @@ export function CatalogCard({
           </div>
 
           {vehicleSpecs.length > 0 ? (
-            <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm text-[#4f5a66]">
+            <div className="rounded-lg border border-amber-200/60 bg-[#faf6f1] p-2.5">
+              <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm text-[#4f5a66]">
               {vehicleSpecs.map((spec) => (
-                <div key={spec.key} className="flex items-center gap-2">
+                <div
+                  key={spec.key}
+                  className={`flex items-center gap-2 ${spec.wide ? "col-span-2" : ""}`}
+                >
                   <SpecIcon icon={spec.icon} />
-                  <span className="truncate">{spec.label}</span>
+                  <span className={`${spec.wide ? "text-xs font-semibold uppercase tracking-[0.01em]" : "truncate"} text-[#5a616d]`}>
+                    {spec.label}
+                  </span>
                 </div>
               ))}
+              </div>
             </div>
           ) : null}
           {(item.lot || formattedDate || item.location || upcomingAuctionLabel) ? (
@@ -499,7 +509,7 @@ export function CatalogCard({
             </div>
           ) : null}
 
-          <div className="mt-auto flex items-center justify-between border-t border-amber-200/70 pt-3">
+          <div className="mt-auto border-t border-amber-200/70 pt-3">
             <div className="flex flex-col">
               {promoEnabled && originalPriceLabel && priceLabel ? (
                 <span className="text-xs text-[#9b856f] line-through">{originalPriceLabel}</span>
@@ -544,17 +554,7 @@ export function CatalogCard({
                   ) : null}
                 </div>
               ) : null}
-              <span className="text-xs text-[#7a624f]">
-                {item.images.length} foto{item.images.length === 1 ? "" : "s"}
-              </span>
             </div>
-            {item.view3dUrl ? (
-              <span className="rounded-md border border-amber-300 bg-amber-100 px-3 py-1.5 text-xs font-medium text-[#6b3d1e]">
-                Ver detalle 3D
-              </span>
-            ) : (
-              <span className="text-xs text-[#99816b]">Ver detalle</span>
-            )}
           </div>
         </div>
       </div>

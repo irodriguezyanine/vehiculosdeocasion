@@ -94,6 +94,85 @@ function getVehicleCondition(item: CatalogItem): string | null {
   return value?.trim() ?? null;
 }
 
+function getFirstRawValue(raw: Record<string, unknown>, keys: string[]): string | null {
+  for (const key of keys) {
+    const value = raw[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  }
+  return null;
+}
+
+function normalizeMileage(value: string | null): string | null {
+  if (!value) return null;
+  const compact = value.trim();
+  if (!compact) return null;
+  const digits = compact.replace(/[^\d]/g, "");
+  if (!digits) return compact;
+  const formatted = Number(digits).toLocaleString("es-CL");
+  return `${formatted} kms.`;
+}
+
+function getVehicleSpecs(item: CatalogItem): Array<{ key: string; label: string; icon: "km" | "year" | "fuel" | "gear" }> {
+  const raw = item.raw as Record<string, unknown>;
+  const mileage = normalizeMileage(
+    getFirstRawValue(raw, [
+      "kilometraje",
+      "km",
+      "kms",
+      "odometro",
+      "odómetro",
+      "glo3d.kilometraje",
+    ]),
+  );
+  const year = getFirstRawValue(raw, ["ano", "anio", "year", "glo3d.year"]);
+  const fuel = getFirstRawValue(raw, ["combustible", "fuel", "glo3d.combustible"]);
+  const transmission = getFirstRawValue(raw, ["transmision", "transmisión", "caja", "transmission", "glo3d.transmision"]);
+  const specs: Array<{ key: string; label: string; icon: "km" | "year" | "fuel" | "gear" }> = [];
+  if (mileage) specs.push({ key: "km", label: mileage, icon: "km" });
+  if (year) specs.push({ key: "year", label: year, icon: "year" });
+  if (fuel) specs.push({ key: "fuel", label: fuel, icon: "fuel" });
+  if (transmission) specs.push({ key: "gear", label: transmission, icon: "gear" });
+  return specs.slice(0, 4);
+}
+
+function SpecIcon({ icon }: { icon: "km" | "year" | "fuel" | "gear" }) {
+  if (icon === "km") {
+    return (
+      <svg viewBox="0 0 20 20" className="h-4 w-4 text-[#7a624f]" fill="none" aria-hidden="true">
+        <circle cx="10" cy="10" r="6.8" stroke="currentColor" strokeWidth="1.6" />
+        <path d="M10 10 13.5 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        <circle cx="10" cy="10" r="1.1" fill="currentColor" />
+      </svg>
+    );
+  }
+  if (icon === "year") {
+    return (
+      <svg viewBox="0 0 20 20" className="h-4 w-4 text-[#7a624f]" fill="none" aria-hidden="true">
+        <rect x="3.5" y="4.5" width="13" height="11.5" rx="1.8" stroke="currentColor" strokeWidth="1.6" />
+        <path d="M6.5 3.5v2M13.5 3.5v2M3.5 8h13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (icon === "fuel") {
+    return (
+      <svg viewBox="0 0 20 20" className="h-4 w-4 text-[#7a624f]" fill="none" aria-hidden="true">
+        <path d="M4.5 4.5h6v11h-6z" stroke="currentColor" strokeWidth="1.6" />
+        <path d="M10.5 7h1.8l1.4 1.6v4.4a1.7 1.7 0 0 0 3.4 0V9.8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 20 20" className="h-4 w-4 text-[#7a624f]" fill="none" aria-hidden="true">
+      <path d="M4.5 4.5v11M8 4.5v11M12 4.5v11M15.5 4.5v11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <circle cx="4.5" cy="10" r="1.3" fill="currentColor" />
+      <circle cx="8" cy="10" r="1.3" fill="currentColor" />
+      <circle cx="12" cy="10" r="1.3" fill="currentColor" />
+      <circle cx="15.5" cy="10" r="1.3" fill="currentColor" />
+    </svg>
+  );
+}
+
 function getConditionBadgeClasses(condition?: string | null): string {
   const sample = (condition ?? "")
     .toLowerCase()
@@ -162,6 +241,7 @@ export function CatalogCard({
   )}&type=phone_number&app_absent=0`;
   const isCompact = density === "compact";
   const editablePrice = editablePriceValue ?? (priceLabel ?? "");
+  const vehicleSpecs = useMemo(() => getVehicleSpecs(item), [item]);
 
   useEffect(() => {
     setCoverSrc(cover);
@@ -335,26 +415,38 @@ export function CatalogCard({
             ) : null}
           </div>
 
-          <div className="flex min-h-[2.6rem] min-w-0 flex-wrap content-start gap-2 text-xs text-[#604734]">
-            {item.lot ? (
-              <span className="max-w-full truncate rounded-full border border-amber-300/60 bg-[#f4ebe2] px-2 py-1">Lote {item.lot}</span>
-            ) : null}
-            {formattedDate ? (
-              <span className="max-w-full truncate rounded-full border border-amber-300/60 bg-[#f4ebe2] px-2 py-1">
-                Fecha {formattedDate}
-              </span>
-            ) : null}
-            {item.location ? (
-              <span className="max-w-full truncate rounded-full border border-amber-300/60 bg-[#f4ebe2] px-2 py-1">
-                {shortText(item.location, 35)}
-              </span>
-            ) : null}
-            {upcomingAuctionLabel ? (
-              <span className="max-w-full truncate rounded-full border border-amber-300/70 bg-[#eddccf] px-2 py-1 font-semibold text-[#6c3e1f]">
-                {shortText(`Categoria: ${upcomingAuctionLabel}`, 38)}
-              </span>
-            ) : null}
-          </div>
+          {vehicleSpecs.length > 0 ? (
+            <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm text-[#4f5a66]">
+              {vehicleSpecs.map((spec) => (
+                <div key={spec.key} className="flex items-center gap-2">
+                  <SpecIcon icon={spec.icon} />
+                  <span className="truncate">{spec.label}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          {(item.lot || formattedDate || item.location || upcomingAuctionLabel) ? (
+            <div className="flex min-w-0 flex-wrap content-start gap-2 text-xs text-[#604734]">
+              {item.lot ? (
+                <span className="max-w-full truncate rounded-full border border-amber-300/60 bg-[#f4ebe2] px-2 py-1">Lote {item.lot}</span>
+              ) : null}
+              {formattedDate ? (
+                <span className="max-w-full truncate rounded-full border border-amber-300/60 bg-[#f4ebe2] px-2 py-1">
+                  Fecha {formattedDate}
+                </span>
+              ) : null}
+              {item.location ? (
+                <span className="max-w-full truncate rounded-full border border-amber-300/60 bg-[#f4ebe2] px-2 py-1">
+                  {shortText(item.location, 35)}
+                </span>
+              ) : null}
+              {upcomingAuctionLabel ? (
+                <span className="max-w-full truncate rounded-full border border-amber-300/70 bg-[#eddccf] px-2 py-1 font-semibold text-[#6c3e1f]">
+                  {shortText(`Categoria: ${upcomingAuctionLabel}`, 38)}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="mt-auto flex items-center justify-between border-t border-amber-200/70 pt-3">
             <div className="flex flex-col">

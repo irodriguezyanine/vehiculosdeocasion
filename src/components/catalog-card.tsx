@@ -113,7 +113,13 @@ function normalizeMileage(value: string | null): string | null {
   return `${formatted} kms.`;
 }
 
-function getVehicleSpecs(item: CatalogItem): Array<{ key: string; label: string; icon: "km" | "year" | "fuel" | "gear" }> {
+function getVehicleSpecs(
+  item: CatalogItem,
+): Array<{
+  key: string;
+  label: string;
+  icon: "km" | "year" | "fuel" | "gear" | "engineTest" | "movementTest";
+}> {
   const raw = item.raw as Record<string, unknown>;
   const mileage = normalizeMileage(
     getFirstRawValue(raw, [
@@ -128,15 +134,45 @@ function getVehicleSpecs(item: CatalogItem): Array<{ key: string; label: string;
   const year = getFirstRawValue(raw, ["ano", "anio", "year", "glo3d.year"]);
   const fuel = getFirstRawValue(raw, ["combustible", "fuel", "glo3d.combustible"]);
   const transmission = getFirstRawValue(raw, ["transmision", "transmisión", "caja", "transmission", "glo3d.transmision"]);
-  const specs: Array<{ key: string; label: string; icon: "km" | "year" | "fuel" | "gear" }> = [];
+  const motorTest = getFirstRawValue(raw, [
+    "prueba_motor",
+    "pdm",
+    "pruebaMotor",
+    "motor_test",
+    "glo3d.prueba_motor",
+  ]);
+  const movementTest = getFirstRawValue(raw, [
+    "prueba_desplazamiento",
+    "pdd",
+    "pruebaDesplazamiento",
+    "movement_test",
+    "glo3d.prueba_desplazamiento",
+  ]);
+  const specs: Array<{
+    key: string;
+    label: string;
+    icon: "km" | "year" | "fuel" | "gear" | "engineTest" | "movementTest";
+  }> = [];
   if (mileage) specs.push({ key: "km", label: mileage, icon: "km" });
   if (year) specs.push({ key: "year", label: year, icon: "year" });
   if (fuel) specs.push({ key: "fuel", label: fuel, icon: "fuel" });
   if (transmission) specs.push({ key: "gear", label: transmission, icon: "gear" });
-  return specs.slice(0, 4);
+  if (motorTest) specs.push({ key: "engineTest", label: `Motor: ${motorTest}`, icon: "engineTest" });
+  if (movementTest) {
+    specs.push({
+      key: "movementTest",
+      label: `Desplazamiento: ${movementTest}`,
+      icon: "movementTest",
+    });
+  }
+  return specs.slice(0, 6);
 }
 
-function SpecIcon({ icon }: { icon: "km" | "year" | "fuel" | "gear" }) {
+function SpecIcon({
+  icon,
+}: {
+  icon: "km" | "year" | "fuel" | "gear" | "engineTest" | "movementTest";
+}) {
   if (icon === "km") {
     return (
       <svg viewBox="0 0 20 20" className="h-4 w-4 text-[#7a624f]" fill="none" aria-hidden="true">
@@ -159,6 +195,21 @@ function SpecIcon({ icon }: { icon: "km" | "year" | "fuel" | "gear" }) {
       <svg viewBox="0 0 20 20" className="h-4 w-4 text-[#7a624f]" fill="none" aria-hidden="true">
         <path d="M4.5 4.5h6v11h-6z" stroke="currentColor" strokeWidth="1.6" />
         <path d="M10.5 7h1.8l1.4 1.6v4.4a1.7 1.7 0 0 0 3.4 0V9.8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  if (icon === "engineTest") {
+    return (
+      <svg viewBox="0 0 20 20" className="h-4 w-4 text-[#7a624f]" fill="none" aria-hidden="true">
+        <rect x="3.5" y="7" width="9.8" height="6" rx="1.2" stroke="currentColor" strokeWidth="1.6" />
+        <path d="M13.3 8.4h2.2M13.3 11.6h2.2M6.4 7V5.4M10.4 7V5.4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (icon === "movementTest") {
+    return (
+      <svg viewBox="0 0 20 20" className="h-4 w-4 text-[#7a624f]" fill="none" aria-hidden="true">
+        <path d="M4 10h9.8M10.8 6l3.5 4-3.5 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     );
   }

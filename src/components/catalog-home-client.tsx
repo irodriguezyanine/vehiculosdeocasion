@@ -2183,6 +2183,10 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   const [saving, setSaving] = useState(false);
   const [autoSaveState, setAutoSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [lastAutoSaveAt, setLastAutoSaveAt] = useState<string>("");
+  const [serverSaveStatus, setServerSaveStatus] = useState<"checking" | "ready" | "blocked">(
+    "checking",
+  );
+  const [serverSaveMessage, setServerSaveMessage] = useState("");
   const [activeTypeTab, setActiveTypeTab] = useState<VehicleTypeId>("livianos");
   const [homeSearchTerm, setHomeSearchTerm] = useState("");
   const [homeSort, setHomeSort] = useState<SortOption>("recomendado");
@@ -2791,37 +2795,97 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     });
   }, [showOfferModal, selectedVehicle, config.vehiclePrices]);
 
+  const verifyServerPersistence = useCallback(async (configToVerify: EditorConfig) => {
+    setServerSaveStatus("checking");
+    setServerSaveMessage("");
+    try {
+      const response = await fetch("/api/admin/editor-config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ config: configToVerify }),
+      });
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) {
+        if (response.status === 401) {
+          setIsAdmin(false);
+          setAdminView("home");
+          setShowLogin(true);
+        }
+        const errorMessage =
+          payload.error ??
+          "No se pudo validar el guardado global en servidor. La edicion queda bloqueada.";
+        setServerSaveStatus("blocked");
+        setServerSaveMessage(errorMessage);
+        setAutoSaveState("error");
+        return { ok: false as const, error: errorMessage };
+      }
+      setServerSaveStatus("ready");
+      setServerSaveMessage("");
+      setAutoSaveState("saved");
+      setLastAutoSaveAt(new Date().toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" }));
+      return { ok: true as const };
+    } catch {
+      const errorMessage =
+        "No hay conexion con el guardado global. La edicion queda bloqueada hasta recuperar el servidor.";
+      setServerSaveStatus("blocked");
+      setServerSaveMessage(errorMessage);
+      setAutoSaveState("error");
+      return { ok: false as const, error: errorMessage };
+    }
+  }, []);
+
   useEffect(() => {
     void (async () => {
+      let localFallbackConfig: EditorConfig | null = null;
       try {
         const local = localStorage.getItem(EDITOR_STORAGE_KEY);
         if (local) {
           const parsed = JSON.parse(local) as Partial<EditorConfig>;
-          setConfig(normalizeEditorConfigClient(parsed));
+          localFallbackConfig = normalizeEditorConfigClient(parsed);
         }
 
-        const sessionRes = await fetch("/api/admin/session", { cache: "no-store" });
+        const sessionRes = await fetch("/api/admin/session", {
+          cache: "no-store",
+          credentials: "include",
+        });
         const session = (await sessionRes.json()) as { loggedIn?: boolean };
         const loggedIn = Boolean(session.loggedIn);
         setIsAdmin(loggedIn);
         setAdminView("home");
 
-        const configRes = await fetch("/api/admin/editor-config", { cache: "no-store" });
+        let resolvedConfig = localFallbackConfig ?? normalizeEditorConfigClient(initialConfig);
+        const configRes = await fetch("/api/admin/editor-config", {
+          cache: "no-store",
+          credentials: "include",
+        });
         if (configRes.ok) {
-          const payload = (await configRes.json()) as { config?: EditorConfig; persisted?: boolean };
-          const shouldUseServerConfig = Boolean(payload.persisted) || !local;
-          if (payload.config && shouldUseServerConfig) {
+          const payload = (await configRes.json()) as { config?: EditorConfig };
+          if (payload.config) {
             const normalized = normalizeEditorConfigClient(payload.config);
+            resolvedConfig = normalized;
             setConfig(normalized);
             localStorage.setItem(EDITOR_STORAGE_KEY, JSON.stringify(normalized));
-            return;
           }
+        }
+        if (!configRes.ok && localFallbackConfig) {
+          resolvedConfig = localFallbackConfig;
+          setConfig(localFallbackConfig);
+        } else if (!configRes.ok && !localFallbackConfig) {
+          setConfig(resolvedConfig);
+        }
+
+        if (loggedIn) {
+          await verifyServerPersistence(resolvedConfig);
+        } else {
+          setServerSaveStatus("checking");
+          setServerSaveMessage("");
         }
       } finally {
         setIsBootstrapping(false);
       }
     })();
-  }, []);
+  }, [initialConfig, verifyServerPersistence]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -2848,7 +2912,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       }
     };
 
-    const onPointerDown = (event: MouseEvent | TouchEvent) => {
+    const onPointerDown = (event: globalThis.MouseEvent | globalThis.TouchEvent) => {
       closeOpenMenus(event.target);
     };
 
@@ -2958,7 +3022,10 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       setOffersLoading(true);
       setOffersError("");
       try {
-        const response = await fetch("/api/admin/offers?limit=5000", { cache: "no-store" });
+        const response = await fetch("/api/admin/offers?limit=5000", {
+          cache: "no-store",
+          credentials: "include",
+        });
         const payload = (await response.json().catch(() => ({}))) as {
           ok?: boolean;
           offers?: OfferRecord[];
@@ -2966,6 +3033,16 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         };
         if (!response.ok || !payload.ok || !Array.isArray(payload.offers)) {
           if (!cancelled) {
+            if (response.status === 401) {
+              setIsAdmin(false);
+              setAdminView("home");
+              setShowLogin(true);
+              showSystemNotice(
+                "error",
+                "Sesion expirada",
+                "Tu sesion de administrador expiro. Inicia sesion nuevamente para ver ofertas y guardar cambios en servidor.",
+              );
+            }
             setOffersRows([]);
             setOffersError(payload.error ?? "No se pudieron cargar las ofertas.");
           }
@@ -5799,11 +5876,20 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     });
   };
 
-  const openDetailsEditor = (item: CatalogItem) => {
+  const openDetailsEditor = (item: CatalogItem, initialTab: DetailEditorTabId = "general") => {
+    if (!isAdmin || serverSaveStatus !== "ready") {
+      showSystemNotice(
+        "error",
+        "Edicion bloqueada",
+        serverSaveMessage ||
+          "No se puede editar porque el guardado global en servidor no esta disponible.",
+      );
+      return;
+    }
     const key = getVehicleKey(item);
     setEditingVehicleKey(key);
     setEditingDetails(buildDetailsDraft(item, config.vehicleDetails[key]));
-    setDetailEditorTab("general");
+    setDetailEditorTab(initialTab);
   };
 
   const saveDetailsEditor = () => {
@@ -5835,30 +5921,54 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   const persistEditorConfig = useCallback(async (nextConfig: EditorConfig) => {
     setSaving(true);
     setAutoSaveState("saving");
-    localStorage.setItem(EDITOR_STORAGE_KEY, JSON.stringify(nextConfig));
     const response = await fetch("/api/admin/editor-config", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({ config: nextConfig }),
     });
+    const payload = (await response.json().catch(() => ({}))) as { error?: string };
     setSaving(false);
     if (!response.ok) {
       setAutoSaveState("error");
+      if (response.status === 401) {
+        setIsAdmin(false);
+        setAdminView("home");
+        setShowLogin(true);
+        setServerSaveStatus("blocked");
+        setServerSaveMessage("Sesion vencida. Inicia sesion para habilitar guardado global.");
+        showSystemNotice(
+          "error",
+          "Sesion expirada",
+          "Inicia sesion nuevamente para volver a habilitar la edicion y el guardado global.",
+        );
+        return;
+      }
+      const errorMessage =
+        payload.error ??
+        "No se pudo guardar en servidor. La edicion queda bloqueada para evitar cambios solo locales.";
+      setServerSaveStatus("blocked");
+      setServerSaveMessage(errorMessage);
+      setAdminView("home");
+      setEditingVehicleKey(null);
+      setManagingVehicleKey(null);
       showSystemNotice(
-        "info",
-        "Guardado local activo",
-        "Los cambios se guardaron en este navegador. El guardado central en servidor esta temporalmente no disponible.",
+        "error",
+        "Edicion bloqueada",
+        errorMessage,
       );
       return;
     }
+    localStorage.setItem(EDITOR_STORAGE_KEY, JSON.stringify(nextConfig));
+    setServerSaveStatus("ready");
+    setServerSaveMessage("");
     setAutoSaveState("saved");
     setLastAutoSaveAt(new Date().toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" }));
     lastPersistedConfigRef.current = JSON.stringify(nextConfig);
   }, [showSystemNotice]);
 
   useEffect(() => {
-    const isAdminEditorOpen = isAdmin && adminView === "editor";
-    if (isBootstrapping || !isAdminEditorOpen) return;
+    if (isBootstrapping || !isAdmin || serverSaveStatus !== "ready") return;
     const serializedConfig = JSON.stringify(config);
     if (!autoSaveReadyRef.current) {
       autoSaveReadyRef.current = true;
@@ -5870,17 +5980,17 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       void persistEditorConfig(config);
     }, 550);
     return () => window.clearTimeout(timeout);
-  }, [adminView, config, isAdmin, isBootstrapping, persistEditorConfig]);
+  }, [config, isAdmin, isBootstrapping, persistEditorConfig, serverSaveStatus]);
 
   useEffect(() => {
     const previousAdminView = previousAdminViewRef.current;
     previousAdminViewRef.current = adminView;
     const leavingEditor = previousAdminView === "editor" && adminView !== "editor";
-    if (!leavingEditor || isBootstrapping || !isAdmin) return;
+    if (!leavingEditor || isBootstrapping || !isAdmin || serverSaveStatus !== "ready") return;
     const serializedConfig = JSON.stringify(config);
     if (serializedConfig === lastPersistedConfigRef.current) return;
     void persistEditorConfig(config);
-  }, [adminView, config, isAdmin, isBootstrapping, persistEditorConfig]);
+  }, [adminView, config, isAdmin, isBootstrapping, persistEditorConfig, serverSaveStatus]);
 
   const revalidateInventory = async () => {
     setRevalidating(true);
@@ -5909,6 +6019,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     const response = await fetch("/api/admin/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({ email: loginEmail, password: loginPassword }),
     });
     if (!response.ok) {
@@ -5917,20 +6028,77 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       trackEvent("admin_login_failed");
       return;
     }
+    const sessionRes = await fetch("/api/admin/session", {
+      cache: "no-store",
+      credentials: "include",
+    });
+    const sessionPayload = (await sessionRes.json().catch(() => ({}))) as { loggedIn?: boolean };
+    if (!sessionPayload.loggedIn) {
+      setLoginError("No se pudo crear la sesion del navegador. Revisa cookies/permisos y vuelve a intentar.");
+      trackEvent("admin_login_failed");
+      return;
+    }
+    const persistenceCheck = await verifyServerPersistence(config);
     setShowLogin(false);
     setLoginPassword("");
     setIsAdmin(true);
+    if (!persistenceCheck.ok) {
+      setAdminView("home");
+      showSystemNotice(
+        "error",
+        "Edicion bloqueada",
+        persistenceCheck.error ??
+          "No se puede editar hasta recuperar el guardado global en servidor.",
+      );
+      trackEvent("admin_login_success");
+      return;
+    }
     setAdminView("editor");
     setMobileMenuOpen(false);
     trackEvent("admin_login_success");
   };
 
   const logout = async () => {
-    await fetch("/api/admin/logout", { method: "POST" });
+    await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
     setIsAdmin(false);
     setAdminView("home");
     setMobileMenuOpen(false);
+    setServerSaveStatus("checking");
+    setServerSaveMessage("");
     trackEvent("admin_logout");
+  };
+
+  const openAdminEditorView = () => {
+    if (!isAdmin) return;
+    if (serverSaveStatus !== "ready") {
+      setAdminView("home");
+      showSystemNotice(
+        "error",
+        "Edicion bloqueada",
+        serverSaveMessage ||
+          "No se puede editar porque el guardado global en servidor no esta disponible.",
+      );
+      return;
+    }
+    setAdminView("editor");
+  };
+
+  const retryServerSaveCheck = async () => {
+    if (!isAdmin) return;
+    const result = await verifyServerPersistence(config);
+    if (!result.ok) {
+      showSystemNotice(
+        "error",
+        "Guardado global no disponible",
+        result.error ?? "No se pudo reconectar al servidor de guardado.",
+      );
+      return;
+    }
+    showSystemNotice(
+      "success",
+      "Guardado global activo",
+      "La edicion vuelve a estar habilitada para todos.",
+    );
   };
 
   const topSectionTabs: Array<{ id: SectionId; label: string }> = [
@@ -5947,6 +6115,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
+  const canAdminEditNow = isAdmin && serverSaveStatus === "ready";
   const showAdminEditor = isAdmin && adminView === "editor";
   const showPublicHome = !isAdmin || adminView === "home";
   const hasActiveSearch = homeSearchTerm.trim().length > 0;
@@ -6637,7 +6806,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   ) : (
                     <button
                       className="ui-focus rounded-full border border-amber-300 bg-stone-100 px-3 py-1 text-xs text-amber-800 transition hover:-translate-y-0.5 hover:bg-stone-200"
-                      onClick={() => setAdminView("editor")}
+                      onClick={openAdminEditorView}
                     >
                       Volver al editor
                     </button>
@@ -6689,7 +6858,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       <button
                         className="ui-focus flex-1 rounded-full border border-amber-300 bg-stone-100 px-3 py-1 text-xs text-amber-800"
                         onClick={() => {
-                          setAdminView("editor");
+                          openAdminEditorView();
                           setMobileMenuOpen(false);
                         }}
                       >
@@ -6711,6 +6880,36 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           {feed.warning ? (
             <p className="rounded-md border border-amber-300/60 bg-amber-100 px-3 py-2 text-sm text-amber-900">{feed.warning}</p>
           ) : null}
+          {isAdmin ? (
+            <div
+              className={`flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs font-semibold ${
+                serverSaveStatus === "ready"
+                  ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+                  : serverSaveStatus === "checking"
+                    ? "border-amber-300 bg-amber-50 text-amber-800"
+                    : "border-rose-300 bg-rose-50 text-rose-800"
+              }`}
+            >
+              <span>
+                {serverSaveStatus === "ready"
+                  ? "Guardado global activo: todo cambio se persiste para todos."
+                  : serverSaveStatus === "checking"
+                    ? "Verificando guardado global en servidor..."
+                    : `Edicion bloqueada: ${serverSaveMessage || "servidor no disponible"}`}
+              </span>
+              {serverSaveStatus !== "ready" ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void retryServerSaveCheck();
+                  }}
+                  className="ui-focus rounded-full border border-current px-3 py-1 text-[11px] font-bold"
+                >
+                  Reintentar conexion
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </section>
 
@@ -6725,8 +6924,10 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               <div className="flex flex-wrap items-center gap-2">
                 <span
                   className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                    autoSaveState === "error"
+                    serverSaveStatus === "blocked" || autoSaveState === "error"
                       ? "border border-rose-200 bg-rose-50 text-rose-700"
+                      : serverSaveStatus === "checking"
+                        ? "border border-amber-200 bg-amber-50 text-amber-700"
                       : autoSaveState === "saving" || saving
                         ? "border border-amber-200 bg-amber-50 text-amber-700"
                         : autoSaveState === "saved"
@@ -6734,8 +6935,12 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                           : "border border-slate-200 bg-slate-100 text-slate-600"
                   }`}
                 >
-                  {autoSaveState === "error"
-                    ? "Guardado local en este navegador (servidor no disponible)"
+                  {serverSaveStatus === "blocked"
+                    ? "Edicion bloqueada (sin guardado global)"
+                    : serverSaveStatus === "checking"
+                      ? "Verificando guardado global..."
+                    : autoSaveState === "error"
+                      ? "Error de guardado en servidor"
                     : autoSaveState === "saving" || saving
                       ? "Guardando cambios..."
                       : autoSaveState === "saved"
@@ -9566,7 +9771,28 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 ) : null}
               </div>
               <div className="vehicle-detail-summary h-[420px] overflow-y-auto rounded-2xl p-4 shadow-sm">
-                <h4 className="mb-3 text-base font-semibold text-slate-900">Resumen del vehiculo</h4>
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <h4 className="text-base font-semibold text-slate-900">Resumen del vehiculo</h4>
+                  {canAdminEditNow && selectedVehicle ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        openDetailsEditor(
+                          selectedVehicle,
+                          selectedVehicleTab === "tecnica" ? "tecnica" : "general",
+                        )
+                      }
+                      className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded-full border border-amber-300 bg-amber-50 text-amber-800 transition hover:bg-amber-100"
+                      title="Editar ficha de este vehiculo"
+                      aria-label="Editar ficha de este vehiculo"
+                    >
+                      <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+                        <path d="M13.9 3.6a1.8 1.8 0 0 1 2.5 2.5l-8.6 8.6-3.3.8.8-3.3 8.6-8.6Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="m12.4 5.1 2.5 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                  ) : null}
+                </div>
                 <div className="mb-3 flex flex-wrap gap-2">
                   {selectedVehicleTabs.map((tab) => (
                     <button
@@ -9636,7 +9862,28 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   <dl className="grid grid-cols-2 gap-2 text-sm">
                     {selectedVehicleFieldsByTab[selectedVehicleTab].map(([label, value]) => (
                       <div key={label} className="min-w-0 rounded-md bg-white p-2">
-                        <dt className="text-xs uppercase text-slate-500">{label}</dt>
+                        <div className="flex items-start justify-between gap-2">
+                          <dt className="text-xs uppercase text-slate-500">{label}</dt>
+                          {canAdminEditNow && selectedVehicle ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                openDetailsEditor(
+                                  selectedVehicle,
+                                  selectedVehicleTab === "tecnica" ? "tecnica" : "general",
+                                )
+                              }
+                              className="ui-focus inline-flex h-6 w-6 items-center justify-center rounded-full border border-amber-300 bg-amber-50 text-amber-800 transition hover:bg-amber-100"
+                              title={`Editar ${label.toLowerCase()}`}
+                              aria-label={`Editar ${label.toLowerCase()}`}
+                            >
+                              <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" aria-hidden="true">
+                                <path d="M13.9 3.6a1.8 1.8 0 0 1 2.5 2.5l-8.6 8.6-3.3.8.8-3.3 8.6-8.6Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                                <path d="m12.4 5.1 2.5 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            </button>
+                          ) : null}
+                        </div>
                         <dd className="break-words font-medium text-slate-800 [overflow-wrap:anywhere]">
                           {value}
                         </dd>
@@ -9647,7 +9894,23 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 {selectedVehicleTab === "general" ? (
                   <>
                     <div className="mt-2 rounded-md border border-stone-200 bg-stone-100/60 p-3">
-                      <p className="text-xs uppercase tracking-wide text-amber-800">Precio referencial</p>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-xs uppercase tracking-wide text-amber-800">Precio referencial</p>
+                        {canAdminEditNow && selectedVehicle ? (
+                          <button
+                            type="button"
+                            onClick={() => openDetailsEditor(selectedVehicle, "general")}
+                            className="ui-focus inline-flex h-6 w-6 items-center justify-center rounded-full border border-amber-300 bg-white text-amber-800 transition hover:bg-amber-50"
+                            title="Editar precios y desglose"
+                            aria-label="Editar precios y desglose"
+                          >
+                            <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" aria-hidden="true">
+                              <path d="M13.9 3.6a1.8 1.8 0 0 1 2.5 2.5l-8.6 8.6-3.3.8.8-3.3 8.6-8.6Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                              <path d="m12.4 5.1 2.5 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </button>
+                        ) : null}
+                      </div>
                       {selectedVehiclePromoMeta.promoEnabled &&
                       selectedVehiclePromoMeta.originalPriceLabel &&
                       selectedVehiclePriceLabel ? (
@@ -9701,7 +9964,23 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 ) : null}
                 {selectedVehicleTab === "descripcion" ? (
                   <div className="mt-2 rounded-md border border-slate-200 bg-white p-3">
-                    <p className="text-xs uppercase tracking-wide text-slate-500">Descripcion ampliada</p>
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-xs uppercase tracking-wide text-slate-500">Descripcion ampliada</p>
+                      {canAdminEditNow && selectedVehicle ? (
+                        <button
+                          type="button"
+                          onClick={() => openDetailsEditor(selectedVehicle, "general")}
+                          className="ui-focus inline-flex h-6 w-6 items-center justify-center rounded-full border border-amber-300 bg-amber-50 text-amber-800 transition hover:bg-amber-100"
+                          title="Editar descripcion"
+                          aria-label="Editar descripcion"
+                        >
+                          <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" aria-hidden="true">
+                            <path d="M13.9 3.6a1.8 1.8 0 0 1 2.5 2.5l-8.6 8.6-3.3.8.8-3.3 8.6-8.6Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="m12.4 5.1 2.5 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </button>
+                      ) : null}
+                    </div>
                     <div
                       className="mt-1 text-sm text-slate-700 [&_a]:text-amber-800 [&_a]:underline [&_b]:font-bold [&_strong]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_p]:mb-2"
                       dangerouslySetInnerHTML={{

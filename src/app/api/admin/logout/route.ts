@@ -6,7 +6,7 @@ export async function POST() {
   cookieStore.set(ADMIN_SESSION_COOKIE_NAME, "", {
     httpOnly: true,
     sameSite: "lax",
-    secure: true,
+    secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: 0,
   });

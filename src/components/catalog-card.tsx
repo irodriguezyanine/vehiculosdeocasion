@@ -1,4 +1,10 @@
-﻿import { useEffect, useMemo, useState } from "react";
+﻿import {
+  useEffect,
+  useMemo,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 import type { CatalogItem } from "@/types/catalog";
 
 type CatalogCardProps = {
@@ -15,6 +21,9 @@ type CatalogCardProps = {
   onToggleCompare?: () => void;
   onWhatsappClick?: () => void;
   imageLoading?: "lazy" | "eager";
+  canInlineEdit?: boolean;
+  editablePriceValue?: string;
+  onInlineSave?: (changes: { title?: string; subtitle?: string; price?: string }) => void;
 };
 
 const WHATSAPP_BASE_URL = "https://api.whatsapp.com/send/?phone=5694550660";
@@ -111,6 +120,9 @@ export function CatalogCard({
   onToggleCompare,
   onWhatsappClick,
   imageLoading = "lazy",
+  canInlineEdit = false,
+  editablePriceValue,
+  onInlineSave,
 }: CatalogCardProps) {
   const raw = item.raw as Record<string, unknown>;
   const coverCandidate = item.thumbnail ?? item.images[0];
@@ -135,6 +147,8 @@ export function CatalogCard({
   const promoEnabled = promoEnabledOverride ?? promoEnabledFromRaw;
   const originalPriceLabel = originalPriceLabelOverride ?? originalPriceLabelFromRaw;
   const [shareCopied, setShareCopied] = useState(false);
+  const [editingField, setEditingField] = useState<"title" | "subtitle" | "price" | null>(null);
+  const [editingValue, setEditingValue] = useState("");
   const shareUrl = useMemo(() => {
     if (typeof window === "undefined") return "";
     const url = new URL(window.location.href);
@@ -147,14 +161,58 @@ export function CatalogCard({
     `${whatsappText}${shareUrl ? `. Link: ${shareUrl}` : ""}`,
   )}&type=phone_number&app_absent=0`;
   const isCompact = density === "compact";
+  const editablePrice = editablePriceValue ?? (priceLabel ?? "");
 
   useEffect(() => {
     setCoverSrc(cover);
   }, [cover]);
 
+  const beginInlineEdit = (field: "title" | "subtitle" | "price") => {
+    if (!canInlineEdit || !onInlineSave) return;
+    const initialValue =
+      field === "title" ? item.title : field === "subtitle" ? (item.subtitle ?? "") : editablePrice;
+    setEditingField(field);
+    setEditingValue(initialValue);
+  };
+
+  const cancelInlineEdit = () => {
+    setEditingField(null);
+    setEditingValue("");
+  };
+
+  const submitInlineEdit = () => {
+    if (!editingField || !onInlineSave) return;
+    const cleanValue = editingValue.trim();
+    if (!cleanValue && editingField === "title") return;
+    if (editingField === "title") onInlineSave({ title: cleanValue });
+    if (editingField === "subtitle") onInlineSave({ subtitle: cleanValue });
+    if (editingField === "price") onInlineSave({ price: cleanValue });
+    cancelInlineEdit();
+  };
+
+  const onCardKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const target = event.target as HTMLElement;
+    if (target.closest("[data-inline-control='true']")) return;
+    event.preventDefault();
+    onOpen?.();
+  };
+
+  const onCardClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    if (target.closest("[data-inline-control='true']")) return;
+    onOpen?.();
+  };
+
   return (
     <article className="group glass-soft vehicle-card flex h-full w-full flex-col overflow-hidden rounded-2xl text-left shadow-md transition duration-300 hover:-translate-y-1 hover:border-amber-300 hover:shadow-xl">
-      <button type="button" onClick={onOpen} className="ui-focus flex flex-1 flex-col w-full text-left">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onCardClick}
+        onKeyDown={onCardKeyDown}
+        className="ui-focus flex w-full flex-1 flex-col text-left"
+      >
         <div className={`relative w-full bg-[#e6ddd2] ${isCompact ? "h-44" : "h-56"}`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -193,11 +251,87 @@ export function CatalogCard({
 
         <div className={`flex flex-1 flex-col space-y-3 p-4 ${isCompact ? "space-y-2" : ""}`}>
           <div className={isCompact ? "min-h-[3.2rem]" : "min-h-[5.2rem]"}>
-            <h3 className="line-clamp-2 break-words text-base font-semibold text-[#2f1f14]">
-              {item.title}
-            </h3>
-            {!isCompact && item.subtitle ? (
-              <p className="mt-1 break-words text-sm text-[#6c5440] [overflow-wrap:anywhere]">{shortText(item.subtitle)}</p>
+            {editingField === "title" ? (
+              <div data-inline-control="true" className="space-y-1">
+                <input
+                  value={editingValue}
+                  onChange={(event) => setEditingValue(event.target.value)}
+                  className="ui-focus w-full rounded border border-amber-300 bg-white px-2 py-1 text-sm font-semibold text-[#2f1f14]"
+                  placeholder="Titulo"
+                  onClick={(event) => event.stopPropagation()}
+                />
+                <div className="flex gap-1">
+                  <button type="button" onClick={submitInlineEdit} className="rounded border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                    Guardar
+                  </button>
+                  <button type="button" onClick={cancelInlineEdit} className="rounded border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="line-clamp-2 break-words text-base font-semibold text-[#2f1f14]">
+                  {item.title}
+                </h3>
+                {canInlineEdit ? (
+                  <button
+                    type="button"
+                    data-inline-control="true"
+                    onClick={() => beginInlineEdit("title")}
+                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-amber-300 bg-amber-50 text-amber-800"
+                    aria-label="Editar titulo"
+                    title="Editar titulo"
+                  >
+                    <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" aria-hidden="true">
+                      <path d="M13.9 3.6a1.8 1.8 0 0 1 2.5 2.5l-8.6 8.6-3.3.8.8-3.3 8.6-8.6Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="m12.4 5.1 2.5 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                ) : null}
+              </div>
+            )}
+            {!isCompact ? (
+              editingField === "subtitle" ? (
+                <div data-inline-control="true" className="mt-1 space-y-1">
+                  <input
+                    value={editingValue}
+                    onChange={(event) => setEditingValue(event.target.value)}
+                    className="ui-focus w-full rounded border border-amber-300 bg-white px-2 py-1 text-xs text-[#6c5440]"
+                    placeholder="Subtitulo"
+                    onClick={(event) => event.stopPropagation()}
+                  />
+                  <div className="flex gap-1">
+                    <button type="button" onClick={submitInlineEdit} className="rounded border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                      Guardar
+                    </button>
+                    <button type="button" onClick={cancelInlineEdit} className="rounded border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-1 flex items-start justify-between gap-2">
+                  <p className="break-words text-sm text-[#6c5440] [overflow-wrap:anywhere]">
+                    {shortText(item.subtitle) ?? "-"}
+                  </p>
+                  {canInlineEdit ? (
+                    <button
+                      type="button"
+                      data-inline-control="true"
+                      onClick={() => beginInlineEdit("subtitle")}
+                      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-amber-300 bg-amber-50 text-amber-800"
+                      aria-label="Editar subtitulo"
+                      title="Editar subtitulo"
+                    >
+                      <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" aria-hidden="true">
+                        <path d="M13.9 3.6a1.8 1.8 0 0 1 2.5 2.5l-8.6 8.6-3.3.8.8-3.3 8.6-8.6Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="m12.4 5.1 2.5 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                  ) : null}
+                </div>
+              )
             ) : null}
           </div>
 
@@ -227,10 +361,45 @@ export function CatalogCard({
               {promoEnabled && originalPriceLabel && priceLabel ? (
                 <span className="text-xs text-[#9b856f] line-through">{originalPriceLabel}</span>
               ) : null}
-              {priceLabel ? (
-                <span className={`text-sm font-semibold ${promoEnabled ? "text-rose-700" : "text-[#673b1f]"}`}>
-                  {priceLabel}
-                </span>
+              {editingField === "price" ? (
+                <div data-inline-control="true" className="space-y-1">
+                  <input
+                    value={editingValue}
+                    onChange={(event) => setEditingValue(event.target.value)}
+                    className="ui-focus w-full rounded border border-amber-300 bg-white px-2 py-1 text-xs font-semibold text-[#673b1f]"
+                    placeholder="Precio"
+                    onClick={(event) => event.stopPropagation()}
+                  />
+                  <div className="flex gap-1">
+                    <button type="button" onClick={submitInlineEdit} className="rounded border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                      Guardar
+                    </button>
+                    <button type="button" onClick={cancelInlineEdit} className="rounded border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : priceLabel ? (
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-sm font-semibold ${promoEnabled ? "text-rose-700" : "text-[#673b1f]"}`}>
+                    {priceLabel}
+                  </span>
+                  {canInlineEdit ? (
+                    <button
+                      type="button"
+                      data-inline-control="true"
+                      onClick={() => beginInlineEdit("price")}
+                      className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-amber-300 bg-amber-50 text-amber-800"
+                      aria-label="Editar precio"
+                      title="Editar precio"
+                    >
+                      <svg viewBox="0 0 20 20" className="h-3 w-3" fill="none" aria-hidden="true">
+                        <path d="M13.9 3.6a1.8 1.8 0 0 1 2.5 2.5l-8.6 8.6-3.3.8.8-3.3 8.6-8.6Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="m12.4 5.1 2.5 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                  ) : null}
+                </div>
               ) : null}
               <span className="text-xs text-[#7a624f]">
                 {item.images.length} foto{item.images.length === 1 ? "" : "s"}
@@ -245,7 +414,7 @@ export function CatalogCard({
             )}
           </div>
         </div>
-      </button>
+      </div>
 
       <div className="border-t border-amber-200/60 px-4 pb-4 pt-3">
         <div className="grid grid-cols-4 gap-2">

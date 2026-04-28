@@ -1830,6 +1830,11 @@ type SectionProps = {
   onToggleCompare: (itemKey: string) => void;
   onOpenVehicle: (item: CatalogItem) => void;
   cardDensity: CardDensity;
+  canInlineEdit?: boolean;
+  onInlineSaveItem?: (
+    item: CatalogItem,
+    changes: { title?: string; subtitle?: string; price?: string },
+  ) => void;
 };
 
 type HorizontalCardsRailProps = {
@@ -1843,6 +1848,11 @@ type HorizontalCardsRailProps = {
   onToggleCompare: (itemKey: string) => void;
   onOpenVehicle: (item: CatalogItem) => void;
   cardDensity: CardDensity;
+  canInlineEdit?: boolean;
+  onInlineSaveItem?: (
+    item: CatalogItem,
+    changes: { title?: string; subtitle?: string; price?: string },
+  ) => void;
 };
 
 function HorizontalCardsRail({
@@ -1856,6 +1866,8 @@ function HorizontalCardsRail({
   onToggleCompare,
   onOpenVehicle,
   cardDensity,
+  canInlineEdit = false,
+  onInlineSaveItem,
 }: HorizontalCardsRailProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -2008,6 +2020,13 @@ function HorizontalCardsRail({
                   itemKey: getVehicleKey(item),
                 })
               }
+              canInlineEdit={canInlineEdit}
+              editablePriceValue={priceMap[getVehicleKey(item)]}
+              onInlineSave={
+                onInlineSaveItem
+                  ? (changes) => onInlineSaveItem(item, changes)
+                  : undefined
+              }
             />
           </div>
         ))}
@@ -2029,6 +2048,8 @@ function Section({
   onToggleCompare,
   onOpenVehicle,
   cardDensity,
+  canInlineEdit = false,
+  onInlineSaveItem,
 }: SectionProps) {
   const [isExpanded, setIsExpanded] = useState(true);
 
@@ -2083,6 +2104,13 @@ function Section({
                   itemKey: getVehicleKey(item),
                 })
               }
+              canInlineEdit={canInlineEdit}
+              editablePriceValue={priceMap[getVehicleKey(item)]}
+              onInlineSave={
+                onInlineSaveItem
+                  ? (changes) => onInlineSaveItem(item, changes)
+                  : undefined
+              }
             />
           ))}
         </div>
@@ -2098,6 +2126,8 @@ function Section({
           onToggleCompare={onToggleCompare}
           onOpenVehicle={onOpenVehicle}
           cardDensity={cardDensity}
+          canInlineEdit={canInlineEdit}
+          onInlineSaveItem={onInlineSaveItem}
         />
       )}
     </section>
@@ -2114,6 +2144,11 @@ type UpcomingAuctionsSectionProps = {
   onToggleCompare: (itemKey: string) => void;
   onOpenVehicle: (item: CatalogItem) => void;
   cardDensity: CardDensity;
+  canInlineEdit?: boolean;
+  onInlineSaveItem?: (
+    item: CatalogItem,
+    changes: { title?: string; subtitle?: string; price?: string },
+  ) => void;
 };
 
 function UpcomingAuctionsSection({
@@ -2126,6 +2161,8 @@ function UpcomingAuctionsSection({
   onToggleCompare,
   onOpenVehicle,
   cardDensity,
+  canInlineEdit = false,
+  onInlineSaveItem,
 }: UpcomingAuctionsSectionProps) {
   const visibleGroups = groups.filter((group) => group.items.length > 0);
   if (visibleGroups.length === 0) return null;
@@ -2159,6 +2196,8 @@ function UpcomingAuctionsSection({
               onToggleCompare={onToggleCompare}
               onOpenVehicle={onOpenVehicle}
               cardDensity={cardDensity}
+              canInlineEdit={canInlineEdit}
+              onInlineSaveItem={onInlineSaveItem}
             />
           </div>
         ))}
@@ -2276,6 +2315,17 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   const [selectedVehicleLightboxZoom, setSelectedVehicleLightboxZoom] = useState(1);
   const [detailEditorTab, setDetailEditorTab] = useState<DetailEditorTabId>("general");
   const [selectedVehicleTab, setSelectedVehicleTab] = useState<VehicleDetailTabId>("general");
+  const [inlineSummaryField, setInlineSummaryField] = useState<string | null>(null);
+  const [inlineSummaryValue, setInlineSummaryValue] = useState("");
+  const [inlinePriceEditing, setInlinePriceEditing] = useState(false);
+  const [inlinePriceDraft, setInlinePriceDraft] = useState({
+    referencePrice: "",
+    originalPrice: "",
+    taxFee: "",
+    transferFee: "",
+    promoEnabled: false,
+    promoPrice: "",
+  });
   const [revalidating, setRevalidating] = useState(false);
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [analyticsRangeDays, setAnalyticsRangeDays] = useState<7 | 30 | 90>(30);
@@ -4226,6 +4276,9 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       setSelectedVehicleTab("general");
       setSelectedVehicleLightboxIndex(null);
       setSelectedVehicleLightboxZoom(1);
+      setInlineSummaryField(null);
+      setInlineSummaryValue("");
+      setInlinePriceEditing(false);
     }
   }, [selectedVehicle]);
 
@@ -6157,6 +6210,180 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       transferFee: toCurrencyInput(transferFee),
     };
   }, [config.vehicleDetails, config.vehiclePrices, managingItem, managingVehicleKey]);
+
+  const saveInlineCardChanges = useCallback(
+    (item: CatalogItem, changes: { title?: string; subtitle?: string; price?: string }) => {
+      if (!canAdminEditNow) {
+        showSystemNotice(
+          "error",
+          "Edicion bloqueada",
+          "No se puede editar porque el guardado global no esta disponible.",
+        );
+        return;
+      }
+      const key = getVehicleKey(item);
+      const nextTitle = changes.title?.trim();
+      if (typeof nextTitle === "string" && !nextTitle) {
+        showSystemNotice("error", "Titulo requerido", "El titulo no puede quedar vacio.");
+        return;
+      }
+      const nextSubtitle = changes.subtitle?.trim();
+      const nextPrice = typeof changes.price === "string" ? toCurrencyInput(changes.price) : undefined;
+      setConfig((prev) => {
+        const nextDetails = { ...prev.vehicleDetails };
+        const currentDetails = { ...(nextDetails[key] ?? {}) };
+        if (typeof nextTitle === "string") currentDetails.title = nextTitle;
+        if (typeof nextSubtitle === "string") currentDetails.subtitle = nextSubtitle;
+        if (Object.keys(currentDetails).length > 0) nextDetails[key] = currentDetails;
+        const nextPrices = { ...prev.vehiclePrices };
+        if (typeof nextPrice === "string") nextPrices[key] = nextPrice;
+        return {
+          ...prev,
+          vehicleDetails: nextDetails,
+          vehiclePrices: nextPrices,
+        };
+      });
+      showSystemNotice("success", "Actualizado", "Se guardo la edicion rapida de la publicacion.");
+    },
+    [canAdminEditNow, showSystemNotice],
+  );
+
+  const mapSummaryLabelToDetailField = useCallback((label: string): keyof EditorVehicleDetails | null => {
+    const normalized = label
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "");
+    const map: Record<string, keyof EditorVehicleDetails> = {
+      titulo: "title",
+      subtitulo: "subtitle",
+      patente: "patente",
+      "patente verificador": "patenteVerifier",
+      vin: "vin",
+      "n° de chasis": "nChasis",
+      marca: "brand",
+      modelo: "model",
+      ano: "year",
+      "tipo de vehiculo": "tipoVehiculo",
+      tipo: "tipo",
+      "estado del vehiculo": "vehicleCondition",
+      "estado comercial": "status",
+      ubicacion: "location",
+      lote: "lot",
+      "fecha de remate": "auctionDate",
+      kilometraje: "kilometraje",
+      color: "color",
+      combustible: "combustible",
+      transmision: "transmision",
+      traccion: "traccion",
+      aro: "aro",
+      cilindrada: "cilindrada",
+      llaves: "llaves",
+      "aire acondicionado": "aireAcondicionado",
+      "unico propietario": "unicoPropietario",
+      condicionado: "condicionado",
+      multas: "multas",
+      tag: "tag",
+      "vencimiento revision tecnica": "vencRevisionTecnica",
+      "vencimiento permiso circulacion": "vencPermisoCirculacion",
+      "vencimiento seguro obligatorio": "vencSeguroObligatorio",
+      "prueba de motor": "pruebaMotor",
+      "prueba de desplazamiento": "pruebaDesplazamiento",
+      "estado airbags": "estadoAirbags",
+      "n° de serie": "nSerie",
+      "n° de motor": "nMotor",
+      "n° de siniestro": "nSiniestro",
+      version: "version",
+      categoria: "category",
+      "ubicacion fisica": "ubicacionFisica",
+      transportista: "transportista",
+      taller: "taller",
+      "nombre propietario anterior": "nombrePropietarioAnterior",
+      "rut propietario anterior": "rutPropietarioAnterior",
+      "rut verificador": "rutVerificador",
+      "descripcion ampliada": "extendedDescription",
+    };
+    return map[normalized] ?? null;
+  }, []);
+
+  const beginInlineSummaryFieldEdit = useCallback(
+    (label: string, value: string) => {
+      if (!canAdminEditNow) return;
+      setInlineSummaryField(`${selectedVehicleTab}:${label}`);
+      setInlineSummaryValue(value);
+    },
+    [canAdminEditNow, selectedVehicleTab],
+  );
+
+  const cancelInlineSummaryFieldEdit = useCallback(() => {
+    setInlineSummaryField(null);
+    setInlineSummaryValue("");
+  }, []);
+
+  const saveInlineSummaryFieldEdit = useCallback(
+    (label: string) => {
+      if (!selectedVehicle || !canAdminEditNow) return;
+      const mappedField = mapSummaryLabelToDetailField(label);
+      if (!mappedField) return;
+      const key = getVehicleKey(selectedVehicle);
+      const nextValue = inlineSummaryValue.trim();
+      setConfig((prev) => {
+        const nextDetails = { ...prev.vehicleDetails };
+        const current = { ...(nextDetails[key] ?? {}) };
+        (current as Record<string, unknown>)[mappedField] = nextValue;
+        nextDetails[key] = current;
+        return { ...prev, vehicleDetails: nextDetails };
+      });
+      showSystemNotice("success", "Campo actualizado", `${label} se guardo correctamente.`);
+      cancelInlineSummaryFieldEdit();
+    },
+    [
+      cancelInlineSummaryFieldEdit,
+      canAdminEditNow,
+      inlineSummaryValue,
+      mapSummaryLabelToDetailField,
+      selectedVehicle,
+      showSystemNotice,
+    ],
+  );
+
+  const startInlinePriceEdit = useCallback(() => {
+    if (!selectedVehicle || !canAdminEditNow) return;
+    setInlinePriceDraft({
+      referencePrice: toCurrencyInput(selectedVehiclePriceLabel ?? ""),
+      originalPrice: toCurrencyInput(selectedVehiclePromoMeta.originalPriceLabel ?? ""),
+      taxFee: toCurrencyInput(selectedVehiclePromoMeta.taxFeeLabel ?? ""),
+      transferFee: toCurrencyInput(selectedVehiclePromoMeta.transferFeeLabel ?? ""),
+      promoEnabled: selectedVehiclePromoMeta.promoEnabled,
+      promoPrice: toCurrencyInput(selectedVehiclePriceLabel ?? ""),
+    });
+    setInlinePriceEditing(true);
+  }, [canAdminEditNow, selectedVehicle, selectedVehiclePriceLabel, selectedVehiclePromoMeta]);
+
+  const saveInlinePriceEdit = useCallback(() => {
+    if (!selectedVehicle || !canAdminEditNow) return;
+    const key = getVehicleKey(selectedVehicle);
+    const normalizedPrice = toCurrencyInput(inlinePriceDraft.referencePrice);
+    const normalizedOriginal = toCurrencyInput(inlinePriceDraft.originalPrice);
+    const normalizedPromo = toCurrencyInput(inlinePriceDraft.promoPrice);
+    const normalizedTax = toCurrencyInput(inlinePriceDraft.taxFee);
+    const normalizedTransfer = toCurrencyInput(inlinePriceDraft.transferFee);
+    setConfig((prev) => {
+      const nextPrices = { ...prev.vehiclePrices };
+      nextPrices[key] = normalizedPrice;
+      const nextDetails = { ...prev.vehicleDetails };
+      const current = { ...(nextDetails[key] ?? {}) };
+      current.originalPrice = normalizedOriginal;
+      current.promoEnabled = inlinePriceDraft.promoEnabled;
+      current.promoPrice = inlinePriceDraft.promoEnabled ? normalizedPromo : "";
+      current.taxFee = normalizedTax;
+      current.transferFee = normalizedTransfer;
+      nextDetails[key] = current;
+      return { ...prev, vehiclePrices: nextPrices, vehicleDetails: nextDetails };
+    });
+    setInlinePriceEditing(false);
+    showSystemNotice("success", "Precio actualizado", "La informacion de precio se guardo correctamente.");
+  }, [canAdminEditNow, inlinePriceDraft, selectedVehicle, showSystemNotice]);
   const finalizeAuction = useMemo(
     () =>
       finalizeAuctionId
@@ -9307,6 +9534,9 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       itemKey: getVehicleKey(item),
                     })
                   }
+                  canInlineEdit={canAdminEditNow}
+                  editablePriceValue={config.vehiclePrices[getVehicleKey(item)]}
+                  onInlineSave={(changes) => saveInlineCardChanges(item, changes)}
                 />
               ))}
             </div>
@@ -9339,6 +9569,9 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       itemKey: getVehicleKey(item),
                     })
                   }
+                  canInlineEdit={canAdminEditNow}
+                  editablePriceValue={config.vehiclePrices[getVehicleKey(item)]}
+                  onInlineSave={(changes) => saveInlineCardChanges(item, changes)}
                 />
               ))}
             </div>
@@ -9367,6 +9600,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 onToggleCompare={toggleCompare}
                 onOpenVehicle={openVehicleDetail}
                 cardDensity={cardDensity}
+                canInlineEdit={canAdminEditNow}
+                onInlineSaveItem={saveInlineCardChanges}
               />
             );
           }
@@ -9386,6 +9621,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 onToggleCompare={toggleCompare}
                 onOpenVehicle={openVehicleDetail}
                 cardDensity={cardDensity}
+                canInlineEdit={canAdminEditNow}
+                onInlineSaveItem={saveInlineCardChanges}
               />
             ) : (
               <Section
@@ -9402,6 +9639,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 onToggleCompare={toggleCompare}
                 onOpenVehicle={openVehicleDetail}
                 cardDensity={cardDensity}
+                canInlineEdit={canAdminEditNow}
+                onInlineSaveItem={saveInlineCardChanges}
               />
             );
           }
@@ -9422,6 +9661,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 onToggleCompare={toggleCompare}
                 onOpenVehicle={openVehicleDetail}
                 cardDensity={cardDensity}
+                canInlineEdit={canAdminEditNow}
+                onInlineSaveItem={saveInlineCardChanges}
               />
             );
           }
@@ -9442,6 +9683,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 onToggleCompare={toggleCompare}
                 onOpenVehicle={openVehicleDetail}
                 cardDensity={cardDensity}
+                canInlineEdit={canAdminEditNow}
+                onInlineSaveItem={saveInlineCardChanges}
               />
             );
           }
@@ -9631,11 +9874,69 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             <div className="vehicle-detail-hero mb-4 rounded-2xl p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900">{selectedVehicle.title}</h3>
+                  <div className="flex items-center gap-2">
+                    {inlineSummaryField === "hero:Titulo" ? (
+                      <div className="flex flex-wrap items-center gap-1">
+                        <input
+                          value={inlineSummaryValue}
+                          onChange={(event) => setInlineSummaryValue(event.target.value)}
+                          className="ui-focus rounded border border-amber-300 bg-white px-2 py-1 text-sm font-semibold text-slate-900"
+                        />
+                        <button type="button" onClick={() => saveInlineSummaryFieldEdit("Titulo")} className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">Guardar</button>
+                        <button type="button" onClick={cancelInlineSummaryFieldEdit} className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-600">Cancelar</button>
+                      </div>
+                    ) : (
+                      <>
+                        <h3 className="text-xl font-bold text-slate-900">{selectedVehicle.title}</h3>
+                        {canAdminEditNow ? (
+                          <button
+                            type="button"
+                            onClick={() => beginInlineSummaryFieldEdit("Titulo", selectedVehicle.title)}
+                            className="ui-focus inline-flex h-6 w-6 items-center justify-center rounded-full border border-amber-300 bg-amber-50 text-amber-800"
+                            title="Editar titulo"
+                            aria-label="Editar titulo"
+                          >
+                            <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" aria-hidden="true">
+                              <path d="M13.9 3.6a1.8 1.8 0 0 1 2.5 2.5l-8.6 8.6-3.3.8.8-3.3 8.6-8.6Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                              <path d="m12.4 5.1 2.5 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </button>
+                        ) : null}
+                      </>
+                    )}
+                  </div>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <span className="whitespace-nowrap rounded-full border border-stone-300 bg-stone-100 px-3 py-1 text-xs font-semibold text-amber-900">
-                      {selectedVehicle.subtitle?.trim() || getPatent(selectedVehicle)}
-                    </span>
+                    {inlineSummaryField === "hero:Subtitulo" ? (
+                      <div className="flex flex-wrap items-center gap-1">
+                        <input
+                          value={inlineSummaryValue}
+                          onChange={(event) => setInlineSummaryValue(event.target.value)}
+                          className="ui-focus rounded border border-amber-300 bg-white px-2 py-1 text-xs font-semibold text-amber-900"
+                        />
+                        <button type="button" onClick={() => saveInlineSummaryFieldEdit("Subtitulo")} className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">Guardar</button>
+                        <button type="button" onClick={cancelInlineSummaryFieldEdit} className="rounded border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600">Cancelar</button>
+                      </div>
+                    ) : (
+                      <>
+                        <span className="whitespace-nowrap rounded-full border border-stone-300 bg-stone-100 px-3 py-1 text-xs font-semibold text-amber-900">
+                          {selectedVehicle.subtitle?.trim() || getPatent(selectedVehicle)}
+                        </span>
+                        {canAdminEditNow ? (
+                          <button
+                            type="button"
+                            onClick={() => beginInlineSummaryFieldEdit("Subtitulo", selectedVehicle.subtitle?.trim() || getPatent(selectedVehicle))}
+                            className="ui-focus inline-flex h-6 w-6 items-center justify-center rounded-full border border-amber-300 bg-amber-50 text-amber-800"
+                            title="Editar subtitulo"
+                            aria-label="Editar subtitulo"
+                          >
+                            <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" aria-hidden="true">
+                              <path d="M13.9 3.6a1.8 1.8 0 0 1 2.5 2.5l-8.6 8.6-3.3.8.8-3.3 8.6-8.6Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                              <path d="m12.4 5.1 2.5 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </button>
+                        ) : null}
+                      </>
+                    )}
                     {selectedVehicleConditionLabel ? (
                       <span
                         className={`rounded-full border px-3 py-1 text-xs font-semibold ${selectedVehicleConditionClasses}`}
@@ -9776,15 +10077,10 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   {canAdminEditNow && selectedVehicle ? (
                     <button
                       type="button"
-                      onClick={() =>
-                        openDetailsEditor(
-                          selectedVehicle,
-                          selectedVehicleTab === "tecnica" ? "tecnica" : "general",
-                        )
-                      }
+                      onClick={startInlinePriceEdit}
                       className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded-full border border-amber-300 bg-amber-50 text-amber-800 transition hover:bg-amber-100"
-                      title="Editar ficha de este vehiculo"
-                      aria-label="Editar ficha de este vehiculo"
+                      title="Edicion rapida de precio"
+                      aria-label="Edicion rapida de precio"
                     >
                       <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
                         <path d="M13.9 3.6a1.8 1.8 0 0 1 2.5 2.5l-8.6 8.6-3.3.8.8-3.3 8.6-8.6Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
@@ -9867,12 +10163,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                           {canAdminEditNow && selectedVehicle ? (
                             <button
                               type="button"
-                              onClick={() =>
-                                openDetailsEditor(
-                                  selectedVehicle,
-                                  selectedVehicleTab === "tecnica" ? "tecnica" : "general",
-                                )
-                              }
+                              onClick={() => beginInlineSummaryFieldEdit(label, value)}
                               className="ui-focus inline-flex h-6 w-6 items-center justify-center rounded-full border border-amber-300 bg-amber-50 text-amber-800 transition hover:bg-amber-100"
                               title={`Editar ${label.toLowerCase()}`}
                               aria-label={`Editar ${label.toLowerCase()}`}
@@ -9885,7 +10176,33 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                           ) : null}
                         </div>
                         <dd className="break-words font-medium text-slate-800 [overflow-wrap:anywhere]">
-                          {value}
+                          {inlineSummaryField === `${selectedVehicleTab}:${label}` ? (
+                            <div className="space-y-1">
+                              <input
+                                value={inlineSummaryValue}
+                                onChange={(event) => setInlineSummaryValue(event.target.value)}
+                                className="ui-focus w-full rounded border border-amber-300 bg-white px-2 py-1 text-sm"
+                              />
+                              <div className="flex gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => saveInlineSummaryFieldEdit(label)}
+                                  className="rounded border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700"
+                                >
+                                  Guardar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={cancelInlineSummaryFieldEdit}
+                                  className="rounded border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-600"
+                                >
+                                  Cancelar
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            value
+                          )}
                         </dd>
                       </div>
                     ))}
@@ -9899,7 +10216,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                         {canAdminEditNow && selectedVehicle ? (
                           <button
                             type="button"
-                            onClick={() => openDetailsEditor(selectedVehicle, "general")}
+                            onClick={startInlinePriceEdit}
                             className="ui-focus inline-flex h-6 w-6 items-center justify-center rounded-full border border-amber-300 bg-white text-amber-800 transition hover:bg-amber-50"
                             title="Editar precios y desglose"
                             aria-label="Editar precios y desglose"
@@ -9911,7 +10228,98 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                           </button>
                         ) : null}
                       </div>
-                      {selectedVehiclePromoMeta.promoEnabled &&
+                      {inlinePriceEditing ? (
+                        <div className="mt-2 space-y-2 rounded-md border border-amber-200 bg-white p-2">
+                          <input
+                            value={inlinePriceDraft.referencePrice}
+                            onChange={(event) =>
+                              setInlinePriceDraft((prev) => ({
+                                ...prev,
+                                referencePrice: event.target.value,
+                              }))
+                            }
+                            className="ui-focus w-full rounded border border-slate-300 px-2 py-1 text-sm"
+                            placeholder="Precio referencial"
+                          />
+                          <label className="inline-flex items-center gap-2 text-xs font-semibold text-amber-800">
+                            <input
+                              type="checkbox"
+                              checked={inlinePriceDraft.promoEnabled}
+                              onChange={(event) =>
+                                setInlinePriceDraft((prev) => ({
+                                  ...prev,
+                                  promoEnabled: event.target.checked,
+                                }))
+                              }
+                            />
+                            Precio promocional activo
+                          </label>
+                          <input
+                            value={inlinePriceDraft.originalPrice}
+                            onChange={(event) =>
+                              setInlinePriceDraft((prev) => ({
+                                ...prev,
+                                originalPrice: event.target.value,
+                              }))
+                            }
+                            className="ui-focus w-full rounded border border-slate-300 px-2 py-1 text-sm"
+                            placeholder="Precio original"
+                          />
+                          {inlinePriceDraft.promoEnabled ? (
+                            <input
+                              value={inlinePriceDraft.promoPrice}
+                              onChange={(event) =>
+                                setInlinePriceDraft((prev) => ({
+                                  ...prev,
+                                  promoPrice: event.target.value,
+                                }))
+                              }
+                              className="ui-focus w-full rounded border border-rose-300 px-2 py-1 text-sm"
+                              placeholder="Precio promocional"
+                            />
+                          ) : null}
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            <input
+                              value={inlinePriceDraft.taxFee}
+                              onChange={(event) =>
+                                setInlinePriceDraft((prev) => ({
+                                  ...prev,
+                                  taxFee: event.target.value,
+                                }))
+                              }
+                              className="ui-focus w-full rounded border border-slate-300 px-2 py-1 text-sm"
+                              placeholder="Impuestos"
+                            />
+                            <input
+                              value={inlinePriceDraft.transferFee}
+                              onChange={(event) =>
+                                setInlinePriceDraft((prev) => ({
+                                  ...prev,
+                                  transferFee: event.target.value,
+                                }))
+                              }
+                              className="ui-focus w-full rounded border border-slate-300 px-2 py-1 text-sm"
+                              placeholder="Transferencia"
+                            />
+                          </div>
+                          <div className="flex gap-1">
+                            <button
+                              type="button"
+                              onClick={saveInlinePriceEdit}
+                              className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700"
+                            >
+                              Guardar precios
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setInlinePriceEditing(false)}
+                              className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-600"
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      ) : selectedVehiclePromoMeta.promoEnabled &&
                       selectedVehiclePromoMeta.originalPriceLabel &&
                       selectedVehiclePriceLabel ? (
                         <p className="mt-1 text-sm font-semibold text-slate-400 line-through">
@@ -9921,12 +10329,12 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       <p className={`mt-1 text-lg font-bold ${selectedVehiclePromoMeta.promoEnabled ? "text-rose-700" : "text-slate-900"}`}>
                         {selectedVehiclePriceLabel ?? "No informado"}
                       </p>
-                      {selectedVehiclePromoMeta.promoEnabled ? (
+                      {!inlinePriceEditing && selectedVehiclePromoMeta.promoEnabled ? (
                         <p className="mt-1 inline-flex rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
                           Precio promocional
                         </p>
                       ) : null}
-                      {selectedVehicleHasFeeBreakdown ? (
+                      {!inlinePriceEditing && selectedVehicleHasFeeBreakdown ? (
                         <div className="mt-2 rounded-md border border-stone-200 bg-white px-2 py-2 text-xs text-slate-700">
                           <p className="font-semibold text-slate-800">Desglose referencial</p>
                           <div className="mt-1 space-y-1">
@@ -9954,11 +10362,11 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                             </div>
                           </div>
                         </div>
-                      ) : (
+                      ) : !inlinePriceEditing ? (
                         <p className="mt-1 text-xs text-slate-600">
                           Valor referencial.
                         </p>
-                      )}
+                      ) : null}
                     </div>
                   </>
                 ) : null}
@@ -9969,7 +10377,12 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       {canAdminEditNow && selectedVehicle ? (
                         <button
                           type="button"
-                          onClick={() => openDetailsEditor(selectedVehicle, "general")}
+                          onClick={() =>
+                            beginInlineSummaryFieldEdit(
+                              "Descripcion ampliada",
+                              selectedVehicleExpandedDescription ?? "",
+                            )
+                          }
                           className="ui-focus inline-flex h-6 w-6 items-center justify-center rounded-full border border-amber-300 bg-amber-50 text-amber-800 transition hover:bg-amber-100"
                           title="Editar descripcion"
                           aria-label="Editar descripcion"
@@ -9981,12 +10394,39 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                         </button>
                       ) : null}
                     </div>
-                    <div
-                      className="mt-1 text-sm text-slate-700 [&_a]:text-amber-800 [&_a]:underline [&_b]:font-bold [&_strong]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_p]:mb-2"
-                      dangerouslySetInnerHTML={{
-                        __html: formatExtendedDescriptionHtml(selectedVehicleExpandedDescription),
-                      }}
-                    />
+                    {inlineSummaryField === "descripcion:Descripcion ampliada" ? (
+                      <div className="mt-2 space-y-2">
+                        <textarea
+                          value={inlineSummaryValue}
+                          onChange={(event) => setInlineSummaryValue(event.target.value)}
+                          rows={6}
+                          className="ui-focus w-full rounded border border-amber-300 bg-white px-2 py-2 text-sm text-slate-700"
+                        />
+                        <div className="flex gap-1">
+                          <button
+                            type="button"
+                            onClick={() => saveInlineSummaryFieldEdit("Descripcion ampliada")}
+                            className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700"
+                          >
+                            Guardar descripcion
+                          </button>
+                          <button
+                            type="button"
+                            onClick={cancelInlineSummaryFieldEdit}
+                            className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-600"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        className="mt-1 text-sm text-slate-700 [&_a]:text-amber-800 [&_a]:underline [&_b]:font-bold [&_strong]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_p]:mb-2"
+                        dangerouslySetInnerHTML={{
+                          __html: formatExtendedDescriptionHtml(selectedVehicleExpandedDescription),
+                        }}
+                      />
+                    )}
                   </div>
                 ) : null}
               </div>

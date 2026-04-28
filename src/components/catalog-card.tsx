@@ -146,12 +146,28 @@ function getMovementTestLabel(value: string | null): string | null {
   return value?.trim().toUpperCase() ?? null;
 }
 
+function isAffirmativeStatus(value: string | null): boolean {
+  return normalizeBinaryStatus(value) === "yes";
+}
+
 function getVehicleSpecs(
   item: CatalogItem,
 ): Array<{
   key: string;
   label: string;
-  icon: "km" | "year" | "fuel" | "gear" | "engineTest" | "movementTest";
+  icon:
+    | "km"
+    | "year"
+    | "fuel"
+    | "gear"
+    | "engineTest"
+    | "movementTest"
+    | "conditioned"
+    | "singleOwner"
+    | "airConditioning"
+    | "keys"
+    | "traction"
+    | "airbags";
   wide?: boolean;
 }> {
   const raw = item.raw as Record<string, unknown>;
@@ -182,12 +198,47 @@ function getVehicleSpecs(
     "movement_test",
     "glo3d.prueba_desplazamiento",
   ]);
+  const conditionedRaw = getFirstRawValue(raw, ["condicionado", "glo3d.condicionado"]);
+  const singleOwnerRaw = getFirstRawValue(raw, [
+    "unico_propietario",
+    "single_owner",
+    "one_owner",
+    "glo3d.unico_propietario",
+  ]);
+  const airConditioningRaw = getFirstRawValue(raw, [
+    "aire_acondicionado",
+    "air_conditioning",
+    "has_ac",
+    "ac",
+    "glo3d.aire_acondicionado",
+  ]);
+  const keysRaw = getFirstRawValue(raw, [
+    "llaves",
+    "keys",
+    "has_keys",
+    "tiene_llaves",
+    "glo3d.llaves",
+  ]);
+  const tractionRaw = getFirstRawValue(raw, ["traccion", "traction", "glo3d.traccion"]);
+  const airbagsRaw = getFirstRawValue(raw, ["estado_airbags", "airbags", "eda", "glo3d.estado_airbags"]);
   const motorTest = getMotorTestLabel(motorTestRaw);
   const movementTest = getMovementTestLabel(movementTestRaw);
   const specs: Array<{
     key: string;
     label: string;
-    icon: "km" | "year" | "fuel" | "gear" | "engineTest" | "movementTest";
+    icon:
+      | "km"
+      | "year"
+      | "fuel"
+      | "gear"
+      | "engineTest"
+      | "movementTest"
+      | "conditioned"
+      | "singleOwner"
+      | "airConditioning"
+      | "keys"
+      | "traction"
+      | "airbags";
     wide?: boolean;
   }> = [];
   if (mileage) specs.push({ key: "km", label: mileage, icon: "km" });
@@ -203,13 +254,48 @@ function getVehicleSpecs(
       wide: true,
     });
   }
-  return specs.slice(0, 6);
+  if (isAffirmativeStatus(conditionedRaw)) {
+    specs.push({ key: "conditioned", label: "ACONDICIONADO", icon: "conditioned", wide: true });
+  }
+  if (isAffirmativeStatus(singleOwnerRaw)) {
+    specs.push({ key: "singleOwner", label: "UNICO DUEÑO", icon: "singleOwner", wide: true });
+  }
+  if (isAffirmativeStatus(airConditioningRaw)) {
+    specs.push({
+      key: "airConditioning",
+      label: "AIRE ACONDICIONADO",
+      icon: "airConditioning",
+      wide: true,
+    });
+  }
+  if (isAffirmativeStatus(keysRaw)) {
+    specs.push({ key: "keys", label: "CON LLAVES", icon: "keys", wide: true });
+  }
+  if (tractionRaw) {
+    specs.push({ key: "traction", label: `TRACCION ${tractionRaw.toUpperCase()}`, icon: "traction", wide: true });
+  }
+  if (airbagsRaw) {
+    specs.push({ key: "airbags", label: `AIRBAGS: ${airbagsRaw.toUpperCase()}`, icon: "airbags", wide: true });
+  }
+  return specs.slice(0, 10);
 }
 
 function SpecIcon({
   icon,
 }: {
-  icon: "km" | "year" | "fuel" | "gear" | "engineTest" | "movementTest";
+  icon:
+    | "km"
+    | "year"
+    | "fuel"
+    | "gear"
+    | "engineTest"
+    | "movementTest"
+    | "conditioned"
+    | "singleOwner"
+    | "airConditioning"
+    | "keys"
+    | "traction"
+    | "airbags";
 }) {
   if (icon === "km") {
     return (
@@ -248,6 +334,53 @@ function SpecIcon({
     return (
       <svg viewBox="0 0 20 20" className="h-4 w-4 text-[#7a624f]" fill="none" aria-hidden="true">
         <path d="M4 10h9.8M10.8 6l3.5 4-3.5 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  if (icon === "conditioned") {
+    return (
+      <svg viewBox="0 0 20 20" className="h-4 w-4 text-[#7a624f]" fill="none" aria-hidden="true">
+        <path d="M4.2 10.2h11.6M10.5 4.4c2.8.2 5 2.5 5 5.3 0 2.9-2.3 5.3-5.3 5.3-2.8 0-5.1-2.2-5.3-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (icon === "singleOwner") {
+    return (
+      <svg viewBox="0 0 20 20" className="h-4 w-4 text-[#7a624f]" fill="none" aria-hidden="true">
+        <circle cx="10" cy="6.5" r="2.3" stroke="currentColor" strokeWidth="1.6" />
+        <path d="M5 15.3c.6-2.1 2.5-3.6 5-3.6s4.4 1.5 5 3.6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (icon === "airConditioning") {
+    return (
+      <svg viewBox="0 0 20 20" className="h-4 w-4 text-[#7a624f]" fill="none" aria-hidden="true">
+        <path d="M5 6.5h10M10 4.5v2M7.2 10.2l2.8-1.7 2.8 1.7M10 8.5V15.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  if (icon === "keys") {
+    return (
+      <svg viewBox="0 0 20 20" className="h-4 w-4 text-[#7a624f]" fill="none" aria-hidden="true">
+        <circle cx="7" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.6" />
+        <path d="M9.5 10h6M13.5 10v1.8M15.5 10v1.2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (icon === "traction") {
+    return (
+      <svg viewBox="0 0 20 20" className="h-4 w-4 text-[#7a624f]" fill="none" aria-hidden="true">
+        <circle cx="6" cy="14" r="1.7" stroke="currentColor" strokeWidth="1.6" />
+        <circle cx="14" cy="14" r="1.7" stroke="currentColor" strokeWidth="1.6" />
+        <path d="M5.5 12h9l-1-3.2H7.1L5.5 12Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  if (icon === "airbags") {
+    return (
+      <svg viewBox="0 0 20 20" className="h-4 w-4 text-[#7a624f]" fill="none" aria-hidden="true">
+        <circle cx="8.2" cy="7" r="2" stroke="currentColor" strokeWidth="1.6" />
+        <path d="M4.8 14.8c.4-2 1.9-3.4 3.9-3.7M10.8 12.2h4.4M13 9.5v5.4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
       </svg>
     );
   }

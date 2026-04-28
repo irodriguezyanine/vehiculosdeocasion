@@ -10095,10 +10095,15 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   {canAdminEditNow && selectedVehicle ? (
                     <button
                       type="button"
-                      onClick={startInlinePriceEdit}
+                      onClick={() =>
+                        openDetailsEditor(
+                          selectedVehicle,
+                          selectedVehicleTab === "tecnica" ? "tecnica" : "general",
+                        )
+                      }
                       className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded-full border border-amber-300 bg-amber-50 text-amber-800 transition hover:bg-amber-100"
-                      title="Edicion rapida de precio"
-                      aria-label="Edicion rapida de precio"
+                      title="Editar ficha completa"
+                      aria-label="Editar ficha completa"
                     >
                       <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
                         <path d="M13.9 3.6a1.8 1.8 0 0 1 2.5 2.5l-8.6 8.6-3.3.8.8-3.3 8.6-8.6Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
@@ -10582,35 +10587,45 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       inferVehicleType(item) === inferVehicleType(selectedVehicle),
                   )
                   .slice(0, 3)
-                  .map((item) => (
-                    <button
-                      key={`similar-${item.id}`}
-                      type="button"
-                      onClick={() => openVehicleDetail(item)}
-                      className="ui-focus rounded-lg border border-slate-200 bg-white p-2.5 text-left transition hover:border-amber-300 hover:bg-stone-100/30"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="line-clamp-1 text-sm font-semibold text-slate-900">{item.title}</p>
-                          <p className="line-clamp-1 text-xs text-slate-600">
-                            {item.subtitle ?? "Vehiculo relacionado"}
-                          </p>
+                  .map((item) => {
+                    const similarPriceLabel = formatPrice(config.vehiclePrices[getVehicleKey(item)]);
+                    return (
+                      <button
+                        key={`similar-${item.id}`}
+                        type="button"
+                        onClick={() => openVehicleDetail(item)}
+                        className="ui-focus rounded-lg border border-slate-200 bg-white p-2.5 text-left transition hover:border-amber-300 hover:bg-stone-100/30"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="line-clamp-1 text-sm font-semibold text-slate-900">{item.title}</p>
+                            <div className="mt-0.5 flex items-center justify-between gap-2">
+                              <p className="line-clamp-1 text-xs text-slate-600">
+                                {item.subtitle ?? "Vehiculo relacionado"}
+                              </p>
+                              {similarPriceLabel ? (
+                                <span className="shrink-0 text-[11px] font-semibold text-amber-800">
+                                  {similarPriceLabel}
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                          <div className="h-12 w-16 shrink-0 overflow-hidden rounded-md border border-slate-200 bg-slate-100">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={item.thumbnail ?? item.images[0] ?? "/placeholder-car.svg"}
+                              alt={`Miniatura ${item.title}`}
+                              className="h-full w-full object-cover"
+                              loading="lazy"
+                              onError={(event) => {
+                                event.currentTarget.src = "/placeholder-car.svg";
+                              }}
+                            />
+                          </div>
                         </div>
-                        <div className="h-12 w-16 shrink-0 overflow-hidden rounded-md border border-slate-200 bg-slate-100">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={item.thumbnail ?? item.images[0] ?? "/placeholder-car.svg"}
-                            alt={`Miniatura ${item.title}`}
-                            className="h-full w-full object-cover"
-                            loading="lazy"
-                            onError={(event) => {
-                              event.currentTarget.src = "/placeholder-car.svg";
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </button>
-                  ))}
+                      </button>
+                    );
+                  })}
               </div>
             </div>
           </div>

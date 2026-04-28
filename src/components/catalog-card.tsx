@@ -113,6 +113,39 @@ function normalizeMileage(value: string | null): string | null {
   return `${formatted} kms.`;
 }
 
+function normalizeBinaryStatus(value: string | null): "yes" | "no" | "unknown" | null {
+  if (!value) return null;
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "");
+  if (!normalized) return null;
+  if (["si", "s", "yes", "y", "true", "1", "arranca", "se mueve", "se desplaza"].includes(normalized)) {
+    return "yes";
+  }
+  if (["no", "n", "false", "0", "no arranca", "no se mueve", "no se desplaza"].includes(normalized)) {
+    return "no";
+  }
+  return "unknown";
+}
+
+function getMotorTestLabel(value: string | null): string | null {
+  const status = normalizeBinaryStatus(value);
+  if (!status) return null;
+  if (status === "yes") return "MOTOR ARRANCA";
+  if (status === "no") return "MOTOR NO ARRANCA";
+  return value?.trim().toUpperCase() ?? null;
+}
+
+function getMovementTestLabel(value: string | null): string | null {
+  const status = normalizeBinaryStatus(value);
+  if (!status) return null;
+  if (status === "yes") return "SE DESPLAZA";
+  if (status === "no") return "NO SE DESPLAZA";
+  return value?.trim().toUpperCase() ?? null;
+}
+
 function getVehicleSpecs(
   item: CatalogItem,
 ): Array<{
@@ -135,20 +168,22 @@ function getVehicleSpecs(
   const year = getFirstRawValue(raw, ["ano", "anio", "year", "glo3d.year"]);
   const fuel = getFirstRawValue(raw, ["combustible", "fuel", "glo3d.combustible"]);
   const transmission = getFirstRawValue(raw, ["transmision", "transmisión", "caja", "transmission", "glo3d.transmision"]);
-  const motorTest = getFirstRawValue(raw, [
+  const motorTestRaw = getFirstRawValue(raw, [
     "prueba_motor",
     "pdm",
     "pruebaMotor",
     "motor_test",
     "glo3d.prueba_motor",
   ]);
-  const movementTest = getFirstRawValue(raw, [
+  const movementTestRaw = getFirstRawValue(raw, [
     "prueba_desplazamiento",
     "pdd",
     "pruebaDesplazamiento",
     "movement_test",
     "glo3d.prueba_desplazamiento",
   ]);
+  const motorTest = getMotorTestLabel(motorTestRaw);
+  const movementTest = getMovementTestLabel(movementTestRaw);
   const specs: Array<{
     key: string;
     label: string;

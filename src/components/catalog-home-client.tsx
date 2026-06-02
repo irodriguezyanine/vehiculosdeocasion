@@ -3990,6 +3990,71 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       doc.setTextColor(...BRAND.copper);
       doc.text(vehicleCountLabel, pageWidth / 2, catalogTitleY + 68, { align: "center" });
 
+      const coverContactCardY = catalogTitleY + 108;
+      const coverContactCardWidth = Math.min(usableWidth - 72, 430);
+      const coverContactCardX = (pageWidth - coverContactCardWidth) / 2;
+      const coverContactInnerWidth = coverContactCardWidth - 36;
+      const coverAppointmentLead = "Agenda tu cita";
+      const coverAppointmentBody =
+        "Ven a revisar los vehiculos presencialmente en nuestras oficinas ubicadas en Americo Vespucio 288.";
+      const coverContactPhone = "+56 9 8932 3397";
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10.5);
+      const coverBodyLines = doc.splitTextToSize(coverAppointmentBody, coverContactInnerWidth);
+      const coverContactCardHeight = 34 + coverBodyLines.length * 13 + 54;
+
+      doc.setFillColor(...BRAND.white);
+      doc.setDrawColor(...BRAND.border);
+      doc.setLineWidth(0.8);
+      doc.roundedRect(coverContactCardX, coverContactCardY, coverContactCardWidth, coverContactCardHeight, 12, 12, "FD");
+
+      doc.setDrawColor(...BRAND.copper);
+      doc.setLineWidth(2);
+      doc.line(
+        coverContactCardX + coverContactCardWidth / 2 - 28,
+        coverContactCardY + 12,
+        coverContactCardX + coverContactCardWidth / 2 + 28,
+        coverContactCardY + 12,
+      );
+
+      let coverContactTextY = coverContactCardY + 30;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11.5);
+      doc.setTextColor(...BRAND.cacao);
+      doc.text(coverAppointmentLead, pageWidth / 2, coverContactTextY, { align: "center" });
+
+      coverContactTextY += 18;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10.5);
+      doc.setTextColor(...BRAND.muted);
+      doc.text(coverBodyLines, pageWidth / 2, coverContactTextY, {
+        align: "center",
+        maxWidth: coverContactInnerWidth,
+      });
+
+      coverContactTextY += coverBodyLines.length * 13 + 14;
+      doc.setDrawColor(...BRAND.borderSoft);
+      doc.setLineWidth(0.6);
+      doc.line(
+        coverContactCardX + 24,
+        coverContactTextY,
+        coverContactCardX + coverContactCardWidth - 24,
+        coverContactTextY,
+      );
+
+      coverContactTextY += 18;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9.5);
+      doc.setTextColor(...BRAND.muted);
+      doc.text("Contact Center", pageWidth / 2, coverContactTextY, { align: "center" });
+
+      coverContactTextY += 16;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.setTextColor(...BRAND.espresso);
+      doc.text(coverContactPhone, pageWidth / 2, coverContactTextY, { align: "center" });
+
       doc.setFillColor(...BRAND.espresso);
       doc.rect(0, pageHeight - 10, pageWidth, 10, "F");
       doc.setFillColor(...BRAND.copper);

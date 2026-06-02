@@ -120,11 +120,12 @@ function isMonoDetailField(label: string): boolean {
 }
 
 type CalendarPdfRow = {
-  title: string;
+  vehiclePrimary: string;
+  vehicleSecondary: string;
   patent: string;
   model: string;
-  auctionLabel: string;
   priceLabel: string;
+  thumbnailUrl: string | null;
 };
 type CalendarPdfSection = {
   categoryTitle: string;
@@ -589,6 +590,75 @@ function getModel(item: CatalogItem): string {
   const model = [raw.modelo, raw.model, item.title]
     .find((value) => typeof value === "string" && value.trim().length > 0) as string | undefined;
   return model?.trim() ?? item.title;
+}
+
+function getVehicleThumbnailUrl(item: CatalogItem): string | null {
+  const candidate = item.thumbnail ?? item.images[0];
+  if (typeof candidate === "string" && candidate.trim().startsWith("http")) {
+    return candidate.trim();
+  }
+  return null;
+}
+
+function getPdfVehicleDisplay(item: CatalogItem): { primary: string; secondary: string } {
+  const subtitle = item.subtitle?.trim();
+  const rawTitle = item.title?.trim() || "Vehiculo sin titulo";
+  const cleaned = rawTitle.replace(/^vedisa\s+remates\s*-\s*/i, "").trim();
+  const commaParts = cleaned.split(",").map((part) => part.trim()).filter(Boolean);
+
+  if (commaParts.length >= 2) {
+    return {
+      primary: commaParts[0] ?? rawTitle,
+      secondary: commaParts.slice(1).join(", "),
+    };
+  }
+
+  const raw = item.raw as Record<string, unknown>;
+  const lookup = buildVehicleLookup(raw);
+  const brand = String(
+    getLookupValue(lookup, ["marca", "brand", "make", "glo3d.make"]) ?? raw.marca ?? raw.brand ?? "",
+  ).trim();
+  const model = String(
+    getLookupValue(lookup, ["modelo", "model", "model2", "glo3d.model2"]) ?? raw.modelo ?? raw.model ?? "",
+  ).trim();
+  const year = String(
+    getLookupValue(lookup, ["ano", "anio", "year", "glo3d.year"]) ?? raw.ano ?? raw.anio ?? raw.year ?? "",
+  ).trim();
+  const composed = [brand, model].filter(Boolean).join(" ");
+  const primary = composed
+    ? `${composed}${year ? ` · ${year}` : ""}`.trim()
+    : cleaned;
+
+  return {
+    primary,
+    secondary: subtitle && normalizeText(subtitle) !== normalizeText(primary) ? subtitle : "",
+  };
+}
+
+type PdfImageAsset = {
+  dataUrl: string;
+  format: "PNG" | "JPEG";
+  aspectRatio: number;
+};
+
+async function loadImageForPdfAsDataUrl(url: string): Promise<PdfImageAsset | null> {
+  try {
+    const response = await fetch(url, { cache: "no-store", mode: "cors" });
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    const dataUrl = await blobToDataUrl(blob);
+    const dimensions = await getImageDimensionsFromDataUrl(dataUrl);
+    if (!dimensions || dimensions.width <= 0 || dimensions.height <= 0) return null;
+    const mime = blob.type.toLowerCase();
+    const format: "PNG" | "JPEG" = mime.includes("png") ? "PNG" : "JPEG";
+    return {
+      dataUrl,
+      format,
+      aspectRatio: dimensions.width / dimensions.height,
+    };
+  } catch {
+    return null;
+  }
 }
 
 function inferVehicleType(item: CatalogItem): VehicleTypeId {
@@ -3603,15 +3673,14 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   const calendarPdfSections = useMemo<CalendarPdfSection[]>(() => {
     const buildRow = (item: CatalogItem): CalendarPdfRow => {
       const key = getVehicleKey(item);
+      const vehicleDisplay = getPdfVehicleDisplay(item);
       return {
-        title: item.title?.trim() || "Vehiculo sin titulo",
+        vehiclePrimary: vehicleDisplay.primary,
+        vehicleSecondary: vehicleDisplay.secondary,
         patent: getPatent(item),
         model: getModel(item),
-        auctionLabel:
-          upcomingAuctionByVehicleKey[key] ??
-          formatAuctionDateLabel(item.auctionDate) ??
-          "Sin fecha comercial",
         priceLabel: formatPrice(config.vehiclePrices[key]) ?? "Sin precio",
+        thumbnailUrl: getVehicleThumbnailUrl(item),
       };
     };
 
@@ -3663,7 +3732,6 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     proximosRemates,
     ventasDirectas,
     homeVisibleItems,
-    upcomingAuctionByVehicleKey,
     config.vehiclePrices,
     config.sectionTexts,
   ]);
@@ -3729,143 +3797,97 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         borderSoft: [233, 218, 201] as const,
         white: [255, 255, 255] as const,
       };
-      const stats = [
-        { label: "Categorias visibles", value: String(calendarPdfSections.length) },
-        { label: "Vehiculos visibles", value: String(totalRows) },
-      ];
-      const pdfContactLine = "WhatsApp +56 9 4550 660 | vehiculosdeocasioncl@gmail.com";
-
-      // Portada comercial - Vehiculos de Ocasion
+      // Portada minimalista comercial
       doc.setFillColor(...BRAND.cream);
       doc.rect(0, 0, pageWidth, pageHeight, "F");
-      doc.setFillColor(...BRAND.espresso);
-      doc.rect(0, 0, pageWidth, 72, "F");
-      doc.setFillColor(...BRAND.copper);
-      doc.rect(0, 72, pageWidth, 6, "F");
 
-      doc.setDrawColor(...BRAND.border);
+      doc.setFillColor(...BRAND.espresso);
+      doc.rect(0, 0, pageWidth, 10, "F");
+      doc.setFillColor(...BRAND.copper);
+      doc.rect(0, 10, pageWidth, 4, "F");
+
       doc.setFillColor(...BRAND.white);
-      doc.roundedRect(marginX, 72, usableWidth, pageHeight - 160, 14, 14, "FD");
+      doc.setDrawColor(...BRAND.borderSoft);
+      doc.setLineWidth(1);
+      doc.roundedRect(marginX + 6, 36, usableWidth - 12, pageHeight - 72, 22, 22, "FD");
+
+      doc.setFillColor(...BRAND.sand);
+      doc.roundedRect(marginX + 18, 48, usableWidth - 36, pageHeight - 96, 18, 18, "F");
+
+      const coverCenterY = pageHeight * 0.46;
+      let catalogTitleY = coverCenterY + 36;
 
       if (logoDataUrl) {
         const { width: logoWidth, height: logoHeight } = fitDimensionsByAspect(
           logoAspectRatio,
-          240,
-          76,
+          300,
+          96,
         );
+        const logoY = coverCenterY - logoHeight / 2 - 28;
         doc.addImage(
           logoDataUrl,
           "PNG",
           (pageWidth - logoWidth) / 2,
-          110,
+          logoY,
           logoWidth,
           logoHeight,
         );
+        catalogTitleY = logoY + logoHeight + 52;
       }
+
+      doc.setDrawColor(...BRAND.copper);
+      doc.setLineWidth(1.4);
+      const accentLineWidth = 96;
+      doc.line(
+        pageWidth / 2 - accentLineWidth / 2,
+        catalogTitleY - 18,
+        pageWidth / 2 + accentLineWidth / 2,
+        catalogTitleY - 18,
+      );
 
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(31);
-      doc.setTextColor(...BRAND.text);
-      doc.text("Catalogo Vehiculos de Ocasion", pageWidth / 2, 230, { align: "center" });
-      doc.setFontSize(14);
-      doc.setTextColor(...BRAND.copper);
-      doc.text("Inventario comercial de vehiculos usados", pageWidth / 2, 256, { align: "center" });
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(11.5);
-      doc.setTextColor(...BRAND.muted);
-      doc.text(
-        "Unidades en buen estado para recibir ofertas y cerrar negocio rapido.",
-        pageWidth / 2,
-        278,
-        { align: "center" },
-      );
-      doc.setFontSize(10.5);
-      doc.setTextColor(...BRAND.muted);
-      const coverDate = now.toLocaleDateString("es-CL", {
-        day: "2-digit",
-        month: "long",
-        year: "numeric",
-      });
-      const coverTime = now.toLocaleTimeString("es-CL", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-      doc.text(`Actualizado ${coverDate} - ${coverTime}`, pageWidth / 2, 300, { align: "center" });
-
-      const cardGap = 12;
-      const cardWidth = (usableWidth - cardGap * (stats.length - 1) - 16) / stats.length;
-      let cardX = marginX + 8;
-      for (const stat of stats) {
-        doc.setDrawColor(...BRAND.border);
-        doc.setFillColor(...BRAND.sand);
-        doc.roundedRect(cardX, 332, cardWidth, 88, 8, 8, "FD");
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(10);
-        doc.setTextColor(...BRAND.muted);
-        doc.text(stat.label, cardX + cardWidth / 2, 356, { align: "center" });
-        doc.setFont("helvetica", "bold");
-        const valueLines = doc.splitTextToSize(stat.value, cardWidth - 22);
-        doc.setFontSize(22);
-        doc.setTextColor(...BRAND.text);
-        doc.text(valueLines, cardX + cardWidth / 2, 390, { align: "center" });
-        cardX += cardWidth + cardGap;
-      }
-
-      doc.setDrawColor(...BRAND.borderSoft);
-      doc.line(marginX + 20, 446, pageWidth - marginX - 20, 446);
-      doc.setFont("helvetica", "italic");
-      doc.setFontSize(10);
-      doc.setTextColor(...BRAND.muted);
-      doc.text(
-        "Incluye categorias visibles segun filtros activos del catalogo.",
-        pageWidth / 2,
-        468,
-        { align: "center" },
-      );
+      doc.setFontSize(46);
+      doc.setTextColor(...BRAND.espresso);
+      doc.text("Catalogo", pageWidth / 2, catalogTitleY, { align: "center" });
 
       doc.setFillColor(...BRAND.espresso);
-      doc.roundedRect(marginX + 26, 492, usableWidth - 52, 42, 7, 7, "F");
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9.5);
-      doc.setTextColor(...BRAND.white);
-      doc.text("Contacto comercial directo", pageWidth / 2, 510, { align: "center" });
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9.4);
-      doc.text(pdfContactLine, pageWidth / 2, 525, { align: "center" });
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.setTextColor(...BRAND.cacao);
-      doc.text("Vehículos de Ocasión", pageWidth / 2, pageHeight - 54, { align: "center" });
+      doc.rect(0, pageHeight - 10, pageWidth, 10, "F");
+      doc.setFillColor(...BRAND.copper);
+      doc.rect(0, pageHeight - 14, pageWidth, 4, "F");
 
       // Seccion detallada
       doc.addPage();
       let y = 42;
 
       const drawPageHeader = () => {
+        const headerHeight = 64;
+        const headerContentHeight = 58;
         doc.setFillColor(...BRAND.espresso);
-        doc.rect(0, 0, pageWidth, 64, "F");
+        doc.rect(0, 0, pageWidth, headerHeight, "F");
         doc.setFillColor(...BRAND.copper);
-        doc.rect(0, 58, pageWidth, 6, "F");
+        doc.rect(0, headerContentHeight, pageWidth, 6, "F");
+        let titleOffsetX = marginX;
         if (logoDataUrl) {
           const { width: headerLogoWidth, height: headerLogoHeight } = fitDimensionsByAspect(
             logoAspectRatio,
-            108,
-            28,
+            180,
+            46,
           );
+          const logoY = (headerContentHeight - headerLogoHeight) / 2;
           doc.addImage(
             logoDataUrl,
             "PNG",
             marginX,
-            16 + (24 - headerLogoHeight) / 2,
+            logoY,
             headerLogoWidth,
             headerLogoHeight,
           );
+          titleOffsetX = marginX + headerLogoWidth + 14;
         }
         doc.setFont("helvetica", "bold");
         doc.setFontSize(12);
         doc.setTextColor(...BRAND.white);
-        doc.text("Detalle de vehiculos visibles", marginX + (logoDataUrl ? 102 : 0), 31);
+        doc.text("Detalle de vehiculos visibles", titleOffsetX, 31);
         doc.setFont("helvetica", "normal");
         doc.setFontSize(9);
         doc.setTextColor(245, 224, 205);
@@ -3874,15 +3896,40 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       };
 
       const tableColumns = [
-        { key: "title" as const, label: "Vehiculo", width: Math.floor(usableWidth * 0.27), align: "left" as const },
-        { key: "patent" as const, label: "Patente", width: Math.floor(usableWidth * 0.12), align: "left" as const },
-        { key: "model" as const, label: "Modelo", width: Math.floor(usableWidth * 0.19), align: "left" as const },
-        { key: "auctionLabel" as const, label: "Disponibilidad", width: Math.floor(usableWidth * 0.27), align: "left" as const },
+        { key: "vehicle" as const, label: "Vehiculo", width: Math.floor(usableWidth * 0.34), align: "left" as const },
+        { key: "patent" as const, label: "Patente", width: Math.floor(usableWidth * 0.11), align: "left" as const },
+        { key: "model" as const, label: "Modelo", width: Math.floor(usableWidth * 0.17), align: "left" as const },
+        { key: "thumbnail" as const, label: "Foto", width: 72, align: "center" as const },
         { key: "priceLabel" as const, label: "Precio", width: 0, align: "right" as const },
       ];
       tableColumns[4].width = Math.floor(
         usableWidth - tableColumns[0].width - tableColumns[1].width - tableColumns[2].width - tableColumns[3].width,
       );
+      const vehicleColIndex = 0;
+      const patentColIndex = 1;
+      const modelColIndex = 2;
+      const thumbnailColIndex = 3;
+      const priceColIndex = 4;
+      const thumbMaxWidth = 58;
+      const thumbMaxHeight = 40;
+
+      const thumbnailCache = new Map<string, PdfImageAsset>();
+      const uniqueThumbnailUrls = [
+        ...new Set(
+          calendarPdfSections
+            .flatMap((section) => section.rows.map((row) => row.thumbnailUrl))
+            .filter((url): url is string => !!url),
+        ),
+      ];
+      await Promise.all(
+        uniqueThumbnailUrls.map(async (url) => {
+          const asset = await loadImageForPdfAsDataUrl(url);
+          if (asset) thumbnailCache.set(url, asset);
+        }),
+      );
+
+      const getColumnX = (columnIndex: number) =>
+        marginX + tableColumns.slice(0, columnIndex).reduce((acc, column) => acc + column.width, 0);
 
       const drawTableHeader = () => {
         doc.setFillColor(...BRAND.cacao);
@@ -3894,6 +3941,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         for (const column of tableColumns) {
           if (column.align === "right") {
             doc.text(column.label, x + column.width - 8, y + 13, { align: "right" });
+          } else if (column.align === "center") {
+            doc.text(column.label, x + column.width / 2, y + 13, { align: "center" });
           } else {
             doc.text(column.label, x + 8, y + 13);
           }
@@ -3974,17 +4023,37 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
 
         drawTableHeader();
         for (const [rowIndex, row] of section.rows.entries()) {
-          const linePaddingY = 5;
+          const linePaddingY = 6;
           const lineHeight = 10;
           const cellPaddingX = 8;
-          const values = tableColumns.map((column) =>
-            String(row[column.key] ?? "-"),
+          const vehicleColWidth = tableColumns[vehicleColIndex].width;
+          const vehiclePrimaryLines = doc.splitTextToSize(
+            row.vehiclePrimary,
+            Math.max(24, vehicleColWidth - cellPaddingX * 2),
           );
-          const linesByCol = values.map((value, index) =>
-            doc.splitTextToSize(value, Math.max(24, tableColumns[index].width - cellPaddingX * 2)),
+          const vehicleSecondaryLines = row.vehicleSecondary
+            ? doc.splitTextToSize(row.vehicleSecondary, Math.max(24, vehicleColWidth - cellPaddingX * 2))
+            : [];
+          const patentLines = doc.splitTextToSize(
+            row.patent,
+            Math.max(24, tableColumns[patentColIndex].width - cellPaddingX * 2),
           );
-          const maxLines = Math.max(1, ...linesByCol.map((lines) => lines.length));
-          const rowHeight = Math.max(24, maxLines * lineHeight + linePaddingY * 2);
+          const modelLines = doc.splitTextToSize(
+            row.model,
+            Math.max(24, tableColumns[modelColIndex].width - cellPaddingX * 2),
+          );
+          const priceLines = doc.splitTextToSize(
+            row.priceLabel,
+            Math.max(24, tableColumns[priceColIndex].width - cellPaddingX * 2),
+          );
+          const vehicleLineCount = Math.max(1, vehiclePrimaryLines.length + vehicleSecondaryLines.length);
+          const textBlockLines = Math.max(
+            vehicleLineCount,
+            patentLines.length,
+            modelLines.length,
+            priceLines.length,
+          );
+          const rowHeight = Math.max(thumbMaxHeight + linePaddingY * 2, textBlockLines * lineHeight + linePaddingY * 2);
 
           ensureSpace(rowHeight + 2, true);
           const rowFill = rowIndex % 2 === 0 ? BRAND.white : BRAND.cream;
@@ -3993,24 +4062,75 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           doc.setDrawColor(...BRAND.borderSoft);
           doc.rect(marginX, y, usableWidth, rowHeight);
 
-          let cellX = marginX;
-          for (let i = 0; i < tableColumns.length; i += 1) {
-            if (i > 0) doc.line(cellX, y, cellX, y + rowHeight);
-            doc.setFont("helvetica", i === 0 ? "bold" : "normal");
-            doc.setFontSize(i === 3 ? 8.8 : 9.2);
-            doc.setTextColor(...BRAND.text);
-            if (tableColumns[i].align === "right") {
-              doc.text(
-                linesByCol[i],
-                cellX + tableColumns[i].width - cellPaddingX,
-                y + linePaddingY + 8,
-                { align: "right" },
-              );
-            } else {
-              doc.text(linesByCol[i], cellX + cellPaddingX, y + linePaddingY + 8);
-            }
-            cellX += tableColumns[i].width;
+          for (let columnIndex = 1; columnIndex < tableColumns.length; columnIndex += 1) {
+            doc.line(getColumnX(columnIndex), y, getColumnX(columnIndex), y + rowHeight);
           }
+
+          let textY = y + linePaddingY + 8;
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(9);
+          doc.setTextColor(...BRAND.text);
+          doc.text(vehiclePrimaryLines, getColumnX(vehicleColIndex) + cellPaddingX, textY);
+          textY += vehiclePrimaryLines.length * lineHeight;
+          if (vehicleSecondaryLines.length > 0) {
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(8);
+            doc.setTextColor(...BRAND.muted);
+            doc.text(vehicleSecondaryLines, getColumnX(vehicleColIndex) + cellPaddingX, textY);
+          }
+
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(9);
+          doc.setTextColor(...BRAND.text);
+          doc.text(
+            patentLines,
+            getColumnX(patentColIndex) + cellPaddingX,
+            y + linePaddingY + 8,
+          );
+          doc.text(
+            modelLines,
+            getColumnX(modelColIndex) + cellPaddingX,
+            y + linePaddingY + 8,
+          );
+          doc.setFont("helvetica", "bold");
+          doc.text(
+            priceLines,
+            getColumnX(priceColIndex) + tableColumns[priceColIndex].width - cellPaddingX,
+            y + linePaddingY + 8,
+            { align: "right" },
+          );
+
+          const thumbColX = getColumnX(thumbnailColIndex);
+          const thumbColWidth = tableColumns[thumbnailColIndex].width;
+          const imageAsset = row.thumbnailUrl ? thumbnailCache.get(row.thumbnailUrl) : null;
+          if (imageAsset) {
+            const { width: thumbWidth, height: thumbHeight } = fitDimensionsByAspect(
+              imageAsset.aspectRatio,
+              thumbMaxWidth,
+              thumbMaxHeight,
+            );
+            const imgX = thumbColX + (thumbColWidth - thumbWidth) / 2;
+            const imgY = y + (rowHeight - thumbHeight) / 2;
+            doc.setDrawColor(...BRAND.borderSoft);
+            doc.setFillColor(...BRAND.white);
+            doc.roundedRect(imgX - 2, imgY - 2, thumbWidth + 4, thumbHeight + 4, 3, 3, "FD");
+            doc.addImage(imageAsset.dataUrl, imageAsset.format, imgX, imgY, thumbWidth, thumbHeight);
+          } else {
+            const placeholderWidth = 44;
+            const placeholderHeight = 28;
+            const placeholderX = thumbColX + (thumbColWidth - placeholderWidth) / 2;
+            const placeholderY = y + (rowHeight - placeholderHeight) / 2;
+            doc.setFillColor(...BRAND.sand);
+            doc.setDrawColor(...BRAND.borderSoft);
+            doc.roundedRect(placeholderX, placeholderY, placeholderWidth, placeholderHeight, 3, 3, "FD");
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(7);
+            doc.setTextColor(...BRAND.muted);
+            doc.text("Sin foto", thumbColX + thumbColWidth / 2, placeholderY + placeholderHeight / 2 + 2, {
+              align: "center",
+            });
+          }
+
           y += rowHeight;
         }
         y += 16;

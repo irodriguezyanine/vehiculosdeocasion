@@ -32,6 +32,8 @@ Campos principales:
 - `GLO3D_API_USERNAME` / `GLO3D_API_PASSWORD`: visores 3D.
 - `ADMIN_EDITOR_EMAIL` / `ADMIN_EDITOR_PASSWORD`: acceso al modo editor.
 - `CATALOG_OFFERS_TABLE`: tabla para registrar ofertas de clientes (por defecto `catalogo_vehicle_offers`).
+- `CATALOG_EDITOR_TABLE`: tabla de configuracion del editor (por defecto `catalogo_editor_config`).
+- `CATALOG_EDITOR_ROW_ID`: fila aislada de este sitio (por defecto `vehiculos-de-ocasion`).
 
 ## Modo editor administrador
 
@@ -41,7 +43,9 @@ Incluye login y edición de:
 - ocultar/mostrar vehículos
 - precio personalizado por vehículo
 
-El modo editor guarda en Supabase en la tabla `catalogo_editor_config` (configurable con `CATALOG_EDITOR_TABLE`).
+**Importante:** las ediciones del editor (ocultar, marcar vendido, precios, textos, secciones) **no modifican** el inventario maestro de TasacionesVedisa ni tablas como `inventario`. Solo guardan capa de presentacion propia de este sitio.
+
+El modo editor guarda en Supabase en la tabla `catalogo_editor_config` (configurable con `CATALOG_EDITOR_TABLE`), en la fila `CATALOG_EDITOR_ROW_ID`. Catalogo Vedisa u otros sitios deben usar **otro id de fila** (por ejemplo `global` o `catalogo-vedisa`) para no mezclar ocultamientos ni precios entre paginas.
 
 SQL sugerido:
 

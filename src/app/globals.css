@@ -234,7 +234,7 @@ body {
 
 .inventory-search-shell {
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid rgba(190, 145, 102, 0.5);
   background:
     radial-gradient(circle at 18% -45%, rgba(212, 160, 113, 0.2), transparent 45%),

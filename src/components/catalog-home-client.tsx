@@ -2696,8 +2696,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   const [draggedLayoutSectionId, setDraggedLayoutSectionId] = useState<HomeSectionOrderId | null>(null);
   const [activeHeroRichEditor, setActiveHeroRichEditor] = useState<"kicker" | "title" | "subtitle">("subtitle");
   const [isDownloadingCalendarPdf, setIsDownloadingCalendarPdf] = useState(false);
-  const [showHomeQuickFiltersPanel, setShowHomeQuickFiltersPanel] = useState(false);
-  const [showHomeSortMenu, setShowHomeSortMenu] = useState(false);
+  const [showHomeFiltersPanel, setShowHomeFiltersPanel] = useState(false);
   const homeSearchShellRef = useRef<HTMLDivElement | null>(null);
   const [heroToolbarState, setHeroToolbarState] = useState(() => ({
     formatBlock: "p" as "p" | "h2" | "h3",
@@ -3325,15 +3324,14 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   }, [quickFilters]);
 
   useEffect(() => {
-    if (!showHomeQuickFiltersPanel && !showHomeSortMenu) return;
+    if (!showHomeFiltersPanel) return;
     const handlePointerDown = (event: Event) => {
       if (homeSearchShellRef.current?.contains(event.target as Node)) return;
-      setShowHomeQuickFiltersPanel(false);
-      setShowHomeSortMenu(false);
+      setShowHomeFiltersPanel(false);
     };
     document.addEventListener("mousedown", handlePointerDown);
     return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, [showHomeQuickFiltersPanel, showHomeSortMenu]);
+  }, [showHomeFiltersPanel]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -9858,118 +9856,27 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 </button>
               ) : null}
             </div>
-            {config.homeLayout.showSortSelector ? (
-              <details className="relative shrink-0 md:hidden">
-                <summary
-                  className="ui-focus touch-target flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg border border-amber-300/70 bg-[#5a3a25] text-amber-50 hover:bg-[#6a452c]"
-                  aria-label="Abrir opciones de orden"
-                  title="Ordenar resultados"
-                >
-                  <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4" aria-hidden="true">
-                    <path d="M4 5h12M6 10h8M8 15h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                  </svg>
-                </summary>
-                <div className="absolute right-0 z-50 mt-2 w-[min(100vw-2rem,11rem)] rounded-lg border border-amber-300/70 bg-[#4a3020] p-1 shadow-lg">
-                  {HOME_SORT_OPTIONS.map(([value, label]) => (
-                    <button
-                      key={`sort-mobile-${value}`}
-                      type="button"
-                      onClick={(event) => {
-                        setHomeSort(value);
-                        trackEvent("home_sort_change", { sort: value });
-                        const details = event.currentTarget.closest("details");
-                        if (details) details.removeAttribute("open");
-                      }}
-                      className={`ui-focus flex min-h-11 w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm font-medium ${
-                        homeSort === value
-                          ? "bg-amber-700 text-amber-50"
-                          : "text-amber-100 hover:bg-[#5a3a25]"
-                      }`}
-                    >
-                      <span>{label}</span>
-                      {homeSort === value ? <span>OK</span> : null}
-                    </button>
-                  ))}
-                </div>
-              </details>
+            {config.homeLayout.showQuickFilters || config.homeLayout.showSortSelector ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowHomeFiltersPanel((prev) => !prev);
+                }}
+                className={`ui-focus shrink-0 flex h-11 w-11 items-center justify-center rounded-lg border transition ${
+                  showHomeFiltersPanel || quickFilters.length > 0 || homeSort !== "recomendado"
+                    ? "border-amber-200 bg-amber-700 text-amber-50"
+                    : "border-amber-300/70 bg-[#5a3a25] text-amber-50 hover:bg-[#6a452c]"
+                }`}
+                aria-label="Abrir filtros y orden"
+                aria-expanded={showHomeFiltersPanel}
+                title="Filtros y orden"
+              >
+                <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4" aria-hidden="true">
+                  <path d="M3 5h14M5 10h10M8 15h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                </svg>
+              </button>
             ) : null}
             <div className="hidden shrink-0 items-center gap-2 md:flex">
-              {config.homeLayout.showQuickFilters ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowHomeSortMenu(false);
-                    setShowHomeQuickFiltersPanel((prev) => !prev);
-                  }}
-                  className={`ui-focus flex h-11 w-11 items-center justify-center rounded-lg border transition ${
-                    showHomeQuickFiltersPanel || quickFilters.length > 0
-                      ? "border-amber-200 bg-amber-700 text-amber-50"
-                      : "border-amber-300/70 bg-[#5a3a25] text-amber-50 hover:bg-[#6a452c]"
-                  }`}
-                  aria-label="Abrir filtros rapidos"
-                  aria-expanded={showHomeQuickFiltersPanel}
-                  title="Filtros"
-                >
-                  <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4" aria-hidden="true">
-                    <path d="M3 5h14M5 10h10M8 15h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                  </svg>
-                </button>
-              ) : null}
-              {config.homeLayout.showSortSelector ? (
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowHomeQuickFiltersPanel(false);
-                      setShowHomeSortMenu((prev) => !prev);
-                    }}
-                    className={`ui-focus flex h-11 w-11 items-center justify-center rounded-lg border transition ${
-                      showHomeSortMenu
-                        ? "border-amber-200 bg-amber-700 text-amber-50"
-                        : "border-amber-300/70 bg-[#5a3a25] text-amber-50 hover:bg-[#6a452c]"
-                    }`}
-                    aria-label="Abrir opciones de orden"
-                    aria-expanded={showHomeSortMenu}
-                    title="Ordenar resultados"
-                  >
-                    <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4" aria-hidden="true">
-                      <path d="M6 4v12M6 4l-2.5 2.5M6 4l2.5 2.5M14 16V4M14 16l-2.5-2.5M14 16l2.5-2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </button>
-                  {showHomeSortMenu ? (
-                    <div className="absolute right-0 z-50 mt-2 w-52 overflow-hidden rounded-xl border border-amber-200/70 bg-[#3f2818] p-1.5 shadow-2xl">
-                      <p className="px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-200/75">
-                        Ordenar por
-                      </p>
-                      {HOME_SORT_OPTIONS.map(([value, label]) => (
-                        <button
-                          key={`sort-desktop-${value}`}
-                          type="button"
-                          onClick={() => {
-                            setHomeSort(value);
-                            trackEvent("home_sort_change", { sort: value });
-                            setShowHomeSortMenu(false);
-                          }}
-                          className={`ui-focus flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm font-medium transition ${
-                            homeSort === value
-                              ? "bg-amber-700 text-amber-50"
-                              : "text-amber-100 hover:bg-[#5a3a25]"
-                          }`}
-                        >
-                          <span className="flex-1">{label}</span>
-                          {homeSort === value ? (
-                            <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4 shrink-0" aria-hidden="true">
-                              <path d="M5 10.5l3 3 7-7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          ) : (
-                            <span className="h-4 w-4 shrink-0" aria-hidden="true" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
               <button
                 type="button"
                 onClick={() => {
@@ -10011,27 +9918,58 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             </svg>
             {isDownloadingCalendarPdf ? "Generando PDF..." : "PDF Catalogo"}
           </button>
-          {config.homeLayout.showQuickFilters && showHomeQuickFiltersPanel ? (
-          <div className="mt-3 hidden border-t border-amber-300/40 pt-3 md:block">
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-200/80">
-              Filtros rapidos
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              {Object.entries(QUICK_FILTER_LABELS).map(([id, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => toggleQuickFilter(id as QuickFilterId)}
-                  className={`ui-focus min-h-10 shrink-0 rounded-full border px-3 py-2 text-xs font-semibold transition ${
-                    quickFilters.includes(id as QuickFilterId)
-                      ? "border-amber-200 bg-amber-700 text-amber-50"
-                      : "border-amber-300/70 bg-[#5a3a25] text-amber-100 hover:bg-[#6a452c]"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+          {showHomeFiltersPanel &&
+          (config.homeLayout.showQuickFilters || config.homeLayout.showSortSelector) ? (
+          <div className="mt-3 border-t border-amber-300/40 pt-3">
+            {config.homeLayout.showSortSelector ? (
+              <>
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-200/80">
+                  Ordenar por
+                </p>
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  {HOME_SORT_OPTIONS.map(([value, label]) => (
+                    <button
+                      key={`sort-${value}`}
+                      type="button"
+                      onClick={() => {
+                        setHomeSort(value);
+                        trackEvent("home_sort_change", { sort: value });
+                      }}
+                      className={`ui-focus min-h-10 shrink-0 rounded-full border px-3 py-2 text-xs font-semibold transition ${
+                        homeSort === value
+                          ? "border-amber-200 bg-amber-700 text-amber-50"
+                          : "border-amber-300/70 bg-[#5a3a25] text-amber-100 hover:bg-[#6a452c]"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : null}
+            {config.homeLayout.showQuickFilters ? (
+              <>
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-200/80">
+                  Filtros rapidos
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  {Object.entries(QUICK_FILTER_LABELS).map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => toggleQuickFilter(id as QuickFilterId)}
+                      className={`ui-focus min-h-10 shrink-0 rounded-full border px-3 py-2 text-xs font-semibold transition ${
+                        quickFilters.includes(id as QuickFilterId)
+                          ? "border-amber-200 bg-amber-700 text-amber-50"
+                          : "border-amber-300/70 bg-[#5a3a25] text-amber-100 hover:bg-[#6a452c]"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : null}
           </div>
           ) : null}
           {config.homeLayout.showQuickFilters && quickFilters.length > 0 ? (

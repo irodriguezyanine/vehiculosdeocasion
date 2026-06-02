@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { DEFAULT_EDITOR_CONFIG, type EditorConfig } from "@/types/editor";
 
 const EDITOR_TABLE = process.env.CATALOG_EDITOR_TABLE ?? "catalogo_editor_config";
-const EDITOR_ROW_ID = "global";
+const EDITOR_ROW_ID = process.env.CATALOG_EDITOR_ROW_ID ?? "vehiculos-de-ocasion";
 
 function getServerSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;

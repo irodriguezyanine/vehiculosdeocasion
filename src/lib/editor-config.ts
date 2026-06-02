@@ -2,7 +2,19 @@ import { createClient } from "@supabase/supabase-js";
 import { DEFAULT_EDITOR_CONFIG, type EditorConfig } from "@/types/editor";
 
 const EDITOR_TABLE = process.env.CATALOG_EDITOR_TABLE ?? "catalogo_editor_config";
-const EDITOR_ROW_ID = process.env.CATALOG_EDITOR_ROW_ID ?? "vehiculos-de-ocasion";
+export const SITE_EDITOR_SCOPE = "vehiculos-de-ocasion";
+
+function resolveEditorRowId(): string {
+  const requested = process.env.CATALOG_EDITOR_ROW_ID?.trim();
+  if (!requested || requested === "global") return SITE_EDITOR_SCOPE;
+  return requested;
+}
+
+const EDITOR_ROW_ID = resolveEditorRowId();
+
+export function getEditorScopeId(): string {
+  return EDITOR_ROW_ID;
+}
 
 function getServerSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
@@ -125,11 +137,13 @@ function normalizeConfig(config?: Partial<EditorConfig> | null): EditorConfig {
 export type EditorConfigLoadResult = {
   config: EditorConfig;
   persisted: boolean;
+  scopeId: string;
 };
 
 export async function getEditorConfig(): Promise<EditorConfigLoadResult> {
+  const scopeId = getEditorScopeId();
   const supabase = getServerSupabase();
-  if (!supabase) return { config: DEFAULT_EDITOR_CONFIG, persisted: false };
+  if (!supabase) return { config: DEFAULT_EDITOR_CONFIG, persisted: false, scopeId };
 
   const { data, error } = await supabase
     .from(EDITOR_TABLE)
@@ -137,10 +151,11 @@ export async function getEditorConfig(): Promise<EditorConfigLoadResult> {
     .eq("id", EDITOR_ROW_ID)
     .maybeSingle();
 
-  if (error || !data) return { config: DEFAULT_EDITOR_CONFIG, persisted: false };
+  if (error || !data) return { config: DEFAULT_EDITOR_CONFIG, persisted: false, scopeId };
   return {
     config: normalizeConfig((data as { config?: Partial<EditorConfig> }).config ?? null),
     persisted: true,
+    scopeId,
   };
 }
 

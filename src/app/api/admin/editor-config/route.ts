@@ -1,11 +1,16 @@
 import { cookies } from "next/headers";
 import { ADMIN_SESSION_COOKIE_NAME, verifyAdminSessionToken } from "@/lib/admin-session";
-import { getEditorConfig, saveEditorConfig } from "@/lib/editor-config";
+import { getEditorConfig, getEditorScopeId, saveEditorConfig } from "@/lib/editor-config";
 import { DEFAULT_EDITOR_CONFIG, type EditorConfig } from "@/types/editor";
 
 export async function GET() {
   const result = await getEditorConfig();
-  return Response.json({ ok: true, config: result.config, persisted: result.persisted });
+  return Response.json({
+    ok: true,
+    config: result.config,
+    persisted: result.persisted,
+    scopeId: result.scopeId,
+  });
 }
 
 export async function PUT(req: Request) {
@@ -22,5 +27,5 @@ export async function PUT(req: Request) {
   if (!result.ok) {
     return Response.json({ ok: false, error: result.error }, { status: 400 });
   }
-  return Response.json({ ok: true });
+  return Response.json({ ok: true, scopeId: getEditorScopeId() });
 }

@@ -33,7 +33,7 @@ Campos principales:
 - `ADMIN_EDITOR_EMAIL` / `ADMIN_EDITOR_PASSWORD`: acceso al modo editor.
 - `CATALOG_OFFERS_TABLE`: tabla para registrar ofertas de clientes (por defecto `catalogo_vehicle_offers`).
 - `CATALOG_EDITOR_TABLE`: tabla de configuracion del editor (por defecto `catalogo_editor_config`).
-- `CATALOG_EDITOR_ROW_ID`: fila aislada de este sitio (por defecto `vehiculos-de-ocasion`).
+- `CATALOG_EDITOR_ROW_ID`: fila aislada de este sitio (por defecto `vehiculos-de-ocasion`). El valor `global` se ignora en este proyecto para no mezclar cambios con Catalogo Vedisa.
 
 ## Modo editor administrador
 
@@ -46,6 +46,21 @@ Incluye login y edición de:
 **Importante:** las ediciones del editor (ocultar, marcar vendido, precios, textos, secciones) **no modifican** el inventario maestro de TasacionesVedisa ni tablas como `inventario`. Solo guardan capa de presentacion propia de este sitio.
 
 El modo editor guarda en Supabase en la tabla `catalogo_editor_config` (configurable con `CATALOG_EDITOR_TABLE`), en la fila `CATALOG_EDITOR_ROW_ID`. Catalogo Vedisa u otros sitios deben usar **otro id de fila** (por ejemplo `global` o `catalogo-vedisa`) para no mezclar ocultamientos ni precios entre paginas.
+
+### Separacion en Supabase (recomendado)
+
+En el SQL Editor de Supabase ejecuta:
+
+`supabase/setup-editor-scopes.sql`
+
+Eso crea (si falta) la fila `vehiculos-de-ocasion`. Catalogo Vedisa sigue usando la fila `global` en su propio proyecto.
+
+Resumen:
+
+| Sitio | Fila Supabase (`id`) | Tabla inventario |
+|---|---|---|
+| vehiculosdeocasion.cl | `vehiculos-de-ocasion` | Solo lectura (sin cambios) |
+| Catalogo Vedisa | `global` | Solo lectura (sin cambios) |
 
 SQL sugerido:
 

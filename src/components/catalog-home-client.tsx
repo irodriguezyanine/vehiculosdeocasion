@@ -671,7 +671,7 @@ function collectVehicleImageCandidates(item: CatalogItem): string[] {
     seen.add(normalized);
     result.push(normalized);
   }
-  return result;
+  return result.slice(0, PDF_THUMBNAIL_CANDIDATES_PER_VEHICLE);
 }
 
 function getPdfVehicleDisplay(item: CatalogItem): { primary: string; secondary: string } {
@@ -716,7 +716,9 @@ type PdfImageAsset = {
 };
 
 const MAX_PDF_IMAGE_EDGE = 160;
-const PDF_IMAGE_LOAD_CONCURRENCY = 4;
+const PDF_IMAGE_LOAD_CONCURRENCY = 6;
+const PDF_IMAGE_FETCH_TIMEOUT_MS = 7_000;
+const PDF_THUMBNAIL_CANDIDATES_PER_VEHICLE = 1;
 
 type JsPdfDocument = {
   output(type: "blob"): Blob;
@@ -839,9 +841,19 @@ async function buildPdfImageAsset(dataUrl: string, contentType = ""): Promise<Pd
   return convertImageDataUrlToJpegAsset(dataUrl);
 }
 
+async function fetchWithPdfTimeout(input: RequestInfo, init?: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), PDF_IMAGE_FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
 async function fetchPdfImageDirect(url: string): Promise<PdfImageAsset | null> {
   try {
-    const response = await fetch(url, { cache: "no-store", mode: "cors" });
+    const response = await fetchWithPdfTimeout(url, { cache: "no-store", mode: "cors" });
     if (!response.ok) return null;
     const blob = await response.blob();
     const dataUrl = await blobToDataUrl(blob);
@@ -853,7 +865,9 @@ async function fetchPdfImageDirect(url: string): Promise<PdfImageAsset | null> {
 
 async function fetchPdfImageViaProxy(url: string): Promise<PdfImageAsset | null> {
   try {
-    const response = await fetch(`/api/pdf-image?url=${encodeURIComponent(url)}`, { cache: "no-store" });
+    const response = await fetchWithPdfTimeout(`/api/pdf-image?url=${encodeURIComponent(url)}`, {
+      cache: "no-store",
+    });
     if (!response.ok) return null;
     const payload = (await response.json()) as { dataUrl?: string; contentType?: string };
     if (!payload.dataUrl) return null;
@@ -866,9 +880,9 @@ async function fetchPdfImageViaProxy(url: string): Promise<PdfImageAsset | null>
 async function loadImageForPdfAsDataUrl(url: string): Promise<PdfImageAsset | null> {
   const normalizedUrl = normalizePdfImageUrl(url);
   if (!normalizedUrl) return null;
-  const directAsset = await fetchPdfImageDirect(normalizedUrl);
-  if (directAsset) return directAsset;
-  return fetchPdfImageViaProxy(normalizedUrl);
+  const proxyAsset = await fetchPdfImageViaProxy(normalizedUrl);
+  if (proxyAsset) return proxyAsset;
+  return fetchPdfImageDirect(normalizedUrl);
 }
 
 function inferVehicleType(item: CatalogItem): VehicleTypeId {

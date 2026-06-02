@@ -4021,67 +4021,102 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       const coverContactCardY = catalogTitleY + 108;
       const coverContactCardWidth = Math.min(usableWidth - 72, 430);
       const coverContactCardX = (pageWidth - coverContactCardWidth) / 2;
-      const coverContactInnerWidth = coverContactCardWidth - 36;
+      const coverContactPadX = 28;
+      const coverContactInnerWidth = coverContactCardWidth - coverContactPadX * 2;
       const coverAppointmentLead = "Agenda tu cita";
-      const coverAppointmentBody =
-        "Ven a revisar los vehiculos presencialmente en nuestras oficinas ubicadas en Americo Vespucio 288.";
+      const coverAppointmentIntro =
+        "Ven a revisar los vehiculos presencialmente en nuestras oficinas.";
+      const coverAppointmentAddress = "Américo Vespucio 288";
+      const coverContactLabel = "Contact Center";
       const coverContactPhone = "+56 9 8932 3397";
 
+      const COVER_CARD_PAD_TOP = 22;
+      const COVER_CARD_PAD_BOTTOM = 24;
+      const COVER_BODY_LINE_H = 14;
+      const COVER_TITLE_SIZE = 13;
+      const COVER_BODY_SIZE = 10.5;
+      const COVER_ADDRESS_SIZE = 11;
+      const COVER_LABEL_SIZE = 9;
+      const COVER_PHONE_SIZE = 16;
+
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(10.5);
-      const coverBodyLines = doc.splitTextToSize(coverAppointmentBody, coverContactInnerWidth);
-      const coverContactCardHeight = 34 + coverBodyLines.length * 13 + 54;
+      doc.setFontSize(COVER_BODY_SIZE);
+      const coverIntroLines = doc.splitTextToSize(coverAppointmentIntro, coverContactInnerWidth);
+
+      let coverLayoutY = coverContactCardY + COVER_CARD_PAD_TOP + 18;
+      coverLayoutY += 20;
+      coverLayoutY += coverIntroLines.length * COVER_BODY_LINE_H + 10;
+      coverLayoutY += COVER_ADDRESS_SIZE + 8;
+      const coverSeparatorY = coverLayoutY + 10;
+      const coverFooterSectionY = coverSeparatorY + 1;
+      const coverLabelY = coverFooterSectionY + 18;
+      const coverPhoneY = coverLabelY + 18;
+      const coverContactCardHeight = coverPhoneY + COVER_CARD_PAD_BOTTOM - coverContactCardY;
 
       doc.setFillColor(...BRAND.white);
       doc.setDrawColor(...BRAND.border);
       doc.setLineWidth(0.8);
       doc.roundedRect(coverContactCardX, coverContactCardY, coverContactCardWidth, coverContactCardHeight, 12, 12, "FD");
 
+      doc.setFillColor(...BRAND.sand);
+      doc.roundedRect(
+        coverContactCardX + 1,
+        coverFooterSectionY,
+        coverContactCardWidth - 2,
+        coverContactCardY + coverContactCardHeight - coverFooterSectionY - 1,
+        0,
+        11,
+        "F",
+      );
+
       doc.setDrawColor(...BRAND.copper);
       doc.setLineWidth(2);
       doc.line(
         coverContactCardX + coverContactCardWidth / 2 - 28,
-        coverContactCardY + 12,
+        coverContactCardY + 16,
         coverContactCardX + coverContactCardWidth / 2 + 28,
-        coverContactCardY + 12,
+        coverContactCardY + 16,
       );
 
-      let coverContactTextY = coverContactCardY + 30;
+      let coverContactTextY = coverContactCardY + COVER_CARD_PAD_TOP + 18;
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(11.5);
+      doc.setFontSize(COVER_TITLE_SIZE);
       doc.setTextColor(...BRAND.cacao);
       doc.text(coverAppointmentLead, pageWidth / 2, coverContactTextY, { align: "center" });
 
-      coverContactTextY += 18;
+      coverContactTextY += 20;
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(10.5);
+      doc.setFontSize(COVER_BODY_SIZE);
       doc.setTextColor(...BRAND.muted);
-      doc.text(coverBodyLines, pageWidth / 2, coverContactTextY, {
+      doc.text(coverIntroLines, pageWidth / 2, coverContactTextY, {
         align: "center",
         maxWidth: coverContactInnerWidth,
       });
 
-      coverContactTextY += coverBodyLines.length * 13 + 14;
+      coverContactTextY += coverIntroLines.length * COVER_BODY_LINE_H + 10;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(COVER_ADDRESS_SIZE);
+      doc.setTextColor(...BRAND.copper);
+      doc.text(coverAppointmentAddress, pageWidth / 2, coverContactTextY, { align: "center" });
+
       doc.setDrawColor(...BRAND.borderSoft);
       doc.setLineWidth(0.6);
       doc.line(
-        coverContactCardX + 24,
-        coverContactTextY,
-        coverContactCardX + coverContactCardWidth - 24,
-        coverContactTextY,
+        coverContactCardX + coverContactPadX,
+        coverSeparatorY,
+        coverContactCardX + coverContactCardWidth - coverContactPadX,
+        coverSeparatorY,
       );
 
-      coverContactTextY += 18;
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(9.5);
+      doc.setFontSize(COVER_LABEL_SIZE);
       doc.setTextColor(...BRAND.muted);
-      doc.text("Contact Center", pageWidth / 2, coverContactTextY, { align: "center" });
+      doc.text(coverContactLabel.toUpperCase(), pageWidth / 2, coverLabelY, { align: "center" });
 
-      coverContactTextY += 16;
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(14);
+      doc.setFontSize(COVER_PHONE_SIZE);
       doc.setTextColor(...BRAND.espresso);
-      doc.text(coverContactPhone, pageWidth / 2, coverContactTextY, { align: "center" });
+      doc.text(coverContactPhone, pageWidth / 2, coverPhoneY, { align: "center" });
 
       doc.setFillColor(...BRAND.espresso);
       doc.rect(0, pageHeight - 10, pageWidth, 10, "F");

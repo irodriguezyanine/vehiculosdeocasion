@@ -9686,26 +9686,6 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
 
       {showPublicHome ? (
         <>
-      {isBootstrapping ? (
-        <section className="relative z-10 mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8" aria-hidden="true">
-          <div className="glass-soft rounded-xl p-4">
-            <div className="mb-3 h-10 animate-pulse rounded-md bg-slate-200" />
-            <div className="flex gap-2">
-              <div className="h-7 w-20 animate-pulse rounded-full bg-slate-200" />
-              <div className="h-7 w-24 animate-pulse rounded-full bg-slate-200" />
-              <div className="h-7 w-28 animate-pulse rounded-full bg-slate-200" />
-            </div>
-          </div>
-          <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <div
-                key={`skeleton-card-${index}`}
-                className="h-72 animate-pulse rounded-2xl border border-slate-200 bg-slate-100"
-              />
-            ))}
-          </div>
-        </section>
-      ) : null}
       {config.homeLayout.showSearchBar ? (
       <section className="relative z-50 mx-auto w-full max-w-7xl px-3 pt-3 pb-2 sm:px-6 lg:px-8">
         <div className="inventory-search-shell overflow-visible rounded-2xl p-3 md:p-4">

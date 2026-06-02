@@ -134,6 +134,59 @@ function normalizeConfig(config?: Partial<EditorConfig> | null): EditorConfig {
   };
 }
 
+function countSectionAssignments(config: EditorConfig): number {
+  return Object.values(config.sectionVehicleIds).reduce((total, ids) => total + ids.length, 0);
+}
+
+function isEditorConfigUninitialized(config: EditorConfig): boolean {
+  if (countSectionAssignments(config) > 0) return false;
+  if ((config.managedCategories ?? []).some((category) => (category.vehicleIds ?? []).length > 0)) {
+    return false;
+  }
+  if ((config.manualPublications ?? []).length > 0) return false;
+  if (
+    (config.upcomingAuctions ?? []).length > 0 &&
+    Object.keys(config.vehicleUpcomingAuctionIds ?? {}).length > 0
+  ) {
+    return false;
+  }
+  return true;
+}
+
+const LEGACY_GLOBAL_SCOPE = "global";
+
+async function bootstrapSiteConfigFromLegacyGlobal(
+  supabase: NonNullable<ReturnType<typeof getServerSupabase>>,
+): Promise<EditorConfig | null> {
+  if (EDITOR_ROW_ID !== SITE_EDITOR_SCOPE) return null;
+
+  const { data, error } = await supabase
+    .from(EDITOR_TABLE)
+    .select("config")
+    .eq("id", LEGACY_GLOBAL_SCOPE)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  const legacyConfig = normalizeConfig((data as { config?: Partial<EditorConfig> }).config ?? null);
+  if (isEditorConfigUninitialized(legacyConfig)) return null;
+
+  const payloadWithAudit = {
+    id: EDITOR_ROW_ID,
+    config: legacyConfig,
+    updated_by: "bootstrap:legacy-global",
+    updated_at: new Date().toISOString(),
+  };
+  const fullSave = await supabase.from(EDITOR_TABLE).upsert(payloadWithAudit, { onConflict: "id" });
+  if (fullSave.error) {
+    await supabase
+      .from(EDITOR_TABLE)
+      .upsert({ id: EDITOR_ROW_ID, config: legacyConfig }, { onConflict: "id" });
+  }
+
+  return legacyConfig;
+}
+
 export type EditorConfigLoadResult = {
   config: EditorConfig;
   persisted: boolean;
@@ -151,12 +204,23 @@ export async function getEditorConfig(): Promise<EditorConfigLoadResult> {
     .eq("id", EDITOR_ROW_ID)
     .maybeSingle();
 
-  if (error || !data) return { config: DEFAULT_EDITOR_CONFIG, persisted: false, scopeId };
-  return {
-    config: normalizeConfig((data as { config?: Partial<EditorConfig> }).config ?? null),
-    persisted: true,
-    scopeId,
-  };
+  let config = DEFAULT_EDITOR_CONFIG;
+  let persisted = false;
+
+  if (!error && data) {
+    config = normalizeConfig((data as { config?: Partial<EditorConfig> }).config ?? null);
+    persisted = true;
+  }
+
+  if (isEditorConfigUninitialized(config)) {
+    const bootstrapped = await bootstrapSiteConfigFromLegacyGlobal(supabase);
+    if (bootstrapped) {
+      config = bootstrapped;
+      persisted = true;
+    }
+  }
+
+  return { config, persisted, scopeId };
 }
 
 export async function saveEditorConfig(config: EditorConfig, updatedBy: string): Promise<{ ok: boolean; error?: string }> {

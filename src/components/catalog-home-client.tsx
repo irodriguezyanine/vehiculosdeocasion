@@ -69,6 +69,56 @@ type SoldFilterField = "all" | "patent" | "title" | "soldCategory" | "auctionNam
 type AnalyticsChartType = "bar" | "line" | "area";
 type AnalyticsTimelineMetric = "eventos" | "visitas" | "detalle" | "whatsapp" | "leads";
 type VehicleDetailTabId = "general" | "descripcion" | "tecnica" | "fotos";
+type VehicleDetailTabDef = {
+  id: VehicleDetailTabId;
+  label: string;
+  shortLabel: string;
+};
+
+const FIELD_DISPLAY_LABELS: Record<string, string> = {
+  "Patente verificador": "Verificador",
+  "N° de chasis": "Chasis",
+  "Tipo de vehiculo": "Tipo",
+  Kilometraje: "Km",
+  "N° de siniestro": "Siniestro",
+  "N° de motor": "N° motor",
+  "N° de serie": "N° serie",
+  "Ubicacion fisica": "Ubicacion",
+  "Unico propietario": "Unico dueño",
+  "Aire acondicionado": "A/C",
+  "Prueba de motor (arranca)": "Motor",
+  "Prueba de desplazamiento (se mueve)": "Desplazamiento",
+  "Estado de airbags": "Airbags",
+  "Nombre propietario anterior": "Prop. anterior",
+  "Vencimiento revision tecnica": "Rev. tecnica",
+  "Vencimiento permiso circulacion": "Permiso circ.",
+  "Vencimiento seguro obligatorio": "Seguro oblig.",
+  "Descripcion ampliada": "Descripcion",
+  "Precio referencial": "Precio ref.",
+};
+
+const FULL_WIDTH_DETAIL_FIELDS = new Set([
+  "VIN",
+  "N° de chasis",
+  "N° de motor",
+  "N° de serie",
+  "Nombre propietario anterior",
+]);
+
+const MONO_DETAIL_FIELDS = new Set(["VIN", "N° de chasis", "N° de motor", "N° de serie"]);
+
+function getFieldDisplayLabel(label: string): string {
+  return FIELD_DISPLAY_LABELS[label] ?? label;
+}
+
+function isFullWidthDetailField(label: string): boolean {
+  return FULL_WIDTH_DETAIL_FIELDS.has(label);
+}
+
+function isMonoDetailField(label: string): boolean {
+  return MONO_DETAIL_FIELDS.has(label);
+}
+
 type CalendarPdfRow = {
   title: string;
   patent: string;
@@ -1557,6 +1607,34 @@ function FeaturedStrip({ items, onOpenVehicle }: FeaturedStripProps) {
     window.setTimeout(() => updateScrollArrows(), 320);
   };
 
+  const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    const node = scrollRef.current;
+    if (!node) return;
+    setIsDragging(true);
+    draggedRef.current = false;
+    dragStartXRef.current = event.clientX;
+    dragStartScrollLeftRef.current = node.scrollLeft;
+    node.setPointerCapture(event.pointerId);
+  };
+
+  const onPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const node = scrollRef.current;
+    if (!node || !isDragging) return;
+    const delta = event.clientX - dragStartXRef.current;
+    if (Math.abs(delta) > 6) draggedRef.current = true;
+    node.scrollLeft = dragStartScrollLeftRef.current - delta;
+  };
+
+  const endPointerDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    scrollRef.current?.releasePointerCapture(event.pointerId);
+    window.setTimeout(() => {
+      draggedRef.current = false;
+    }, 20);
+  };
+
   const onMouseDown = (event: MouseEvent<HTMLDivElement>) => {
     const node = scrollRef.current;
     if (!node) return;
@@ -1600,7 +1678,8 @@ function FeaturedStrip({ items, onOpenVehicle }: FeaturedStripProps) {
           <p className="premium-kicker">Selecciones premium</p>
           <h2 className="text-2xl font-bold text-[#2f1e13]">Vitrina destacada</h2>
         </div>
-        <p className="text-xs text-[#7a614d]">Desliza con mouse o flechas</p>
+        <p className="mobile-scroll-hint hidden sm:block">Desliza con mouse o flechas</p>
+        <p className="mobile-scroll-hint sm:hidden">Desliza para ver mas</p>
       </div>
       <div className="featured-strip-shell relative">
         <button
@@ -1631,10 +1710,14 @@ function FeaturedStrip({ items, onOpenVehicle }: FeaturedStripProps) {
         </button>
         <div
           ref={scrollRef}
-          className={`featured-strip select-none ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
+          className={`featured-strip select-none max-md:cursor-default ${isDragging ? "cursor-grabbing" : "md:cursor-grab"}`}
           tabIndex={0}
           role="region"
-          aria-label="Vitrina destacada: usa flechas izquierda y derecha para navegar"
+          aria-label="Vitrina destacada: desliza horizontalmente para ver mas"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={endPointerDrag}
+          onPointerCancel={endPointerDrag}
           onMouseDown={onMouseDown}
           onMouseMove={onMouseMove}
           onMouseUp={endDrag}
@@ -1924,6 +2007,34 @@ function HorizontalCardsRail({
     window.setTimeout(() => updateScrollArrows(), 320);
   };
 
+  const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    const node = scrollRef.current;
+    if (!node) return;
+    setIsDragging(true);
+    draggedRef.current = false;
+    dragStartXRef.current = event.clientX;
+    dragStartScrollLeftRef.current = node.scrollLeft;
+    node.setPointerCapture(event.pointerId);
+  };
+
+  const onPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const node = scrollRef.current;
+    if (!node || !isDragging) return;
+    const delta = event.clientX - dragStartXRef.current;
+    if (Math.abs(delta) > 6) draggedRef.current = true;
+    node.scrollLeft = dragStartScrollLeftRef.current - delta;
+  };
+
+  const endPointerDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    scrollRef.current?.releasePointerCapture(event.pointerId);
+    window.setTimeout(() => {
+      draggedRef.current = false;
+    }, 20);
+  };
+
   const onMouseDown = (event: MouseEvent<HTMLDivElement>) => {
     const node = scrollRef.current;
     if (!node) return;
@@ -1988,10 +2099,14 @@ function HorizontalCardsRail({
       </button>
       <div
         ref={scrollRef}
-        className={`catalog-rail select-none ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
+        className={`catalog-rail select-none max-md:cursor-default ${isDragging ? "cursor-grabbing" : "md:cursor-grab"}`}
         tabIndex={0}
         role="region"
-        aria-label={`Carrusel ${sectionKey}: usa flechas izquierda y derecha`}
+        aria-label={`Carrusel ${sectionKey}: desliza horizontalmente para ver mas vehiculos`}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endPointerDrag}
+        onPointerCancel={endPointerDrag}
         onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}
         onMouseUp={endDrag}
@@ -2315,6 +2430,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   const [selectedVehicleLightboxZoom, setSelectedVehicleLightboxZoom] = useState(1);
   const [detailEditorTab, setDetailEditorTab] = useState<DetailEditorTabId>("general");
   const [selectedVehicleTab, setSelectedVehicleTab] = useState<VehicleDetailTabId>("general");
+  const vehicleTabRefs = useRef<Partial<Record<VehicleDetailTabId, HTMLButtonElement | null>>>({});
+  const vehicleDetailMediaRef = useRef<HTMLDivElement | null>(null);
   const [inlineSummaryField, setInlineSummaryField] = useState<string | null>(null);
   const [inlineSummaryValue, setInlineSummaryValue] = useState("");
   const [inlinePriceEditing, setInlinePriceEditing] = useState(false);
@@ -2817,11 +2934,13 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     style.top = `-${scrollY}px`;
     style.width = "100%";
     style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
     return () => {
       style.position = previous.position;
       style.top = previous.top;
       style.width = previous.width;
       style.overflow = previous.overflow;
+      document.documentElement.style.overflow = "";
       window.scrollTo({ top: scrollY, behavior: "auto" });
     };
   }, [selectedVehicle]);
@@ -4110,6 +4229,16 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     )}&type=phone_number&app_absent=0`;
   }, [selectedVehicle, selectedVehicleShareUrl]);
 
+  const selectedVehicleVideoRequestUrl = useMemo(() => {
+    if (!selectedVehicle) return "";
+    const patent = getPatent(selectedVehicle);
+    const label = getModel(selectedVehicle);
+    const text = `Hola, solicito video del vehiculo ${patent} - ${label}.`;
+    return `https://api.whatsapp.com/send/?phone=${WHATSAPP_PHONE}&text=${encodeURIComponent(
+      text,
+    )}&type=phone_number&app_absent=0`;
+  }, [selectedVehicle]);
+
   const selectedVehicleConditionLabel = useMemo(() => {
     if (!selectedVehicle) return null;
     const overrideValue = selectedVehicleOverride?.vehicleCondition;
@@ -4205,13 +4334,13 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
 
   const selectedVehicleTabs = useMemo(
     () => {
-      const tabs: Array<{ id: VehicleDetailTabId; label: string }> = [
-        { id: "general", label: "Informacion del vehiculo" },
-        { id: "descripcion", label: "Descripcion" },
-        { id: "tecnica", label: "Detalles tecnicos" },
+      const tabs: VehicleDetailTabDef[] = [
+        { id: "general", label: "Informacion del vehiculo", shortLabel: "General" },
+        { id: "descripcion", label: "Descripcion", shortLabel: "Desc." },
+        { id: "tecnica", label: "Detalles tecnicos", shortLabel: "Tecnica" },
       ];
       if (selectedVehicleGalleryImages.length > 0) {
-        tabs.push({ id: "fotos", label: "Fotos" });
+        tabs.push({ id: "fotos", label: "Fotos", shortLabel: "Fotos" });
       }
       return tabs;
     },
@@ -4300,6 +4429,12 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     moveSelectedVehicleLightbox,
     zoomSelectedVehicleLightbox,
   ]);
+
+  useEffect(() => {
+    if (!selectedVehicle) return;
+    const activeTab = vehicleTabRefs.current[selectedVehicleTab];
+    activeTab?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  }, [selectedVehicle, selectedVehicleTab]);
 
   const selectedVehicleFieldsByTab = useMemo(() => {
     if (!selectedVehicle) {
@@ -4798,6 +4933,21 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
     setOfferSending(false);
     setOfferForm(buildEmptyOfferForm());
   }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (selectedVehicleLightboxIndex !== null) {
+        closeSelectedVehicleLightbox();
+        return;
+      }
+      if (showOfferModal) {
+        closeOfferModal();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [closeOfferModal, closeSelectedVehicleLightbox, selectedVehicleLightboxIndex, showOfferModal]);
 
   const submitOffer = useCallback(async () => {
     if (!selectedVehicle) return;
@@ -6974,8 +7124,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
       />
 
-      <section className="top-nav-shell sticky top-0 z-30">
-        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-2 sm:px-6 lg:px-8">
+      <section className="top-nav-shell sticky z-30">
+        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-3 py-2 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-3 md:gap-4">
             <Link
               href="/"
@@ -7002,6 +7152,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 priority
                 className="h-14 w-14 rounded-full object-cover sm:h-16 sm:w-16"
               />
+              <span className="brand-wordmark text-base text-[#4d2f1d] sm:hidden">VdO</span>
               <span className="brand-wordmark hidden text-xl text-[#4d2f1d] sm:inline-block">
                 Vehiculos de Ocasion
               </span>
@@ -7009,8 +7160,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             <button
               type="button"
               onClick={() => setMobileMenuOpen((prev) => !prev)}
-              className="ui-focus inline-flex items-center justify-center rounded-md border border-amber-300/70 bg-[#fff8f1] px-2 py-1 text-[#6b3d1e] md:hidden"
-              aria-label="Abrir menu"
+              className="ui-focus touch-target inline-flex items-center justify-center rounded-lg border border-amber-300/70 bg-[#fff8f1] text-[#6b3d1e] md:hidden"
+              aria-label={mobileMenuOpen ? "Cerrar menu" : "Abrir menu"}
               aria-expanded={mobileMenuOpen}
               aria-controls="mobile-main-menu"
             >
@@ -7060,7 +7211,14 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             </div>
           </div>
           {mobileMenuOpen ? (
-            <div id="mobile-main-menu" className="rounded-lg border border-slate-200 bg-white p-3 md:hidden">
+            <>
+              <button
+                type="button"
+                className="mobile-menu-backdrop md:hidden"
+                aria-label="Cerrar menu"
+                onClick={() => setMobileMenuOpen(false)}
+              />
+              <div id="mobile-main-menu" className="mobile-menu-panel rounded-lg border border-slate-200 bg-white p-3 md:hidden">
               <nav className="flex flex-col gap-2 text-sm">
                 {topSectionTabs.map((tab) => (
                   <button
@@ -7113,6 +7271,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 )}
               </div>
             </div>
+            </>
           ) : null}
           {feed.warning ? (
             <p className="rounded-md border border-amber-300/60 bg-amber-100 px-3 py-2 text-sm text-amber-900">{feed.warning}</p>
@@ -9277,9 +9436,13 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                     setHomeSearchTerm(event.target.value);
                     trackEvent("home_search_change", { query: event.target.value });
                   }}
-                  placeholder="Buscar por patente, marca, modelo o categoria..."
-                  className="ui-focus w-full rounded-xl border border-amber-300/70 bg-[#4a3020] py-3 pl-10 pr-28 text-sm font-medium text-amber-50 shadow-sm placeholder:text-amber-200/80"
+                  placeholder="Buscar patente, marca, modelo..."
+                  className="ui-focus w-full rounded-xl border border-amber-300/70 bg-[#4a3020] py-3 pl-10 pr-24 text-base font-medium text-amber-50 shadow-sm placeholder:text-amber-200/80 md:pr-28 md:text-sm"
                   aria-label="Buscar vehiculos por patente, marca, modelo o categoria"
+                  type="search"
+                  inputMode="search"
+                  enterKeyHint="search"
+                  autoComplete="off"
                 />
                 {homeSearchTerm ? (
                   <button
@@ -9288,7 +9451,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       setHomeSearchTerm("");
                       trackEvent("home_search_clear");
                     }}
-                    className="ui-focus absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-amber-300/70 bg-[#5a3a25] px-2 py-1 text-xs font-semibold text-amber-50 hover:bg-[#6a452c]"
+                    className="ui-focus touch-target absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-amber-300/70 bg-[#5a3a25] px-2.5 py-1.5 text-xs font-semibold text-amber-50 hover:bg-[#6a452c] max-md:right-1.5"
                   >
                     Limpiar
                   </button>
@@ -9305,7 +9468,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               {config.homeLayout.showSortSelector ? (
                 <details className="relative">
                   <summary
-                    className="ui-focus flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-lg border border-amber-300/70 bg-[#5a3a25] text-amber-50 hover:bg-[#6a452c]"
+                    className="ui-focus touch-target flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg border border-amber-300/70 bg-[#5a3a25] text-amber-50 hover:bg-[#6a452c]"
                     aria-label="Abrir opciones de orden"
                     title="Ordenar resultados"
                   >
@@ -9313,7 +9476,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       <path d="M4 5h12M6 10h8M8 15h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                     </svg>
                   </summary>
-                  <div className="absolute right-0 z-50 mt-2 w-44 rounded-lg border border-amber-300/70 bg-[#4a3020] p-1 shadow-lg">
+                  <div className="absolute right-0 z-50 mt-2 w-full min-w-[11rem] rounded-lg border border-amber-300/70 bg-[#4a3020] p-1 shadow-lg max-md:left-0 max-md:w-full sm:w-44">
                     {([
                       ["recomendado", "Recomendado"],
                       ["relevancia", "Relevancia"],
@@ -9331,7 +9494,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                           const details = event.currentTarget.closest("details");
                           if (details) details.removeAttribute("open");
                         }}
-                        className={`ui-focus flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs font-medium ${
+                        className={`ui-focus flex w-full min-h-11 items-center justify-between rounded-md px-3 py-2 text-left text-sm font-medium ${
                           homeSort === value
                             ? "bg-amber-700 text-amber-50"
                             : "text-amber-100 hover:bg-[#5a3a25]"
@@ -9355,7 +9518,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                     key={id}
                     type="button"
                     onClick={() => toggleQuickFilter(id as QuickFilterId)}
-                    className={`ui-focus shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                    className={`ui-focus shrink-0 rounded-full border px-3 py-2.5 text-xs font-semibold transition min-h-11 ${
                       quickFilters.includes(id as QuickFilterId)
                         ? "border-amber-200 bg-amber-700 text-amber-50"
                         : "border-amber-300/70 bg-[#5a3a25] text-amber-100 hover:bg-[#6a452c]"
@@ -9792,7 +9955,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               ["¿Donde recibo apoyo comercial?", "Nuestro equipo responde por WhatsApp e Instagram en horario comercial."],
             ].map(([question, answer]) => (
               <details key={question} className="rounded-lg border border-slate-200 bg-white p-3">
-                <summary className="cursor-pointer text-sm font-semibold text-slate-900">{question}</summary>
+                <summary className="cursor-pointer py-1 text-sm font-semibold text-slate-900">{question}</summary>
                 <p className="mt-2 text-sm text-slate-600">{answer}</p>
               </details>
             ))}
@@ -9832,32 +9995,36 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               onChange={(event) =>
                 setLeadForm((prev) => ({ ...prev, name: event.target.value }))
               }
-              className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+              className="ui-focus min-h-11 rounded-md border border-slate-300 bg-white px-3 py-2 text-base md:text-sm"
               placeholder="Nombre"
               aria-label="Nombre de contacto"
+              autoComplete="name"
             />
             <input
               value={leadForm.phone}
               onChange={(event) =>
                 setLeadForm((prev) => ({ ...prev, phone: event.target.value }))
               }
-              className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+              className="ui-focus min-h-11 rounded-md border border-slate-300 bg-white px-3 py-2 text-base md:text-sm"
               placeholder="Telefono"
               aria-label="Telefono de contacto"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
             />
             <input
               value={leadForm.interest}
               onChange={(event) =>
                 setLeadForm((prev) => ({ ...prev, interest: event.target.value }))
               }
-              className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+              className="ui-focus min-h-11 rounded-md border border-slate-300 bg-white px-3 py-2 text-base md:text-sm"
               placeholder="¿Que vehiculo buscas?"
               aria-label="Interes de vehiculo"
             />
             <button
               type="button"
               onClick={submitLeadForm}
-              className="ui-focus rounded-md bg-amber-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-600"
+              className="ui-focus min-h-11 rounded-md bg-amber-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600"
             >
               Solicitar asesoria
             </button>
@@ -9868,7 +10035,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
 
       {selectedVehicle ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-2 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-[calc(env(safe-area-inset-top)+6px)] backdrop-blur-sm md:p-5"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/70 p-0 backdrop-blur-sm md:items-center md:p-5"
           onClick={closeSelectedVehicle}
         >
           <button
@@ -9886,12 +10053,12 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             role="dialog"
             aria-modal="true"
             aria-label={`Detalle de ${selectedVehicle.title}`}
-            className="vehicle-detail-shell max-h-[96vh] w-full max-w-7xl overflow-auto rounded-2xl p-3 pb-[calc(env(safe-area-inset-bottom)+14px)] md:rounded-3xl md:p-6"
+            className="vehicle-detail-shell max-h-[100dvh] w-full max-w-7xl overflow-x-hidden overflow-y-auto rounded-none p-2 pb-[calc(env(safe-area-inset-bottom)+72px)] md:max-h-[96vh] md:rounded-3xl md:p-6 md:pb-[calc(env(safe-area-inset-bottom)+14px)]"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="vehicle-detail-hero mb-4 rounded-2xl p-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
+            <div className="vehicle-detail-hero mb-3 rounded-xl p-3 md:mb-4 md:rounded-2xl md:p-4">
+              <div className="flex flex-wrap items-start justify-between gap-2 md:gap-3">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     {inlineSummaryField === "hero:Titulo" ? (
                       <div className="flex flex-wrap items-center gap-1">
@@ -9905,7 +10072,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       </div>
                     ) : (
                       <>
-                        <h3 className="text-xl font-bold text-slate-900">{selectedVehicle.title}</h3>
+                        <h3 className="text-lg font-bold leading-tight text-slate-900 md:text-xl">{selectedVehicle.title}</h3>
                         {canAdminEditNow ? (
                           <button
                             type="button"
@@ -9964,12 +10131,12 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                     ) : null}
                   </div>
                 </div>
-                <div className="vehicle-detail-actions flex flex-wrap items-center gap-2 max-md:w-full">
+                <div className="vehicle-detail-actions flex max-w-full items-center gap-1.5 overflow-x-auto md:flex-wrap md:gap-2 max-md:w-full">
                   <button
                     type="button"
                     onClick={openOfferModal}
                     disabled={selectedVehicleReferencePriceAmount <= 0}
-                    className="ui-focus inline-flex h-9 items-center justify-center rounded-full border border-amber-300 bg-stone-100 px-3 text-xs font-semibold text-amber-800 transition hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="ui-focus inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-amber-300 bg-stone-100 px-3 text-xs font-semibold text-amber-800 transition hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-60 max-md:px-2.5"
                     aria-label="Enviar mi precio"
                     title={
                       selectedVehicleReferencePriceAmount > 0
@@ -9977,7 +10144,8 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                         : "No hay precio referencial disponible"
                     }
                   >
-                    Enviar mi precio
+                    <span className="md:hidden">Ofertar</span>
+                    <span className="hidden md:inline">Enviar mi precio</span>
                   </button>
                   <button
                     type="button"
@@ -10046,14 +10214,14 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 </div>
               </div>
             </div>
-            <div className="grid gap-4 lg:grid-cols-2">
-              <div className="space-y-2">
-                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-sm">
+            <div className="grid gap-3 md:gap-4 lg:grid-cols-2">
+              <div className="space-y-2" ref={vehicleDetailMediaRef}>
+                <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-sm md:rounded-2xl">
                   {selectedVehicle.view3dUrl ? (
                     <iframe
                       src={selectedVehicle.view3dUrl}
                       title={`Visor 3D ${selectedVehicle.title}`}
-                      className="h-[420px] w-full border-0"
+                      className="h-52 min-h-[50vh] w-full border-0 md:h-[420px] md:min-h-0"
                       allow="fullscreen; autoplay"
                     />
                   ) : (
@@ -10061,12 +10229,61 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                     <img
                       src={selectedVehicleMainImage}
                       alt={selectedVehicle.title}
-                      className="h-[420px] w-full object-cover"
+                      className="h-52 w-full object-cover md:h-[420px]"
                     />
                   )}
                 </div>
+                <div className="vehicle-media-actions grid grid-cols-3 gap-1.5 md:hidden">
+                  {selectedVehicleGalleryImages.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedVehicleTab("fotos")}
+                      className="ui-focus inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-2 text-[11px] font-semibold text-slate-700"
+                    >
+                      <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 shrink-0" fill="none" aria-hidden="true">
+                        <rect x="3" y="4.5" width="14" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+                        <circle cx="7.5" cy="8.5" r="1.2" fill="currentColor" />
+                      </svg>
+                      Galeria
+                    </button>
+                  ) : (
+                    <span className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-2 py-2 text-center text-[10px] text-slate-400">
+                      Sin fotos
+                    </span>
+                  )}
+                  {selectedVehicle.view3dUrl ? (
+                    <button
+                      type="button"
+                      onClick={() => vehicleDetailMediaRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                      className="ui-focus inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-2 text-[11px] font-semibold text-slate-700"
+                    >
+                      <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 shrink-0" fill="none" aria-hidden="true">
+                        <path d="M4 6.5h12v7H4z" stroke="currentColor" strokeWidth="1.5" />
+                        <path d="M8 10.5 10.5 8.5 13 10.5v3H8v-3Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+                      </svg>
+                      3D
+                    </button>
+                  ) : (
+                    <span className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-2 py-2 text-center text-[10px] text-slate-400">
+                      Sin 3D
+                    </span>
+                  )}
+                  <a
+                    href={selectedVehicleVideoRequestUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={() => trackEvent("whatsapp_click_modal_mobile", { itemKey: selectedVehicleKey, intent: "video" })}
+                    className="ui-focus inline-flex items-center justify-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-2 text-[11px] font-semibold text-emerald-800"
+                  >
+                    <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 shrink-0" fill="none" aria-hidden="true">
+                      <path d="M4.5 6.5h11v7h-11z" stroke="currentColor" strokeWidth="1.5" />
+                      <path d="M8.5 9.5 10 11l3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    Video
+                  </a>
+                </div>
                 {selectedVehicle.view3dUrl ? null : selectedVehicleGalleryImages.length > 1 ? (
-                  <div className="flex gap-2 overflow-x-auto rounded-xl border border-slate-200 bg-white p-2">
+                  <div className="flex gap-2 overflow-x-auto rounded-xl border border-slate-200 bg-white p-2 md:flex">
                     {selectedVehicleGalleryImages.map((imageUrl, index) => (
                       <button
                         key={`${imageUrl}-${index}`}
@@ -10089,9 +10306,12 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   </div>
                 ) : null}
               </div>
-              <div className="vehicle-detail-summary h-[420px] overflow-y-auto rounded-2xl p-4 shadow-sm">
-                <div className="mb-3 flex items-center justify-between gap-2">
-                  <h4 className="text-base font-semibold text-slate-900">Resumen del vehiculo</h4>
+              <div className="vehicle-detail-summary min-h-0 rounded-xl p-3 shadow-sm md:h-[420px] md:overflow-y-auto md:rounded-2xl md:p-4">
+                <div className="mb-2 flex items-center justify-between gap-2 md:mb-3">
+                  <h4 className="text-sm font-semibold text-slate-900 md:text-base">
+                    <span className="md:hidden">Resumen</span>
+                    <span className="hidden md:inline">Resumen del vehiculo</span>
+                  </h4>
                   {canAdminEditNow && selectedVehicle ? (
                     <button
                       type="button"
@@ -10112,21 +10332,30 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                     </button>
                   ) : null}
                 </div>
-                <div className="mb-3 flex flex-wrap gap-2">
-                  {selectedVehicleTabs.map((tab) => (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      onClick={() => setSelectedVehicleTab(tab.id)}
-                      className={`vehicle-tab-pill ui-focus rounded-full px-3 py-1 text-xs font-semibold transition ${
-                        selectedVehicleTab === tab.id
-                          ? "bg-amber-700 text-white"
-                          : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
-                      }`}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
+                <div className="vehicle-tab-rail-shell sticky top-0 z-10 -mx-1 mb-3 bg-gradient-to-b from-[#faf6f1] via-[#faf6f1]/95 to-transparent pb-1 pt-0.5 backdrop-blur-sm md:static md:mx-0 md:bg-transparent md:backdrop-blur-none">
+                  <div className="vehicle-tab-rail" role="tablist" aria-label="Secciones del vehiculo">
+                    {selectedVehicleTabs.map((tab) => (
+                      <button
+                        key={tab.id}
+                        ref={(element) => {
+                          vehicleTabRefs.current[tab.id] = element;
+                        }}
+                        type="button"
+                        role="tab"
+                        aria-selected={selectedVehicleTab === tab.id}
+                        aria-label={tab.label}
+                        onClick={() => setSelectedVehicleTab(tab.id)}
+                        className={`vehicle-tab-pill vehicle-tab-rail-item ui-focus shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                          selectedVehicleTab === tab.id
+                            ? "bg-amber-700 text-white"
+                            : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                        }`}
+                      >
+                        <span className="md:hidden">{tab.shortLabel}</span>
+                        <span className="hidden md:inline">{tab.label}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 {selectedVehicleTab === "fotos" ? (
                   selectedVehicleGalleryImages.length === 0 ? (
@@ -10147,7 +10376,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                           className="h-52 w-full object-cover"
                         />
                       </button>
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2">
                         {selectedVehicleGalleryImages.map((imageUrl, index) => (
                           <button
                             key={`modal-photo-${imageUrl}-${index}`}
@@ -10175,14 +10404,21 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   )
                 ) : selectedVehicleTab !== "descripcion" && selectedVehicleFieldsByTab[selectedVehicleTab].length === 0 ? (
                   <p className="rounded-md border border-dashed border-slate-300 bg-white p-3 text-sm text-slate-500">
-                    No hay datos disponibles para esta pestana.
+                    Sin datos en esta seccion.
                   </p>
                 ) : (
-                  <dl className="grid grid-cols-2 gap-2 text-sm">
+                  <dl className="vehicle-field-grid grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
                     {selectedVehicleFieldsByTab[selectedVehicleTab].map(([label, value]) => (
-                      <div key={label} className="min-w-0 rounded-md bg-white p-2">
+                      <div
+                        key={label}
+                        className={`vehicle-field-card min-w-0 rounded-md bg-white p-2 ${
+                          isFullWidthDetailField(label) ? "sm:col-span-2" : ""
+                        }`}
+                      >
                         <div className="flex items-start justify-between gap-2">
-                          <dt className="text-xs uppercase text-slate-500">{label}</dt>
+                          <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                            {getFieldDisplayLabel(label)}
+                          </dt>
                           {canAdminEditNow && selectedVehicle ? (
                             <button
                               type="button"
@@ -10198,7 +10434,11 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                             </button>
                           ) : null}
                         </div>
-                        <dd className="break-words font-medium text-slate-800 [overflow-wrap:anywhere]">
+                        <dd
+                          className={`break-words font-medium text-slate-800 [overflow-wrap:anywhere] ${
+                            isMonoDetailField(label) ? "font-mono text-[13px] leading-snug" : ""
+                          }`}
+                        >
                           {inlineSummaryField === `${selectedVehicleTab}:${label}` ? (
                             <div className="space-y-1">
                               <input
@@ -10235,7 +10475,10 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   <>
                     <div className="mt-2 rounded-md border border-stone-200 bg-stone-100/60 p-3">
                       <div className="flex items-start justify-between gap-2">
-                        <p className="text-xs uppercase tracking-wide text-amber-800">Precio referencial</p>
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-800 md:text-xs">
+                          <span className="md:hidden">Precio ref.</span>
+                          <span className="hidden md:inline">Precio referencial</span>
+                        </p>
                         {canAdminEditNow && selectedVehicle ? (
                           <button
                             type="button"
@@ -10519,7 +10762,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       event.stopPropagation();
                       moveSelectedVehicleLightbox("prev");
                     }}
-                    className="ui-focus absolute left-2 top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-black/35 text-white backdrop-blur-sm hover:bg-black/50 md:inline-flex"
+                    className="ui-focus absolute left-2 top-1/2 z-10 inline-flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-black/35 text-white backdrop-blur-sm hover:bg-black/50 md:h-11 md:w-11"
                     aria-label="Foto anterior"
                     title="Anterior"
                   >
@@ -10533,7 +10776,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       event.stopPropagation();
                       moveSelectedVehicleLightbox("next");
                     }}
-                    className="ui-focus absolute right-2 top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-black/35 text-white backdrop-blur-sm hover:bg-black/50 md:inline-flex"
+                    className="ui-focus absolute right-2 top-1/2 z-10 inline-flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/40 bg-black/35 text-white backdrop-blur-sm hover:bg-black/50 md:h-11 md:w-11"
                     aria-label="Foto siguiente"
                     title="Siguiente"
                   >
@@ -10557,26 +10800,6 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 </div>
               </div>
             ) : null}
-            <div className="sticky bottom-[calc(env(safe-area-inset-bottom)+6px)] z-20 mt-3 flex items-center gap-2 rounded-xl border border-slate-200 bg-white/95 p-2 shadow md:hidden">
-              <a
-                href={selectedVehicleWhatsappUrl}
-                target="_blank"
-                rel="noreferrer"
-                onClick={() => trackEvent("whatsapp_click_modal_mobile", { itemKey: selectedVehicleKey })}
-                className="ui-focus inline-flex flex-1 items-center justify-center rounded-lg bg-[#25D366] px-3 py-2 text-xs font-semibold text-white"
-              >
-                WhatsApp
-              </a>
-              <button
-                type="button"
-                onClick={() => {
-                  void shareSelectedVehicle();
-                }}
-                className="ui-focus rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700"
-              >
-                Compartir
-              </button>
-            </div>
             <div className="mt-4">
               <h4 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">Vehiculos similares</h4>
               <div className="grid gap-3 md:grid-cols-3">
@@ -10629,15 +10852,43 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               </div>
             </div>
           </div>
+          <div className="vehicle-detail-mobile-bar vehicle-detail-mobile-bar-fixed flex items-center gap-2 rounded-xl border border-slate-200 bg-white/95 p-2 backdrop-blur-md md:hidden">
+            <a
+              href={selectedVehicleWhatsappUrl}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => trackEvent("whatsapp_click_modal_mobile", { itemKey: selectedVehicleKey })}
+              className="ui-focus inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#25D366] px-3 text-xs font-semibold text-white"
+            >
+              WhatsApp
+            </a>
+            <button
+              type="button"
+              onClick={() => {
+                void shareSelectedVehicle();
+              }}
+              className="ui-focus inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-700"
+            >
+              Compartir
+            </button>
+            <button
+              type="button"
+              onClick={openOfferModal}
+              disabled={selectedVehicleReferencePriceAmount <= 0}
+              className="ui-focus inline-flex min-h-11 items-center justify-center rounded-lg border border-amber-300 bg-amber-50 px-3 text-xs font-semibold text-amber-800 disabled:opacity-50"
+            >
+              Ofertar
+            </button>
+          </div>
         </div>
       ) : null}
         </>
       ) : null}
 
       {showPublicHome && compareItems.length > 0 ? (
-        <div className="fixed bottom-4 left-4 z-40 flex items-center gap-2 rounded-full border border-indigo-200 bg-white px-3 py-2 shadow-lg">
-          <span className="text-xs font-semibold text-indigo-700">
-            Comparador: {compareItems.length}/{MAX_COMPARE_ITEMS}
+        <div className="fixed bottom-[calc(1rem+var(--safe-bottom))] left-3 z-40 flex max-w-[calc(100vw-6.5rem)] items-center gap-1.5 rounded-full border border-indigo-200 bg-white px-2.5 py-2 shadow-lg md:bottom-4 md:left-4 md:max-w-none md:gap-2 md:px-3">
+          <span className="truncate text-[11px] font-semibold text-indigo-700 md:text-xs">
+            {compareItems.length}/{MAX_COMPARE_ITEMS}
           </span>
           <button
             type="button"
@@ -10645,9 +10896,9 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               setShowComparePanel(true);
               trackEvent("compare_panel_open", { count: compareItems.length });
             }}
-            className="ui-focus rounded-full bg-indigo-600 px-3 py-1 text-xs font-semibold text-white"
+            className="ui-focus touch-target rounded-full bg-indigo-600 px-2.5 py-1.5 text-[11px] font-semibold text-white md:px-3 md:py-1 md:text-xs"
           >
-            Ver comparacion
+            Comparar
           </button>
           <button
             type="button"
@@ -10655,16 +10906,16 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               setCompareKeys([]);
               trackEvent("compare_clear");
             }}
-            className="ui-focus rounded-full border border-slate-300 px-3 py-1 text-xs text-slate-600"
+            className="ui-focus touch-target rounded-full border border-slate-300 px-2.5 py-1.5 text-[11px] text-slate-600 md:px-3 md:py-1 md:text-xs"
           >
-            Limpiar
+            X
           </button>
         </div>
       ) : null}
 
       {showComparePanel ? (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/70 p-4" onClick={() => setShowComparePanel(false)}>
-          <div role="dialog" aria-modal="true" aria-label="Comparador de vehiculos" className="max-h-[92vh] w-full max-w-6xl overflow-auto rounded-2xl bg-white p-4 shadow-2xl md:p-6" onClick={(event) => event.stopPropagation()}>
+        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-slate-900/70 p-0 md:items-center md:p-4" onClick={() => setShowComparePanel(false)}>
+          <div role="dialog" aria-modal="true" aria-label="Comparador de vehiculos" className="max-h-[92dvh] w-full max-w-6xl overflow-auto rounded-t-2xl bg-white p-4 shadow-2xl md:rounded-2xl md:p-6" onClick={(event) => event.stopPropagation()}>
             <div className="mb-4 flex items-center justify-between gap-3">
               <h3 className="text-lg font-bold text-slate-900">Comparador de vehiculos</h3>
               <button
@@ -10678,7 +10929,25 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             {compareItems.length === 0 ? (
               <p className="text-sm text-slate-600">No hay vehiculos seleccionados para comparar.</p>
             ) : (
-              <div className="overflow-auto rounded-xl border border-slate-200">
+              <>
+              <div className="space-y-3 md:hidden">
+                {compareItems.map((item) => (
+                  <article key={`cmp-mobile-${item.id}`} className="compare-mobile-card">
+                    <h4 className="text-sm font-bold text-slate-900">{item.title}</h4>
+                    <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                      <dt className="text-slate-500">Patente</dt>
+                      <dd className="font-medium text-slate-800">{getPatent(item)}</dd>
+                      <dt className="text-slate-500">Modelo</dt>
+                      <dd className="font-medium text-slate-800">{getModel(item)}</dd>
+                      <dt className="text-slate-500">Precio</dt>
+                      <dd className="font-medium text-slate-800">{formatPrice(config.vehiclePrices[getVehicleKey(item)]) ?? "N/A"}</dd>
+                      <dt className="text-slate-500">3D</dt>
+                      <dd className="font-medium text-slate-800">{item.view3dUrl ? "Si" : "No"}</dd>
+                    </dl>
+                  </article>
+                ))}
+              </div>
+              <div className="hidden overflow-auto rounded-xl border border-slate-200 md:block">
                 <table className="min-w-full text-left text-sm">
                   <thead className="bg-slate-100">
                     <tr>
@@ -10714,6 +10983,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </div>
         </div>
@@ -11179,14 +11449,14 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
 
       {showOfferModal && selectedVehicle ? (
         <div
-          className="fixed inset-0 z-[78] flex items-center justify-center bg-slate-900/70 p-4"
+          className="fixed inset-0 z-[78] flex items-end justify-center bg-slate-900/70 p-0 md:items-center md:p-4"
           onClick={closeOfferModal}
         >
           <div
             role="dialog"
             aria-modal="true"
             aria-label="Enviar mi precio"
-            className="max-h-[92vh] w-full max-w-lg overflow-auto rounded-2xl bg-white p-5 shadow-2xl"
+            className="max-h-[92dvh] w-full max-w-lg overflow-auto rounded-t-2xl bg-white p-5 pb-[calc(1rem+var(--safe-bottom))] shadow-2xl md:rounded-2xl"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-4 flex items-start justify-between gap-3">
@@ -11500,7 +11770,9 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           target="_blank"
           rel="noreferrer"
           onClick={() => trackEvent("whatsapp_click_floating")}
-          className="ui-focus fixed bottom-4 right-4 z-40 inline-flex items-center gap-2 rounded-full bg-[#25D366] px-4 py-2 text-sm font-semibold text-white shadow-lg md:hidden"
+          className={`ui-focus mobile-fab fixed right-4 z-40 inline-flex min-h-11 items-center gap-2 rounded-full bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white shadow-lg md:hidden ${
+            selectedVehicle ? "mobile-fab-with-bar" : compareItems.length > 0 ? "mobile-fab-with-compare" : ""
+          }`}
         >
           <span>WhatsApp</span>
         </a>

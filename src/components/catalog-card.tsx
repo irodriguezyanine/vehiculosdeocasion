@@ -507,7 +507,7 @@ export function CatalogCard({
   };
 
   return (
-    <article className="group glass-soft vehicle-card flex h-full w-full flex-col overflow-hidden rounded-2xl text-left shadow-md transition duration-300 hover:-translate-y-1 hover:border-amber-300 hover:shadow-xl">
+    <article className="group vehicle-card flex h-full w-full flex-col overflow-hidden rounded-3xl border border-[#dfd4c7] bg-[#fcfaf7] text-left shadow-[0_10px_26px_rgba(73,46,26,0.08)] transition duration-300 hover:-translate-y-1 hover:border-amber-300/80 hover:shadow-[0_16px_34px_rgba(73,46,26,0.16)] max-md:hover:translate-y-0 max-md:active:scale-[0.995]">
       <div
         role="button"
         tabIndex={0}
@@ -515,7 +515,7 @@ export function CatalogCard({
         onKeyDown={onCardKeyDown}
         className="ui-focus flex w-full flex-1 flex-col text-left"
       >
-        <div className={`relative w-full bg-[#e6ddd2] ${isCompact ? "h-44" : "h-56"}`}>
+        <div className={`relative w-full overflow-hidden bg-[#e6ddd2] ${isCompact ? "h-40 max-md:h-36" : "h-48 max-md:h-44 md:h-56"}`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={coverSrc}
@@ -524,19 +524,19 @@ export function CatalogCard({
             loading={imageLoading}
             onError={() => setCoverSrc("/placeholder-car.svg")}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent" />
           <div className="absolute left-3 top-3 flex flex-wrap gap-1">
             {item.view3dUrl ? (
-              <span className="rounded-full border border-amber-200/70 bg-[#3d2518]/90 px-2 py-1 text-[10px] font-semibold text-white">3D</span>
+              <span className="rounded-full border border-amber-200/70 bg-[#3d2518]/90 px-2.5 py-1 text-[10px] font-semibold tracking-wide text-white">3D</span>
             ) : null}
             {priceLabel ? (
-              <span className={`rounded-full px-2 py-1 text-[10px] font-semibold text-white ${promoEnabled ? "bg-rose-600" : "bg-[#9a5d33]"}`}>
+              <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold tracking-wide text-white ${promoEnabled ? "bg-rose-600" : "bg-[#9a5d33]"}`}>
                 {promoEnabled ? "Oferta" : "Precio"}
               </span>
             ) : null}
             {conditionLabel ? (
               <span
-                className={`max-w-[12rem] truncate rounded-full px-2 py-1 text-[10px] font-semibold ${getConditionBadgeClasses(
+                className={`max-w-[12rem] truncate rounded-full px-2.5 py-1 text-[10px] font-semibold ${getConditionBadgeClasses(
                   conditionLabel,
                 )}`}
               >
@@ -545,14 +545,14 @@ export function CatalogCard({
             ) : null}
           </div>
           {item.status ? (
-            <span className="absolute right-3 top-3 max-w-[12rem] truncate rounded-full border border-emerald-200 bg-emerald-600 px-3 py-1 text-xs font-semibold text-white">
+            <span className="absolute right-3 top-3 max-w-[12rem] truncate rounded-full border border-emerald-200 bg-emerald-600 px-3 py-1 text-[11px] font-semibold text-white">
               {shortText(item.status, 30)}
             </span>
           ) : null}
         </div>
 
-        <div className={`flex flex-1 flex-col space-y-3 p-4 ${isCompact ? "space-y-2" : ""}`}>
-          <div className={isCompact ? "min-h-[3.2rem]" : "min-h-[5.2rem]"}>
+        <div className={`flex flex-1 flex-col ${isCompact ? "space-y-2 p-3 max-md:space-y-1.5" : "space-y-3 p-3.5 max-md:space-y-2 md:p-5 md:space-y-3.5"}`}>
+          <div className={isCompact ? "min-h-[3.2rem]" : "min-h-[5rem]"}>
             {editingField === "title" ? (
               <div data-inline-control="true" className="space-y-1">
                 <input
@@ -573,7 +573,7 @@ export function CatalogCard({
               </div>
             ) : (
               <div className="flex items-start justify-between gap-2">
-                <h3 className="line-clamp-2 break-words text-base font-semibold text-[#2f1f14]">
+                <h3 className="line-clamp-2 break-words text-[1.08rem] font-semibold leading-tight tracking-[0.01em] text-[#2f1f14]">
                   {item.title}
                 </h3>
                 {canInlineEdit ? (
@@ -614,7 +614,7 @@ export function CatalogCard({
                 </div>
               ) : (
                 <div className="mt-1 flex items-start justify-between gap-2">
-                  <p className="break-words text-sm text-[#6c5440] [overflow-wrap:anywhere]">
+                  <p className="break-words text-[0.93rem] text-[#6c5440] [overflow-wrap:anywhere]">
                     {shortText(item.subtitle) ?? "-"}
                   </p>
                   {canInlineEdit ? (
@@ -638,15 +638,15 @@ export function CatalogCard({
           </div>
 
           {vehicleSpecs.length > 0 ? (
-            <div className="rounded-lg border border-amber-200/60 bg-[#faf6f1] p-2.5">
-              <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm text-[#4f5a66]">
+            <div className="rounded-xl border border-amber-200/60 bg-gradient-to-b from-[#fdfaf5] to-[#f8f1e7] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] max-md:p-1.5">
+              <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 text-sm text-[#4f5a66] max-md:gap-x-1.5 max-md:gap-y-1">
               {vehicleSpecs.map((spec) => (
                 <div
                   key={spec.key}
                   className={`flex items-center gap-2 ${spec.wide ? "col-span-2" : ""}`}
                 >
                   <SpecIcon icon={spec.icon} />
-                  <span className={`${spec.wide ? "text-xs font-semibold uppercase tracking-[0.01em]" : "truncate"} text-[#5a616d]`}>
+                  <span className={`${spec.wide ? "text-[10px] font-semibold uppercase tracking-[0.012em] max-md:leading-tight md:text-xs" : "truncate text-xs max-md:text-[11px]"} text-[#5a616d]`}>
                     {spec.label}
                   </span>
                 </div>
@@ -657,20 +657,20 @@ export function CatalogCard({
           {(item.lot || formattedDate || item.location || upcomingAuctionLabel) ? (
             <div className="flex min-w-0 flex-wrap content-start gap-2 text-xs text-[#604734]">
               {item.lot ? (
-                <span className="max-w-full truncate rounded-full border border-amber-300/60 bg-[#f4ebe2] px-2 py-1">Lote {item.lot}</span>
+                <span className="max-w-full truncate rounded-full border border-amber-300/60 bg-[#f4ebe2] px-2.5 py-1">Lote {item.lot}</span>
               ) : null}
               {formattedDate ? (
-                <span className="max-w-full truncate rounded-full border border-amber-300/60 bg-[#f4ebe2] px-2 py-1">
+                <span className="max-w-full truncate rounded-full border border-amber-300/60 bg-[#f4ebe2] px-2.5 py-1">
                   Fecha {formattedDate}
                 </span>
               ) : null}
               {item.location ? (
-                <span className="max-w-full truncate rounded-full border border-amber-300/60 bg-[#f4ebe2] px-2 py-1">
+                <span className="max-w-full truncate rounded-full border border-amber-300/60 bg-[#f4ebe2] px-2.5 py-1">
                   {shortText(item.location, 35)}
                 </span>
               ) : null}
               {upcomingAuctionLabel ? (
-                <span className="max-w-full truncate rounded-full border border-amber-300/70 bg-[#eddccf] px-2 py-1 font-semibold text-[#6c3e1f]">
+                <span className="max-w-full truncate rounded-full border border-amber-300/70 bg-[#eddccf] px-2.5 py-1 font-semibold text-[#6c3e1f]">
                   {shortText(`Categoria: ${upcomingAuctionLabel}`, 38)}
                 </span>
               ) : null}
@@ -702,7 +702,7 @@ export function CatalogCard({
                 </div>
               ) : priceLabel ? (
                 <div className="flex items-center gap-1.5">
-                  <span className={`text-sm font-semibold ${promoEnabled ? "text-rose-700" : "text-[#673b1f]"}`}>
+                  <span className={`text-[1.05rem] font-extrabold tracking-tight ${promoEnabled ? "text-rose-700" : "text-[#673b1f]"}`}>
                     {priceLabel}
                   </span>
                   {canInlineEdit ? (
@@ -727,12 +727,12 @@ export function CatalogCard({
         </div>
       </div>
 
-      <div className="border-t border-amber-200/60 px-4 pb-4 pt-3">
-        <div className="grid grid-cols-4 gap-2">
+      <div className="border-t border-amber-200/60 bg-white/35 px-3 pb-3 pt-2.5 max-md:px-3 max-md:pb-3 md:px-4 md:pb-4 md:pt-3">
+        <div className="vehicle-card-actions-grid grid grid-cols-2 gap-1.5 md:grid-cols-4 md:gap-2">
           <button
             type="button"
             onClick={onToggleFavorite}
-            className={`ui-focus inline-flex items-center justify-center rounded-full border px-3 py-2 text-xs font-semibold transition ${
+            className={`ui-focus inline-flex items-center justify-center rounded-full border px-2.5 py-1.5 text-xs font-semibold shadow-[0_2px_6px_rgba(55,35,19,0.08)] transition max-md:px-2 max-md:py-1.5 md:px-3 md:py-2 ${
               isFavorite
                 ? "border-amber-300 bg-amber-100 text-[#6f431f]"
                 : "border-amber-300/60 bg-white text-[#7c624d] hover:bg-[#f7eee6]"
@@ -752,7 +752,7 @@ export function CatalogCard({
           <button
             type="button"
             onClick={onToggleCompare}
-            className={`ui-focus inline-flex items-center justify-center rounded-full border px-3 py-2 text-xs font-semibold transition ${
+            className={`ui-focus inline-flex items-center justify-center rounded-full border px-2.5 py-1.5 text-xs font-semibold shadow-[0_2px_6px_rgba(55,35,19,0.08)] transition max-md:px-2 max-md:py-1.5 md:px-3 md:py-2 ${
               isCompared
                 ? "border-amber-300 bg-amber-100 text-[#6f431f]"
                 : "border-amber-300/60 bg-white text-[#7c624d] hover:bg-[#f7eee6]"
@@ -792,7 +792,7 @@ export function CatalogCard({
                 // no-op if user cancels share
               }
             }}
-            className="ui-focus inline-flex items-center justify-center rounded-full border border-amber-300/60 bg-white px-3 py-2 text-xs font-semibold text-[#6f553f] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#f7eee6]"
+            className="ui-focus inline-flex items-center justify-center rounded-full border border-amber-300/60 bg-white px-3 py-2 text-xs font-semibold text-[#6f553f] shadow-[0_2px_6px_rgba(55,35,19,0.08)] transition hover:-translate-y-0.5 hover:bg-[#f7eee6]"
             aria-label={`Compartir ${item.title}`}
             title={shareCopied ? "Copiado" : "Compartir"}
           >
@@ -813,7 +813,7 @@ export function CatalogCard({
             target="_blank"
             rel="noreferrer"
             onClick={onWhatsappClick}
-            className="ui-focus inline-flex items-center justify-center rounded-full border border-[#2ac76d] bg-[#25D366] px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:brightness-95"
+            className="ui-focus inline-flex min-h-11 items-center justify-center rounded-full border border-[#2ac76d] bg-[#25D366] px-3 py-2 text-xs font-semibold text-white shadow-[0_3px_10px_rgba(37,211,102,0.35)] transition hover:-translate-y-0.5 hover:brightness-95 max-md:col-span-2 md:col-span-1"
             aria-label={`Contactar por WhatsApp por ${item.title}`}
             title="WhatsApp"
           >

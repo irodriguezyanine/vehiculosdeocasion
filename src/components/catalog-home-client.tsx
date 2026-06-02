@@ -3835,20 +3835,32 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         catalogTitleY = logoY + logoHeight + 52;
       }
 
-      doc.setDrawColor(...BRAND.copper);
-      doc.setLineWidth(1.4);
-      const accentLineWidth = 96;
-      doc.line(
-        pageWidth / 2 - accentLineWidth / 2,
-        catalogTitleY - 18,
-        pageWidth / 2 + accentLineWidth / 2,
-        catalogTitleY - 18,
-      );
-
       doc.setFont("helvetica", "bold");
       doc.setFontSize(46);
       doc.setTextColor(...BRAND.espresso);
       doc.text("Catalogo", pageWidth / 2, catalogTitleY, { align: "center" });
+
+      const coverDate = now.toLocaleDateString("es-CL", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      });
+      const coverTime = now.toLocaleTimeString("es-CL", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(12);
+      doc.setTextColor(...BRAND.muted);
+      doc.text(`Actualizado ${coverDate} - ${coverTime}`, pageWidth / 2, catalogTitleY + 34, {
+        align: "center",
+      });
+
+      const vehicleCountLabel = `${totalRows} vehiculo${totalRows === 1 ? "" : "s"}`;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(24);
+      doc.setTextColor(...BRAND.copper);
+      doc.text(vehicleCountLabel, pageWidth / 2, catalogTitleY + 68, { align: "center" });
 
       doc.setFillColor(...BRAND.espresso);
       doc.rect(0, pageHeight - 10, pageWidth, 10, "F");
@@ -3895,16 +3907,28 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         y = 82;
       };
 
+      const cellPaddingX = 8;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      let maxPriceTextWidth = doc.getTextWidth("Precio");
+      for (const section of calendarPdfSections) {
+        for (const row of section.rows) {
+          maxPriceTextWidth = Math.max(maxPriceTextWidth, doc.getTextWidth(row.priceLabel));
+        }
+      }
+      const priceColWidth = Math.ceil(maxPriceTextWidth) + cellPaddingX * 2;
+      const thumbColWidth = 72;
+      const patentColWidth = 68;
+      const modelColWidth = 84;
+      const vehicleColWidth = usableWidth - priceColWidth - thumbColWidth - patentColWidth - modelColWidth;
+
       const tableColumns = [
-        { key: "vehicle" as const, label: "Vehiculo", width: Math.floor(usableWidth * 0.34), align: "left" as const },
-        { key: "patent" as const, label: "Patente", width: Math.floor(usableWidth * 0.11), align: "left" as const },
-        { key: "model" as const, label: "Modelo", width: Math.floor(usableWidth * 0.17), align: "left" as const },
-        { key: "thumbnail" as const, label: "Foto", width: 72, align: "center" as const },
-        { key: "priceLabel" as const, label: "Precio", width: 0, align: "right" as const },
+        { key: "vehicle" as const, label: "Vehiculo", width: vehicleColWidth, align: "left" as const },
+        { key: "patent" as const, label: "Patente", width: patentColWidth, align: "left" as const },
+        { key: "model" as const, label: "Modelo", width: modelColWidth, align: "left" as const },
+        { key: "thumbnail" as const, label: "Foto", width: thumbColWidth, align: "center" as const },
+        { key: "priceLabel" as const, label: "Precio", width: priceColWidth, align: "right" as const },
       ];
-      tableColumns[4].width = Math.floor(
-        usableWidth - tableColumns[0].width - tableColumns[1].width - tableColumns[2].width - tableColumns[3].width,
-      );
       const vehicleColIndex = 0;
       const patentColIndex = 1;
       const modelColIndex = 2;
@@ -3973,23 +3997,54 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         const sectionSupportText = sectionDate ? "" : subtitle;
         const headerHeight = sectionTitleSecondary ? 50 : 36;
 
+        const countLabel = `${section.rows.length} veh.`;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        const countWidth = Math.max(58, doc.getTextWidth(countLabel) + 16);
+        const countX = marginX + usableWidth - countWidth - 8;
+
         ensureSpace(headerHeight + 26);
         doc.setFillColor(...BRAND.sand);
         doc.roundedRect(marginX, y, usableWidth, headerHeight, 6, 6, "F");
+
+        const titleBaseX = marginX + 10;
+        const titleBaseY = y + 19;
         doc.setFont("helvetica", "bold");
         doc.setFontSize(13);
         doc.setTextColor(...BRAND.cacao);
-        doc.text(sectionTitlePrimary, marginX + 10, y + 19);
+        doc.text(sectionTitlePrimary, titleBaseX, titleBaseY);
+
+        if (sectionSupportText && !sectionTitleSecondary) {
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(13);
+          const primaryWidth = doc.getTextWidth(sectionTitlePrimary);
+          const supportStartX = titleBaseX + primaryWidth;
+          const supportMaxWidth = Math.max(48, countX - supportStartX - 8);
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(10);
+          doc.setTextColor(...BRAND.muted);
+          doc.text(` · ${sectionSupportText}`, supportStartX, titleBaseY, { maxWidth: supportMaxWidth });
+        }
+
         if (sectionTitleSecondary) {
+          const secondaryBaseY = y + 37;
           doc.setFont("helvetica", "bold");
           doc.setFontSize(12);
           doc.setTextColor(...BRAND.text);
-          doc.text(sectionTitleSecondary, marginX + 10, y + 37);
+          doc.text(sectionTitleSecondary, titleBaseX, secondaryBaseY);
+          if (sectionSupportText) {
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(12);
+            const secondaryWidth = doc.getTextWidth(sectionTitleSecondary);
+            const supportStartX = titleBaseX + secondaryWidth;
+            const supportMaxWidth = Math.max(48, countX - supportStartX - 8);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            doc.setTextColor(...BRAND.muted);
+            doc.text(` · ${sectionSupportText}`, supportStartX, secondaryBaseY, { maxWidth: supportMaxWidth });
+          }
         }
 
-        const countLabel = `${section.rows.length} veh.`;
-        const countWidth = Math.max(58, doc.getTextWidth(countLabel) + 16);
-        const countX = marginX + usableWidth - countWidth - 8;
         doc.setFillColor(...BRAND.copper);
         doc.roundedRect(countX, y + 8, countWidth, 18, 5, 5, "F");
         doc.setFont("helvetica", "bold");
@@ -4011,41 +4066,31 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
 
         y += headerHeight + 8;
 
-        if (sectionSupportText) {
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(10);
-          doc.setTextColor(...BRAND.muted);
-          const subtitleLines = doc.splitTextToSize(sectionSupportText, usableWidth);
-          ensureSpace(subtitleLines.length * 12 + 12);
-          doc.text(subtitleLines, marginX, y);
-          y += subtitleLines.length * 12 + 10;
-        }
-
         drawTableHeader();
         for (const [rowIndex, row] of section.rows.entries()) {
           const linePaddingY = 6;
           const lineHeight = 10;
-          const cellPaddingX = 8;
-          const vehicleColWidth = tableColumns[vehicleColIndex].width;
-          const vehiclePrimaryLines = doc.splitTextToSize(
-            row.vehiclePrimary,
-            Math.max(24, vehicleColWidth - cellPaddingX * 2),
-          );
+          const vehicleInnerWidth = Math.max(16, tableColumns[vehicleColIndex].width - cellPaddingX * 2);
+          const patentInnerWidth = Math.max(16, tableColumns[patentColIndex].width - cellPaddingX * 2);
+          const modelInnerWidth = Math.max(16, tableColumns[modelColIndex].width - cellPaddingX * 2);
+          const priceInnerWidth = Math.max(16, tableColumns[priceColIndex].width - cellPaddingX * 2);
+
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(9);
+          const vehiclePrimaryLines = doc.splitTextToSize(row.vehiclePrimary, vehicleInnerWidth);
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(8);
           const vehicleSecondaryLines = row.vehicleSecondary
-            ? doc.splitTextToSize(row.vehicleSecondary, Math.max(24, vehicleColWidth - cellPaddingX * 2))
+            ? doc.splitTextToSize(row.vehicleSecondary, vehicleInnerWidth)
             : [];
-          const patentLines = doc.splitTextToSize(
-            row.patent,
-            Math.max(24, tableColumns[patentColIndex].width - cellPaddingX * 2),
-          );
-          const modelLines = doc.splitTextToSize(
-            row.model,
-            Math.max(24, tableColumns[modelColIndex].width - cellPaddingX * 2),
-          );
-          const priceLines = doc.splitTextToSize(
-            row.priceLabel,
-            Math.max(24, tableColumns[priceColIndex].width - cellPaddingX * 2),
-          );
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(9);
+          const patentLines = doc.splitTextToSize(row.patent, patentInnerWidth);
+          const modelLines = doc.splitTextToSize(row.model, modelInnerWidth);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(9);
+          const priceLines = doc.splitTextToSize(row.priceLabel, priceInnerWidth);
+
           const vehicleLineCount = Math.max(1, vehiclePrimaryLines.length + vehicleSecondaryLines.length);
           const textBlockLines = Math.max(
             vehicleLineCount,
@@ -4066,17 +4111,18 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             doc.line(getColumnX(columnIndex), y, getColumnX(columnIndex), y + rowHeight);
           }
 
+          const vehicleX = getColumnX(vehicleColIndex) + cellPaddingX;
           let textY = y + linePaddingY + 8;
           doc.setFont("helvetica", "bold");
           doc.setFontSize(9);
           doc.setTextColor(...BRAND.text);
-          doc.text(vehiclePrimaryLines, getColumnX(vehicleColIndex) + cellPaddingX, textY);
+          doc.text(vehiclePrimaryLines, vehicleX, textY, { maxWidth: vehicleInnerWidth });
           textY += vehiclePrimaryLines.length * lineHeight;
           if (vehicleSecondaryLines.length > 0) {
             doc.setFont("helvetica", "normal");
             doc.setFontSize(8);
             doc.setTextColor(...BRAND.muted);
-            doc.text(vehicleSecondaryLines, getColumnX(vehicleColIndex) + cellPaddingX, textY);
+            doc.text(vehicleSecondaryLines, vehicleX, textY, { maxWidth: vehicleInnerWidth });
           }
 
           doc.setFont("helvetica", "normal");
@@ -4086,18 +4132,22 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             patentLines,
             getColumnX(patentColIndex) + cellPaddingX,
             y + linePaddingY + 8,
+            { maxWidth: patentInnerWidth },
           );
           doc.text(
             modelLines,
             getColumnX(modelColIndex) + cellPaddingX,
             y + linePaddingY + 8,
+            { maxWidth: modelInnerWidth },
           );
           doc.setFont("helvetica", "bold");
+          doc.setFontSize(9);
+          doc.setTextColor(...BRAND.text);
           doc.text(
             priceLines,
             getColumnX(priceColIndex) + tableColumns[priceColIndex].width - cellPaddingX,
             y + linePaddingY + 8,
-            { align: "right" },
+            { align: "right", maxWidth: priceInnerWidth },
           );
 
           const thumbColX = getColumnX(thumbnailColIndex);

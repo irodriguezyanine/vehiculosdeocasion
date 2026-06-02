@@ -715,7 +715,66 @@ type PdfImageAsset = {
   aspectRatio: number;
 };
 
-async function convertImageDataUrlToJpegAsset(dataUrl: string): Promise<PdfImageAsset | null> {
+const MAX_PDF_IMAGE_EDGE = 160;
+const PDF_IMAGE_LOAD_CONCURRENCY = 4;
+
+type JsPdfDocument = {
+  output(type: "blob"): Blob;
+  save(filename: string): void;
+};
+
+function isIosPdfDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  return /iPad|iPhone|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
+async function downloadPdfDocument(doc: JsPdfDocument, fileName: string): Promise<"download" | "opened"> {
+  const blob = doc.output("blob");
+  const blobUrl = URL.createObjectURL(blob);
+
+  if (isIosPdfDevice()) {
+    const opened = window.open(blobUrl, "_blank");
+    if (!opened) {
+      window.location.assign(blobUrl);
+    }
+    window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+    return "opened";
+  }
+
+  const link = document.createElement("a");
+  link.href = blobUrl;
+  link.download = fileName;
+  link.rel = "noopener";
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.setTimeout(() => URL.revokeObjectURL(blobUrl), 10_000);
+  return "download";
+}
+
+async function mapWithConcurrency<T>(
+  items: T[],
+  limit: number,
+  worker: (item: T) => Promise<void>,
+): Promise<void> {
+  if (items.length === 0) return;
+  let cursor = 0;
+  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (cursor < items.length) {
+      const index = cursor;
+      cursor += 1;
+      await worker(items[index] as T);
+    }
+  });
+  await Promise.all(runners);
+}
+
+async function convertImageDataUrlToJpegAsset(
+  dataUrl: string,
+  maxEdge = MAX_PDF_IMAGE_EDGE,
+): Promise<PdfImageAsset | null> {
   return new Promise((resolve) => {
     const img = document.createElement("img");
     img.onload = () => {
@@ -723,20 +782,23 @@ async function convertImageDataUrlToJpegAsset(dataUrl: string): Promise<PdfImage
         resolve(null);
         return;
       }
+      const scale = Math.min(1, maxEdge / Math.max(img.naturalWidth, img.naturalHeight));
+      const width = Math.max(1, Math.round(img.naturalWidth * scale));
+      const height = Math.max(1, Math.round(img.naturalHeight * scale));
       const canvas = document.createElement("canvas");
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
+      canvas.width = width;
+      canvas.height = height;
       const ctx = canvas.getContext("2d");
       if (!ctx) {
         resolve(null);
         return;
       }
-      ctx.drawImage(img, 0, 0);
+      ctx.drawImage(img, 0, 0, width, height);
       try {
         resolve({
-          dataUrl: canvas.toDataURL("image/jpeg", 0.92),
+          dataUrl: canvas.toDataURL("image/jpeg", 0.82),
           format: "JPEG",
-          aspectRatio: img.naturalWidth / img.naturalHeight,
+          aspectRatio: width / height,
         });
       } catch {
         resolve(null);
@@ -747,6 +809,20 @@ async function convertImageDataUrlToJpegAsset(dataUrl: string): Promise<PdfImage
   });
 }
 
+async function normalizePdfImageAsset(
+  dataUrl: string,
+  format: "PNG" | "JPEG",
+  aspectRatio: number,
+): Promise<PdfImageAsset | null> {
+  const dimensions = await getImageDimensionsFromDataUrl(dataUrl);
+  if (!dimensions || dimensions.width <= 0 || dimensions.height <= 0) return null;
+  const maxEdge = Math.max(dimensions.width, dimensions.height);
+  if (format === "JPEG" && maxEdge <= MAX_PDF_IMAGE_EDGE) {
+    return { dataUrl, format, aspectRatio };
+  }
+  return convertImageDataUrlToJpegAsset(dataUrl);
+}
+
 async function buildPdfImageAsset(dataUrl: string, contentType = ""): Promise<PdfImageAsset | null> {
   const dimensions = await getImageDimensionsFromDataUrl(dataUrl);
   if (!dimensions || dimensions.width <= 0 || dimensions.height <= 0) return null;
@@ -755,18 +831,10 @@ async function buildPdfImageAsset(dataUrl: string, contentType = ""): Promise<Pd
   const isJpeg = mime.includes("jpeg") || mime.includes("jpg") || dataUrl.startsWith("data:image/jp");
   const isPng = mime.includes("png") || dataUrl.startsWith("data:image/png");
   if (isJpeg) {
-    return {
-      dataUrl,
-      format: "JPEG",
-      aspectRatio: dimensions.width / dimensions.height,
-    };
+    return normalizePdfImageAsset(dataUrl, "JPEG", dimensions.width / dimensions.height);
   }
   if (isPng) {
-    return {
-      dataUrl,
-      format: "PNG",
-      aspectRatio: dimensions.width / dimensions.height,
-    };
+    return normalizePdfImageAsset(dataUrl, "PNG", dimensions.width / dimensions.height);
   }
   return convertImageDataUrlToJpegAsset(dataUrl);
 }
@@ -3920,7 +3988,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         logoDimensions && logoDimensions.width > 0 && logoDimensions.height > 0
           ? logoDimensions.width / logoDimensions.height
           : 3.6;
-      const doc = new jsPDF({ unit: "pt", format: "a4" });
+      const doc = new jsPDF({ unit: "pt", format: "a4", compress: true });
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
       const marginX = 40;
@@ -4199,12 +4267,10 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           ),
         ),
       ];
-      await Promise.all(
-        uniqueThumbnailUrls.map(async (url) => {
-          const asset = await loadImageForPdfAsDataUrl(url);
-          if (asset) thumbnailCache.set(url, asset);
-        }),
-      );
+      await mapWithConcurrency(uniqueThumbnailUrls, PDF_IMAGE_LOAD_CONCURRENCY, async (url) => {
+        const asset = await loadImageForPdfAsDataUrl(url);
+        if (asset) thumbnailCache.set(url, asset);
+      });
 
       const resolveRowImageAsset = (urls: string[]) => {
         for (const url of urls) {
@@ -4462,22 +4528,28 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         );
       }
 
-      doc.save(exportFileName);
+      const downloadMode = await downloadPdfDocument(doc, exportFileName);
       trackEvent("calendar_pdf_download", {
         categories: calendarPdfSections.length,
         publications: totalRows,
         pages: doc.getNumberOfPages(),
+        mode: downloadMode,
       });
       showSystemNotice(
         "success",
         "PDF generado",
-        `Se descargo correctamente: ${exportFileName}`,
+        downloadMode === "opened"
+          ? "Se abrio el PDF en una nueva pestana. Usa Compartir para guardarlo en tu celular."
+          : `Se descargo correctamente: ${exportFileName}`,
       );
-    } catch {
+    } catch (error) {
+      console.error("[calendar-pdf]", error);
       showSystemNotice(
         "error",
         "No se pudo generar el PDF",
-        "Intenta nuevamente. Si el problema persiste, recarga la pagina.",
+        isIosPdfDevice()
+          ? "Intenta nuevamente. Si tu navegador bloquea ventanas emergentes, permitelas para este sitio."
+          : "Intenta nuevamente. Si el problema persiste, recarga la pagina.",
       );
     } finally {
       setIsDownloadingCalendarPdf(false);

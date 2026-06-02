@@ -2431,7 +2431,6 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   const [detailEditorTab, setDetailEditorTab] = useState<DetailEditorTabId>("general");
   const [selectedVehicleTab, setSelectedVehicleTab] = useState<VehicleDetailTabId>("general");
   const vehicleTabRefs = useRef<Partial<Record<VehicleDetailTabId, HTMLButtonElement | null>>>({});
-  const vehicleDetailMediaRef = useRef<HTMLDivElement | null>(null);
   const [inlineSummaryField, setInlineSummaryField] = useState<string | null>(null);
   const [inlineSummaryValue, setInlineSummaryValue] = useState("");
   const [inlinePriceEditing, setInlinePriceEditing] = useState(false);
@@ -4228,16 +4227,6 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       text,
     )}&type=phone_number&app_absent=0`;
   }, [selectedVehicle, selectedVehicleShareUrl]);
-
-  const selectedVehicleVideoRequestUrl = useMemo(() => {
-    if (!selectedVehicle) return "";
-    const patent = getPatent(selectedVehicle);
-    const label = getModel(selectedVehicle);
-    const text = `Hola, solicito video del vehiculo ${patent} - ${label}.`;
-    return `https://api.whatsapp.com/send/?phone=${WHATSAPP_PHONE}&text=${encodeURIComponent(
-      text,
-    )}&type=phone_number&app_absent=0`;
-  }, [selectedVehicle]);
 
   const selectedVehicleConditionLabel = useMemo(() => {
     if (!selectedVehicle) return null;
@@ -7152,7 +7141,6 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                 priority
                 className="h-14 w-14 rounded-full object-cover sm:h-16 sm:w-16"
               />
-              <span className="brand-wordmark text-base text-[#4d2f1d] sm:hidden">VdO</span>
               <span className="brand-wordmark hidden text-xl text-[#4d2f1d] sm:inline-block">
                 Vehiculos de Ocasion
               </span>
@@ -9415,119 +9403,131 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       {config.homeLayout.showSearchBar ? (
       <section className="relative z-50 mx-auto w-full max-w-7xl px-3 pt-3 pb-2 sm:px-6 lg:px-8">
         <div className="inventory-search-shell overflow-visible rounded-2xl p-3 md:p-4">
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-            <div className="w-full">
-              <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-100">
-                Busqueda de inventario
-              </p>
-              <div className="relative">
-                <svg
-                  viewBox="0 0 20 20"
-                  fill="none"
-                  aria-hidden="true"
-                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-amber-200"
-                >
-                  <path d="M13.5 13.5L17 17" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                  <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="1.8" />
-                </svg>
-                <input
-                  value={homeSearchTerm}
-                  onChange={(event) => {
-                    setHomeSearchTerm(event.target.value);
-                    trackEvent("home_search_change", { query: event.target.value });
+          <p className="mb-1 hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-100 md:block">
+            Busqueda de inventario
+          </p>
+          <div className="flex items-center gap-2">
+            <div className="relative min-w-0 flex-1">
+              <svg
+                viewBox="0 0 20 20"
+                fill="none"
+                aria-hidden="true"
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-amber-200"
+              >
+                <path d="M13.5 13.5L17 17" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="1.8" />
+              </svg>
+              <input
+                value={homeSearchTerm}
+                onChange={(event) => {
+                  setHomeSearchTerm(event.target.value);
+                  trackEvent("home_search_change", { query: event.target.value });
+                }}
+                placeholder="Buscar patente, marca, modelo..."
+                className="ui-focus w-full rounded-xl border border-amber-300/70 bg-[#4a3020] py-3 pl-10 pr-20 text-base font-medium text-amber-50 shadow-sm placeholder:text-amber-200/80 md:pr-24 md:text-sm"
+                aria-label="Buscar vehiculos por patente, marca, modelo o categoria"
+                type="search"
+                inputMode="search"
+                enterKeyHint="search"
+                autoComplete="off"
+              />
+              {homeSearchTerm ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHomeSearchTerm("");
+                    trackEvent("home_search_clear");
                   }}
-                  placeholder="Buscar patente, marca, modelo..."
-                  className="ui-focus w-full rounded-xl border border-amber-300/70 bg-[#4a3020] py-3 pl-10 pr-24 text-base font-medium text-amber-50 shadow-sm placeholder:text-amber-200/80 md:pr-28 md:text-sm"
-                  aria-label="Buscar vehiculos por patente, marca, modelo o categoria"
-                  type="search"
-                  inputMode="search"
-                  enterKeyHint="search"
-                  autoComplete="off"
-                />
-                {homeSearchTerm ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setHomeSearchTerm("");
-                      trackEvent("home_search_clear");
-                    }}
-                    className="ui-focus touch-target absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-amber-300/70 bg-[#5a3a25] px-2.5 py-1.5 text-xs font-semibold text-amber-50 hover:bg-[#6a452c] max-md:right-1.5"
-                  >
-                    Limpiar
-                  </button>
-                ) : null}
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-              <span className="rounded-full border border-amber-300/70 bg-[#5a3a25] px-3 py-1 text-xs font-semibold text-amber-50">
-                {homeVisibleItems.length} resultado(s)
-              </span>
-              <span className="sr-only" aria-live="polite">
-                {homeVisibleItems.length} resultados encontrados en catalogo.
-              </span>
-              {config.homeLayout.showSortSelector ? (
-                <details className="relative">
-                  <summary
-                    className="ui-focus touch-target flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg border border-amber-300/70 bg-[#5a3a25] text-amber-50 hover:bg-[#6a452c]"
-                    aria-label="Abrir opciones de orden"
-                    title="Ordenar resultados"
-                  >
-                    <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4" aria-hidden="true">
-                      <path d="M4 5h12M6 10h8M8 15h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                    </svg>
-                  </summary>
-                  <div className="absolute right-0 z-50 mt-2 w-full min-w-[11rem] rounded-lg border border-amber-300/70 bg-[#4a3020] p-1 shadow-lg max-md:left-0 max-md:w-full sm:w-44">
-                    {([
-                      ["recomendado", "Recomendado"],
-                      ["relevancia", "Relevancia"],
-                      ["fecha-remate", "Fecha publicacion"],
-                      ["precio-asc", "Precio menor"],
-                      ["precio-desc", "Precio mayor"],
-                      ["titulo", "Titulo A-Z"],
-                    ] as Array<[SortOption, string]>).map(([value, label]) => (
-                      <button
-                        key={`sort-${value}`}
-                        type="button"
-                        onClick={(event) => {
-                          setHomeSort(value);
-                          trackEvent("home_sort_change", { sort: value });
-                          const details = event.currentTarget.closest("details");
-                          if (details) details.removeAttribute("open");
-                        }}
-                        className={`ui-focus flex w-full min-h-11 items-center justify-between rounded-md px-3 py-2 text-left text-sm font-medium ${
-                          homeSort === value
-                            ? "bg-amber-700 text-amber-50"
-                            : "text-amber-100 hover:bg-[#5a3a25]"
-                        }`}
-                      >
-                        <span>{label}</span>
-                        {homeSort === value ? <span>OK</span> : null}
-                      </button>
-                    ))}
-                  </div>
-                </details>
+                  className="ui-focus touch-target absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-amber-300/70 bg-[#5a3a25] px-2 py-1 text-[11px] font-semibold text-amber-50 hover:bg-[#6a452c] md:px-2.5 md:py-1.5 md:text-xs"
+                >
+                  Limpiar
+                </button>
               ) : null}
             </div>
+            {config.homeLayout.showSortSelector ? (
+              <details className="relative shrink-0">
+                <summary
+                  className="ui-focus touch-target flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg border border-amber-300/70 bg-[#5a3a25] text-amber-50 hover:bg-[#6a452c]"
+                  aria-label="Abrir opciones de orden"
+                  title="Ordenar resultados"
+                >
+                  <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4" aria-hidden="true">
+                    <path d="M4 5h12M6 10h8M8 15h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                  </svg>
+                </summary>
+                <div className="absolute right-0 z-50 mt-2 w-[min(100vw-2rem,11rem)] rounded-lg border border-amber-300/70 bg-[#4a3020] p-1 shadow-lg md:w-44">
+                  {([
+                    ["recomendado", "Recomendado"],
+                    ["relevancia", "Relevancia"],
+                    ["fecha-remate", "Fecha publicacion"],
+                    ["precio-asc", "Precio menor"],
+                    ["precio-desc", "Precio mayor"],
+                    ["titulo", "Titulo A-Z"],
+                  ] as Array<[SortOption, string]>).map(([value, label]) => (
+                    <button
+                      key={`sort-${value}`}
+                      type="button"
+                      onClick={(event) => {
+                        setHomeSort(value);
+                        trackEvent("home_sort_change", { sort: value });
+                        const details = event.currentTarget.closest("details");
+                        if (details) details.removeAttribute("open");
+                      }}
+                      className={`ui-focus flex min-h-11 w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm font-medium ${
+                        homeSort === value
+                          ? "bg-amber-700 text-amber-50"
+                          : "text-amber-100 hover:bg-[#5a3a25]"
+                      }`}
+                    >
+                      <span>{label}</span>
+                      {homeSort === value ? <span>OK</span> : null}
+                    </button>
+                  ))}
+                </div>
+              </details>
+            ) : null}
+            <span className="hidden rounded-full border border-amber-300/70 bg-[#5a3a25] px-3 py-1 text-xs font-semibold text-amber-50 md:inline-flex">
+              {homeVisibleItems.length} resultado(s)
+            </span>
+            <span className="sr-only" aria-live="polite">
+              {homeVisibleItems.length} resultados encontrados en catalogo.
+            </span>
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              void downloadVisibleCalendarPdf();
+            }}
+            disabled={isDownloadingCalendarPdf}
+            className={`ui-focus mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 text-xs font-semibold transition md:hidden ${
+              isDownloadingCalendarPdf
+                ? "cursor-wait border-amber-300/50 bg-[#5a3a25] text-amber-200/70"
+                : "border-amber-200 bg-amber-700 text-amber-50 hover:bg-amber-600"
+            }`}
+            title="Descargar PDF profesional del calendario visible"
+          >
+            <svg viewBox="0 0 20 20" fill="none" className="h-3.5 w-3.5" aria-hidden="true">
+              <path d="M10 3.5v8m0 0l-3-3m3 3l3-3M4.5 13.5v2h11v-2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {isDownloadingCalendarPdf ? "Generando PDF..." : "PDF Catalogo"}
+          </button>
           {config.homeLayout.showQuickFilters ? (
-          <div className="mt-3 flex items-start gap-2 border-t border-amber-300/40 pt-3 pb-1">
-            <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto whitespace-nowrap md:flex-wrap md:overflow-visible md:whitespace-normal">
-              {config.homeLayout.showQuickFilters ? (
-                Object.entries(QUICK_FILTER_LABELS).map(([id, label]) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => toggleQuickFilter(id as QuickFilterId)}
-                    className={`ui-focus shrink-0 rounded-full border px-3 py-2.5 text-xs font-semibold transition min-h-11 ${
-                      quickFilters.includes(id as QuickFilterId)
-                        ? "border-amber-200 bg-amber-700 text-amber-50"
-                        : "border-amber-300/70 bg-[#5a3a25] text-amber-100 hover:bg-[#6a452c]"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))
-              ) : null}
+          <div className="mt-3 hidden items-start gap-2 border-t border-amber-300/40 pt-3 pb-1 md:flex">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+              {Object.entries(QUICK_FILTER_LABELS).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => toggleQuickFilter(id as QuickFilterId)}
+                  className={`ui-focus min-h-11 shrink-0 rounded-full border px-3 py-2.5 text-xs font-semibold transition ${
+                    quickFilters.includes(id as QuickFilterId)
+                      ? "border-amber-200 bg-amber-700 text-amber-50"
+                      : "border-amber-300/70 bg-[#5a3a25] text-amber-100 hover:bg-[#6a452c]"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
             <button
               type="button"
@@ -9550,7 +9550,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           </div>
           ) : null}
           {config.homeLayout.showQuickFilters && quickFilters.length > 0 ? (
-            <div className="mt-3 flex items-center gap-2 overflow-x-auto border-t border-amber-300/40 pt-3 whitespace-nowrap">
+            <div className="mt-3 hidden items-center gap-2 overflow-x-auto border-t border-amber-300/40 pt-3 whitespace-nowrap md:flex">
               <p className="text-xs font-semibold uppercase tracking-wide text-amber-100">
                 Filtros activos
               </p>
@@ -10053,31 +10053,33 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
             role="dialog"
             aria-modal="true"
             aria-label={`Detalle de ${selectedVehicle.title}`}
-            className="vehicle-detail-shell max-h-[100dvh] w-full max-w-7xl overflow-x-hidden overflow-y-auto rounded-none p-2 pb-[calc(env(safe-area-inset-bottom)+72px)] md:max-h-[96vh] md:rounded-3xl md:p-6 md:pb-[calc(env(safe-area-inset-bottom)+14px)]"
+            className="vehicle-detail-shell max-h-[100dvh] w-full max-w-7xl overflow-x-hidden overflow-y-auto rounded-none px-3 py-3 pb-[calc(env(safe-area-inset-bottom)+72px)] md:max-h-[96vh] md:rounded-3xl md:p-6 md:pb-[calc(env(safe-area-inset-bottom)+14px)]"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="vehicle-detail-hero mb-3 rounded-xl p-3 md:mb-4 md:rounded-2xl md:p-4">
-              <div className="flex flex-wrap items-start justify-between gap-2 md:gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-start md:justify-between">
+                <div className="min-w-0 w-full flex-1">
+                  <div className="flex w-full min-w-0 flex-wrap items-start gap-x-2 gap-y-1">
                     {inlineSummaryField === "hero:Titulo" ? (
-                      <div className="flex flex-wrap items-center gap-1">
+                      <div className="flex w-full flex-wrap items-center gap-1">
                         <input
                           value={inlineSummaryValue}
                           onChange={(event) => setInlineSummaryValue(event.target.value)}
-                          className="ui-focus rounded border border-amber-300 bg-white px-2 py-1 text-sm font-semibold text-slate-900"
+                          className="ui-focus w-full min-w-0 rounded border border-amber-300 bg-white px-2 py-1 text-sm font-semibold text-slate-900"
                         />
                         <button type="button" onClick={() => saveInlineSummaryFieldEdit("Titulo")} className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">Guardar</button>
                         <button type="button" onClick={cancelInlineSummaryFieldEdit} className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-600">Cancelar</button>
                       </div>
                     ) : (
                       <>
-                        <h3 className="text-lg font-bold leading-tight text-slate-900 md:text-xl">{selectedVehicle.title}</h3>
+                        <h3 className="vehicle-detail-title min-w-0 flex-1 basis-full text-base font-bold leading-snug text-slate-900 md:basis-auto md:text-xl">
+                          {selectedVehicle.title}
+                        </h3>
                         {canAdminEditNow ? (
                           <button
                             type="button"
                             onClick={() => beginInlineSummaryFieldEdit("Titulo", selectedVehicle.title)}
-                            className="ui-focus inline-flex h-6 w-6 items-center justify-center rounded-full border border-amber-300 bg-amber-50 text-amber-800"
+                            className="ui-focus inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-amber-300 bg-amber-50 text-amber-800"
                             title="Editar titulo"
                             aria-label="Editar titulo"
                           >
@@ -10090,27 +10092,27 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       </>
                     )}
                   </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <div className="mt-2 flex w-full min-w-0 flex-col items-stretch gap-1.5 md:flex-row md:flex-wrap md:items-center md:gap-2">
                     {inlineSummaryField === "hero:Subtitulo" ? (
-                      <div className="flex flex-wrap items-center gap-1">
+                      <div className="flex w-full flex-wrap items-center gap-1">
                         <input
                           value={inlineSummaryValue}
                           onChange={(event) => setInlineSummaryValue(event.target.value)}
-                          className="ui-focus rounded border border-amber-300 bg-white px-2 py-1 text-xs font-semibold text-amber-900"
+                          className="ui-focus w-full min-w-0 rounded border border-amber-300 bg-white px-2 py-1 text-xs font-semibold text-amber-900"
                         />
                         <button type="button" onClick={() => saveInlineSummaryFieldEdit("Subtitulo")} className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">Guardar</button>
                         <button type="button" onClick={cancelInlineSummaryFieldEdit} className="rounded border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600">Cancelar</button>
                       </div>
                     ) : (
                       <>
-                        <span className="whitespace-nowrap rounded-full border border-stone-300 bg-stone-100 px-3 py-1 text-xs font-semibold text-amber-900">
+                        <span className="vehicle-detail-chip inline-block w-full max-w-full rounded-lg border border-stone-300 bg-stone-100 px-2.5 py-1.5 text-xs font-semibold text-amber-900 md:w-auto md:rounded-full md:px-3 md:py-1">
                           {selectedVehicle.subtitle?.trim() || getPatent(selectedVehicle)}
                         </span>
                         {canAdminEditNow ? (
                           <button
                             type="button"
                             onClick={() => beginInlineSummaryFieldEdit("Subtitulo", selectedVehicle.subtitle?.trim() || getPatent(selectedVehicle))}
-                            className="ui-focus inline-flex h-6 w-6 items-center justify-center rounded-full border border-amber-300 bg-amber-50 text-amber-800"
+                            className="ui-focus inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-amber-300 bg-amber-50 text-amber-800 md:ml-0"
                             title="Editar subtitulo"
                             aria-label="Editar subtitulo"
                           >
@@ -10124,19 +10126,19 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                     )}
                     {selectedVehicleConditionLabel ? (
                       <span
-                        className={`rounded-full border px-3 py-1 text-xs font-semibold ${selectedVehicleConditionClasses}`}
+                        className={`vehicle-detail-chip inline-block w-full max-w-full rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold leading-snug md:w-auto md:rounded-full md:px-3 md:py-1 md:text-xs ${selectedVehicleConditionClasses}`}
                       >
                         {selectedVehicleConditionLabel}
                       </span>
                     ) : null}
                   </div>
                 </div>
-                <div className="vehicle-detail-actions flex max-w-full items-center gap-1.5 overflow-x-auto md:flex-wrap md:gap-2 max-md:w-full">
+                <div className="vehicle-detail-actions flex max-w-full items-center gap-1.5 overflow-x-auto md:flex md:flex-wrap md:gap-2 max-md:w-full">
                   <button
                     type="button"
                     onClick={openOfferModal}
                     disabled={selectedVehicleReferencePriceAmount <= 0}
-                    className="ui-focus inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-amber-300 bg-stone-100 px-3 text-xs font-semibold text-amber-800 transition hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-60 max-md:px-2.5"
+                    className="ui-focus inline-flex h-9 w-full shrink-0 items-center justify-center rounded-full border border-amber-300 bg-stone-100 px-2 text-xs font-semibold text-amber-800 transition hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-60 md:w-auto md:px-3"
                     aria-label="Enviar mi precio"
                     title={
                       selectedVehicleReferencePriceAmount > 0
@@ -10193,7 +10195,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                     target="_blank"
                     rel="noreferrer"
                     onClick={() => trackEvent("whatsapp_click_modal", { itemKey: selectedVehicleKey })}
-                    className="ui-focus inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#25D366] text-white transition hover:brightness-95"
+                    className="ui-focus hidden h-9 w-9 items-center justify-center rounded-full bg-[#25D366] text-white transition hover:brightness-95 md:inline-flex"
                     aria-label={selectedVehiclePrimaryCtaLabel}
                     title={selectedVehiclePrimaryCtaLabel}
                   >
@@ -10215,7 +10217,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
               </div>
             </div>
             <div className="grid gap-3 md:gap-4 lg:grid-cols-2">
-              <div className="space-y-2" ref={vehicleDetailMediaRef}>
+              <div className="space-y-2">
                 <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-sm md:rounded-2xl">
                   {selectedVehicle.view3dUrl ? (
                     <iframe
@@ -10232,55 +10234,6 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                       className="h-52 w-full object-cover md:h-[420px]"
                     />
                   )}
-                </div>
-                <div className="vehicle-media-actions grid grid-cols-3 gap-1.5 md:hidden">
-                  {selectedVehicleGalleryImages.length > 0 ? (
-                    <button
-                      type="button"
-                      onClick={() => setSelectedVehicleTab("fotos")}
-                      className="ui-focus inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-2 text-[11px] font-semibold text-slate-700"
-                    >
-                      <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 shrink-0" fill="none" aria-hidden="true">
-                        <rect x="3" y="4.5" width="14" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
-                        <circle cx="7.5" cy="8.5" r="1.2" fill="currentColor" />
-                      </svg>
-                      Galeria
-                    </button>
-                  ) : (
-                    <span className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-2 py-2 text-center text-[10px] text-slate-400">
-                      Sin fotos
-                    </span>
-                  )}
-                  {selectedVehicle.view3dUrl ? (
-                    <button
-                      type="button"
-                      onClick={() => vehicleDetailMediaRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
-                      className="ui-focus inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-2 text-[11px] font-semibold text-slate-700"
-                    >
-                      <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 shrink-0" fill="none" aria-hidden="true">
-                        <path d="M4 6.5h12v7H4z" stroke="currentColor" strokeWidth="1.5" />
-                        <path d="M8 10.5 10.5 8.5 13 10.5v3H8v-3Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-                      </svg>
-                      3D
-                    </button>
-                  ) : (
-                    <span className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-2 py-2 text-center text-[10px] text-slate-400">
-                      Sin 3D
-                    </span>
-                  )}
-                  <a
-                    href={selectedVehicleVideoRequestUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={() => trackEvent("whatsapp_click_modal_mobile", { itemKey: selectedVehicleKey, intent: "video" })}
-                    className="ui-focus inline-flex items-center justify-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-2 text-[11px] font-semibold text-emerald-800"
-                  >
-                    <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 shrink-0" fill="none" aria-hidden="true">
-                      <path d="M4.5 6.5h11v7h-11z" stroke="currentColor" strokeWidth="1.5" />
-                      <path d="M8.5 9.5 10 11l3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    Video
-                  </a>
                 </div>
                 {selectedVehicle.view3dUrl ? null : selectedVehicleGalleryImages.length > 1 ? (
                   <div className="flex gap-2 overflow-x-auto rounded-xl border border-slate-200 bg-white p-2 md:flex">
@@ -10306,7 +10259,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
                   </div>
                 ) : null}
               </div>
-              <div className="vehicle-detail-summary min-h-0 rounded-xl p-3 shadow-sm md:h-[420px] md:overflow-y-auto md:rounded-2xl md:p-4">
+              <div className="vehicle-detail-summary min-h-0 w-full min-w-0 overflow-x-hidden rounded-xl p-3 shadow-sm md:h-[420px] md:overflow-y-auto md:rounded-2xl md:p-4">
                 <div className="mb-2 flex items-center justify-between gap-2 md:mb-3">
                   <h4 className="text-sm font-semibold text-slate-900 md:text-base">
                     <span className="md:hidden">Resumen</span>

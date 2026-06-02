@@ -266,6 +266,21 @@ body {
   border: 1px solid rgba(184, 147, 114, 0.3);
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(249, 241, 232, 0.9));
   box-shadow: 0 8px 22px rgba(57, 35, 22, 0.09);
+  overflow: hidden;
+}
+
+.vehicle-detail-title {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  hyphens: auto;
+}
+
+.vehicle-detail-chip {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+  line-height: 1.35;
 }
 
 .vehicle-detail-actions {
@@ -343,11 +358,6 @@ body {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
 }
 
-.vehicle-media-actions button,
-.vehicle-media-actions a {
-  min-height: 2.75rem;
-}
-
 .vehicle-detail-mobile-bar {
   box-shadow: 0 -8px 24px rgba(38, 23, 14, 0.12);
 }
@@ -374,13 +384,17 @@ body {
   }
 
   .vehicle-detail-hero {
-    padding: 0.75rem;
+    padding: 0.75rem 2.75rem 0.75rem 0.75rem;
   }
 
   .vehicle-detail-actions {
     border-radius: 0.85rem;
-    padding: 0.25rem;
+    padding: 0.35rem;
     scrollbar-width: none;
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) repeat(3, minmax(0, 1fr));
+    gap: 0.35rem;
+    align-items: center;
   }
 
   .vehicle-detail-actions::-webkit-scrollbar {

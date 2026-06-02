@@ -387,20 +387,6 @@ body {
     padding: 0.75rem 2.75rem 0.75rem 0.75rem;
   }
 
-  .vehicle-detail-actions {
-    border-radius: 0.85rem;
-    padding: 0.35rem;
-    scrollbar-width: none;
-    display: grid;
-    grid-template-columns: minmax(0, 1.35fr) repeat(3, minmax(0, 1fr));
-    gap: 0.35rem;
-    align-items: center;
-  }
-
-  .vehicle-detail-actions::-webkit-scrollbar {
-    display: none;
-  }
-
   .vehicle-detail-summary {
     overflow: visible;
     height: auto;

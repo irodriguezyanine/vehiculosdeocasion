@@ -25,11 +25,16 @@ function normalizeConfig(config?: Partial<EditorConfig> | null): EditorConfig {
     !incomingHeroTitle || legacyHeroTitles.has(incomingHeroTitle)
       ? defaults.homeLayout.heroTitle
       : config?.homeLayout?.heroTitle ?? defaults.homeLayout.heroTitle;
+  const legacyHeroDescriptions = new Set([
+    "Plataforma oficial de ofertas online en vedisaremates.cl. Revisa cada unidad con información clara, fotos y trazabilidad comercial para tomar decisiones con confianza.",
+    "Vehículos de Ocasión es una empresa especializada en la comercialización de vehículos a precios competitivos, por debajo del promedio del mercado.",
+    "Vehiculos de Ocasion es una empresa especializada en la comercializacion de vehiculos a precios competitivos, por debajo del promedio del mercado.",
+    "Vehiculos de Ocasion es la automotora de vehiculos seminuevos de la empresa VEDISA REMATES especializada en la comercializacion de todo tipo de vehiculos a precios competitivos y por debajo del promedio del mercado.",
+    "Vehículos de Ocasión es la automotora de vehículos seminuevos de la empresa VEDISA REMATES especializada en la comercializacion de todo tipo de vehículos a precios competitivos y por debajo del promedio del mercado.",
+  ]);
   const incomingDescription = config?.homeLayout?.heroDescription?.trim();
   const normalizedHeroDescription =
-    !incomingDescription ||
-    incomingDescription ===
-      "Plataforma oficial de ofertas online en vedisaremates.cl. Revisa cada unidad con información clara, fotos y trazabilidad comercial para tomar decisiones con confianza."
+    !incomingDescription || legacyHeroDescriptions.has(incomingDescription)
       ? defaults.homeLayout.heroDescription
       : config?.homeLayout?.heroDescription ?? defaults.homeLayout.heroDescription;
   const incomingPrimaryCta = config?.homeLayout?.heroPrimaryCtaLabel?.trim();

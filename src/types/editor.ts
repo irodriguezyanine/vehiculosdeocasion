@@ -197,7 +197,7 @@ export const DEFAULT_EDITOR_CONFIG: EditorConfig = {
     heroKicker: "Automotora y compraventa",
     heroTitle: "Encuentra tu próximo vehículo en Vehículos de Ocasión",
     heroDescription:
-      "Vehículos de Ocasión es una empresa especializada en la comercialización de vehículos a precios competitivos, por debajo del promedio del mercado.",
+      "Somos la automotora de vehículos seminuevos de la empresa VEDISA REMATES.",
     heroPrimaryCtaLabel: "Ver catálogo disponible",
     heroPrimaryCtaHref: "#catalogo",
     heroSecondaryCtaLabel: "Contactar por WhatsApp",

@@ -125,7 +125,7 @@ type CalendarPdfRow = {
   patent: string;
   model: string;
   priceLabel: string;
-  thumbnailUrl: string | null;
+  thumbnailUrls: string[];
 };
 type CalendarPdfSection = {
   categoryTitle: string;
@@ -592,12 +592,72 @@ function getModel(item: CatalogItem): string {
   return model?.trim() ?? item.title;
 }
 
-function getVehicleThumbnailUrl(item: CatalogItem): string | null {
-  const candidate = item.thumbnail ?? item.images[0];
-  if (typeof candidate === "string" && candidate.trim().startsWith("http")) {
-    return candidate.trim();
+function normalizePdfImageUrl(value?: string | null): string | null {
+  if (!value || typeof value !== "string") return null;
+  let url = value.trim();
+  if (!url) return null;
+  if (url.startsWith("//")) url = `https:${url}`;
+  if (url.startsWith("/")) url = `https://glo3d.net${url}`;
+  if (!url.startsWith("http")) return null;
+  return url.replace(/\$.*$/, "");
+}
+
+function isLikelyPdfImageUrl(url: string): boolean {
+  const normalized = url.toLowerCase();
+  if (normalized.includes("glo3d.net/iframe") || normalized.includes("<iframe")) return false;
+  if (/\.(jpg|jpeg|png|webp|gif|bmp|avif)(\?|$)/i.test(normalized)) return true;
+  return /cdn\.|cloudfront|amazonaws|supabase|cloudinary|img|image|media|glo3d|foto|photo|thumb/i.test(
+    normalized,
+  );
+}
+
+function collectVehicleImageCandidates(item: CatalogItem): string[] {
+  const raw = item.raw as Record<string, unknown>;
+  const lookup = buildVehicleLookup(raw);
+  const glo3dRaw = raw.glo3d as Record<string, unknown> | undefined;
+  const glo3dLookup = glo3dRaw ? buildVehicleLookup(glo3dRaw) : null;
+  const staticCandidates = [
+    item.thumbnail,
+    ...item.images,
+    getLookupValue(lookup, [
+      "thumbnail",
+      "thumb",
+      "thumbnail_url",
+      "image",
+      "image_url",
+      "foto",
+      "imagen_principal",
+      "foto_portada",
+    ]),
+    getLookupValue(lookup, ["src_with_params", "src"]),
+    glo3dLookup
+      ? getLookupValue(glo3dLookup, [
+          "thumbnail",
+          "thumb",
+          "thumbnail_url",
+          "image",
+          "image_url",
+          "src_with_params",
+          "src",
+        ])
+      : null,
+    typeof raw.thumbnail === "string" ? raw.thumbnail : null,
+    typeof raw.thumb === "string" ? raw.thumb : null,
+    typeof raw.image_url === "string" ? raw.image_url : null,
+    typeof raw.foto === "string" ? raw.foto : null,
+  ];
+
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const candidate of staticCandidates) {
+    if (typeof candidate !== "string") continue;
+    const normalized = normalizePdfImageUrl(candidate);
+    if (!normalized || seen.has(normalized)) continue;
+    if (!isLikelyPdfImageUrl(normalized)) continue;
+    seen.add(normalized);
+    result.push(normalized);
   }
-  return null;
+  return result;
 }
 
 function getPdfVehicleDisplay(item: CatalogItem): { primary: string; secondary: string } {
@@ -641,24 +701,92 @@ type PdfImageAsset = {
   aspectRatio: number;
 };
 
-async function loadImageForPdfAsDataUrl(url: string): Promise<PdfImageAsset | null> {
+async function convertImageDataUrlToJpegAsset(dataUrl: string): Promise<PdfImageAsset | null> {
+  return new Promise((resolve) => {
+    const img = document.createElement("img");
+    img.onload = () => {
+      if (img.naturalWidth <= 0 || img.naturalHeight <= 0) {
+        resolve(null);
+        return;
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve(null);
+        return;
+      }
+      ctx.drawImage(img, 0, 0);
+      try {
+        resolve({
+          dataUrl: canvas.toDataURL("image/jpeg", 0.92),
+          format: "JPEG",
+          aspectRatio: img.naturalWidth / img.naturalHeight,
+        });
+      } catch {
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = dataUrl;
+  });
+}
+
+async function buildPdfImageAsset(dataUrl: string, contentType = ""): Promise<PdfImageAsset | null> {
+  const dimensions = await getImageDimensionsFromDataUrl(dataUrl);
+  if (!dimensions || dimensions.width <= 0 || dimensions.height <= 0) return null;
+
+  const mime = contentType.toLowerCase();
+  const isJpeg = mime.includes("jpeg") || mime.includes("jpg") || dataUrl.startsWith("data:image/jp");
+  const isPng = mime.includes("png") || dataUrl.startsWith("data:image/png");
+  if (isJpeg) {
+    return {
+      dataUrl,
+      format: "JPEG",
+      aspectRatio: dimensions.width / dimensions.height,
+    };
+  }
+  if (isPng) {
+    return {
+      dataUrl,
+      format: "PNG",
+      aspectRatio: dimensions.width / dimensions.height,
+    };
+  }
+  return convertImageDataUrlToJpegAsset(dataUrl);
+}
+
+async function fetchPdfImageDirect(url: string): Promise<PdfImageAsset | null> {
   try {
     const response = await fetch(url, { cache: "no-store", mode: "cors" });
     if (!response.ok) return null;
     const blob = await response.blob();
     const dataUrl = await blobToDataUrl(blob);
-    const dimensions = await getImageDimensionsFromDataUrl(dataUrl);
-    if (!dimensions || dimensions.width <= 0 || dimensions.height <= 0) return null;
-    const mime = blob.type.toLowerCase();
-    const format: "PNG" | "JPEG" = mime.includes("png") ? "PNG" : "JPEG";
-    return {
-      dataUrl,
-      format,
-      aspectRatio: dimensions.width / dimensions.height,
-    };
+    return buildPdfImageAsset(dataUrl, blob.type);
   } catch {
     return null;
   }
+}
+
+async function fetchPdfImageViaProxy(url: string): Promise<PdfImageAsset | null> {
+  try {
+    const response = await fetch(`/api/pdf-image?url=${encodeURIComponent(url)}`, { cache: "no-store" });
+    if (!response.ok) return null;
+    const payload = (await response.json()) as { dataUrl?: string; contentType?: string };
+    if (!payload.dataUrl) return null;
+    return buildPdfImageAsset(payload.dataUrl, payload.contentType ?? "");
+  } catch {
+    return null;
+  }
+}
+
+async function loadImageForPdfAsDataUrl(url: string): Promise<PdfImageAsset | null> {
+  const normalizedUrl = normalizePdfImageUrl(url);
+  if (!normalizedUrl) return null;
+  const directAsset = await fetchPdfImageDirect(normalizedUrl);
+  if (directAsset) return directAsset;
+  return fetchPdfImageViaProxy(normalizedUrl);
 }
 
 function inferVehicleType(item: CatalogItem): VehicleTypeId {
@@ -3680,7 +3808,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
         patent: getPatent(item),
         model: getModel(item),
         priceLabel: formatPrice(config.vehiclePrices[key]) ?? "Sin precio",
-        thumbnailUrl: getVehicleThumbnailUrl(item),
+        thumbnailUrls: collectVehicleImageCandidates(item),
       };
     };
 
@@ -3940,9 +4068,9 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
       const thumbnailCache = new Map<string, PdfImageAsset>();
       const uniqueThumbnailUrls = [
         ...new Set(
-          calendarPdfSections
-            .flatMap((section) => section.rows.map((row) => row.thumbnailUrl))
-            .filter((url): url is string => !!url),
+          calendarPdfSections.flatMap((section) =>
+            section.rows.flatMap((row) => row.thumbnailUrls),
+          ),
         ),
       ];
       await Promise.all(
@@ -3951,6 +4079,14 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
           if (asset) thumbnailCache.set(url, asset);
         }),
       );
+
+      const resolveRowImageAsset = (urls: string[]) => {
+        for (const url of urls) {
+          const asset = thumbnailCache.get(url);
+          if (asset) return asset;
+        }
+        return null;
+      };
 
       const getColumnX = (columnIndex: number) =>
         marginX + tableColumns.slice(0, columnIndex).reduce((acc, column) => acc + column.width, 0);
@@ -4152,7 +4288,7 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
 
           const thumbColX = getColumnX(thumbnailColIndex);
           const thumbColWidth = tableColumns[thumbnailColIndex].width;
-          const imageAsset = row.thumbnailUrl ? thumbnailCache.get(row.thumbnailUrl) : null;
+          const imageAsset = resolveRowImageAsset(row.thumbnailUrls);
           if (imageAsset) {
             const { width: thumbWidth, height: thumbHeight } = fitDimensionsByAspect(
               imageAsset.aspectRatio,

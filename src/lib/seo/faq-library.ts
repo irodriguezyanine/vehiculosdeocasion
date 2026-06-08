@@ -197,6 +197,12 @@ export const GLOBAL_USED_CAR_FAQS: SeoFaqItem[] = [
       "Muchas unidades incluyen visor 3D Glo3D para inspección visual online antes de visitar la automotora en Santiago.",
     keywords: ["autos usados visor 3d", "autos usados con fotos"],
   },
+  {
+    question: "¿Dónde dejar una reseña de Vehículos de Ocasión en Google?",
+    answer:
+      "En https://vehiculosdeocasion.cl/dejar-resena encontrarás el enlace directo para dejar tu reseña en Google Maps. Tu opinión ayuda a otros compradores de autos usados en Chile.",
+    keywords: ["reseña vehiculos de ocasion", "automotora santiago google", "google maps vehiculos de ocasion"],
+  },
 ];
 
 export function buildFaqPageItems(extra: SeoFaqItem[] = []): SeoFaqItem[] {

@@ -1,5 +1,6 @@
 import type { CatalogItem } from "@/types/catalog";
 import { buildFaqPageItems, type SeoFaqItem } from "./faq-library";
+import { getGoogleBusinessConfig, getGoogleBusinessSameAs } from "./google-business";
 import { getSiteUrl, SITE_NAME, SITE_TAGLINE, BUSINESS } from "./site-config";
 import type { SeoLandingPage } from "./landing-pages";
 
@@ -38,8 +39,9 @@ export function buildOrganizationJsonLd() {
       "@type": "Country",
       name,
     })),
-    sameAs: BUSINESS.sameAs,
+    sameAs: getGoogleBusinessSameAs(),
     openingHours: BUSINESS.openingHours,
+    hasMap: getGoogleBusinessConfig().mapsUrl,
     contactPoint: [
       {
         "@type": "ContactPoint",

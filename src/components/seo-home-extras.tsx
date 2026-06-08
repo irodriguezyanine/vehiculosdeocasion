@@ -1,3 +1,4 @@
+import { GoogleBusinessPanel } from "@/components/google-business-panel";
 import Link from "next/link";
 import { CHILE_CITY_SEO_TARGETS } from "@/lib/seo/chile-pages";
 import { GLOBAL_USED_CAR_FAQS } from "@/lib/seo/faq-library";
@@ -101,6 +102,8 @@ export function SeoHomeExtras() {
           ))}
         </div>
       </section>
+
+      <GoogleBusinessPanel />
 
       <section aria-labelledby="seo-cities-heading" className="mb-10">
         <h2 id="seo-cities-heading" className="mb-4 text-xl font-semibold text-neutral-900">

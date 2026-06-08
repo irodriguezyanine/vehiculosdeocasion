@@ -25,6 +25,24 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   const discovery: MetadataRoute.Sitemap = [
     {
+      url: `${siteUrl}/dejar-resena`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+    {
+      url: `${siteUrl}/automotora-santiago-google`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.9,
+    },
+    {
+      url: `${siteUrl}/feed.xml`,
+      lastModified: now,
+      changeFrequency: "hourly",
+      priority: 0.6,
+    },
+    {
       url: `${siteUrl}/llms.txt`,
       lastModified: now,
       changeFrequency: "weekly",

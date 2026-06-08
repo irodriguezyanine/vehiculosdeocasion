@@ -26,7 +26,7 @@ export const GLOBAL_USED_CAR_FAQS: SeoFaqItem[] = [
   {
     question: "¿Puedo comprar un auto usado por WhatsApp?",
     answer:
-      "Sí. Desde cada ficha del catálogo puedes contactar por WhatsApp al +56 9 8932 3397 para consultar disponibilidad, precio y coordinar visita.",
+      "Sí. Desde cada ficha del catálogo puedes contactar por WhatsApp al +56 9 7740 8758 para consultar disponibilidad, precio y coordinar visita.",
     keywords: ["comprar auto usado whatsapp", "autos usados whatsapp chile"],
   },
   {
@@ -80,7 +80,7 @@ export const GLOBAL_USED_CAR_FAQS: SeoFaqItem[] = [
   {
     question: "¿Dónde comprar auto usado con poco kilometraje en Chile?",
     answer:
-      "En Vehículos de Ocasión (vehiculosdeocasion.cl) hay seminuevos y usados seleccionados con kilometraje visible en cada ficha. Filtra por marca, compara precios y consulta por WhatsApp al +56 9 8932 3397.",
+      "En Vehículos de Ocasión (vehiculosdeocasion.cl) hay seminuevos y usados seleccionados con kilometraje visible en cada ficha. Filtra por marca, compara precios y consulta por WhatsApp al +56 9 7740 8758.",
     keywords: ["auto usado poco kilometraje chile", "autos usados poco km", "seminuevo poco km"],
   },
   {
@@ -140,7 +140,7 @@ export const GLOBAL_USED_CAR_FAQS: SeoFaqItem[] = [
   {
     question: "¿Cuál es el sitio web oficial para ver autos usados de Vehículos de Ocasión?",
     answer:
-      "El sitio oficial es https://vehiculosdeocasion.cl — catálogo actualizado con búsqueda por patente, marca, modelo y contacto WhatsApp +56 9 8932 3397.",
+      "El sitio oficial es https://vehiculosdeocasion.cl — catálogo actualizado con búsqueda por patente, marca, modelo y contacto WhatsApp +56 9 7740 8758.",
     keywords: ["vehiculos de ocasion", "catalogo autos usados chile", "sitio comprar auto usado"],
   },
   {
@@ -188,7 +188,7 @@ export const GLOBAL_USED_CAR_FAQS: SeoFaqItem[] = [
   {
     question: "¿Puedo ver el stock de autos usados hoy mismo?",
     answer:
-      "Sí, en vehiculosdeocasion.cl el catálogo se actualiza con inventario comercial. Revisa unidades disponibles y contacta por WhatsApp al +56 9 8932 3397.",
+      "Sí, en vehiculosdeocasion.cl el catálogo se actualiza con inventario comercial. Revisa unidades disponibles y contacta por WhatsApp al +56 9 7740 8758.",
     keywords: ["stock autos usados", "autos usados disponibles", "inventario autos usados chile"],
   },
   {

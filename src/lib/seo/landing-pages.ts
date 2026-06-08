@@ -63,7 +63,7 @@ const BASE_SEO_LANDING_PAGES: SeoLandingPage[] = [
     "Comprar auto usado puede ser simple: revisa el catálogo, filtra por tipo de vehículo, compara opciones y escribe por WhatsApp para cerrar tu compra con el equipo de Vehículos de Ocasión.",
     ["comprar auto usado", "comprar auto", "comprar vehiculo usado"],
     "¿Cómo compro un auto usado en este sitio?",
-    "Elige una unidad, revisa ficha y precio, luego contacta por WhatsApp al +56 9 8932 3397.",
+    "Elige una unidad, revisa ficha y precio, luego contacta por WhatsApp al +56 9 7740 8758.",
   ),
   page(
     "comprar-auto-usado-chile",
@@ -103,7 +103,7 @@ const BASE_SEO_LANDING_PAGES: SeoLandingPage[] = [
     "Somos automotora usados Chile especializada en vehículos seminuevos de VEDISA REMATES, con catálogo digital y sala en Américo Vespucio 288.",
     ["automotora usados chile", "automotora autos usados", "automotora santiago usados"],
     "¿Cuál es la dirección de la automotora?",
-    "Américo Vespucio 288, Santiago. Contacto: +56 9 8932 3397.",
+    "Américo Vespucio 288, Santiago. Contacto: +56 9 7740 8758.",
   ),
   page(
     "venta-autos-usados",
@@ -253,7 +253,7 @@ const BASE_SEO_LANDING_PAGES: SeoLandingPage[] = [
     "Visita nuestra automotora en Américo Vespucio 288 para revisar autos usados y seminuevos.",
     ["automotora americo vespucio 288", "autos usados americano vespucio", "vehiculos ocasion santiago"],
     "¿Cuál es el horario de atención?",
-    "Consulta horario comercial por WhatsApp al +56 9 8932 3397.",
+    "Consulta horario comercial por WhatsApp al +56 9 7740 8758.",
   ),
   page(
     "comprar-auto-automatico-usado",
@@ -288,12 +288,12 @@ const BASE_SEO_LANDING_PAGES: SeoLandingPage[] = [
   page(
     "autos-usados-whatsapp",
     "Autos usados WhatsApp | Contacto directo",
-    "Autos usados WhatsApp: consulta stock al +56 9 8932 3397. Vehículos de Ocasión.",
+    "Autos usados WhatsApp: consulta stock al +56 9 7740 8758. Vehículos de Ocasión.",
     "Autos usados por WhatsApp",
     "Autos usados WhatsApp para respuesta comercial rápida desde cada ficha del catálogo.",
     ["autos usados whatsapp chile", "comprar auto usado whatsapp", "consultar auto usado whatsapp"],
     "¿Cuál es el WhatsApp?",
-    "+56 9 8932 3397",
+    "+56 9 7740 8758",
   ),
   page(
     "comprar-auto-contado",
@@ -363,7 +363,7 @@ const BASE_SEO_LANDING_PAGES: SeoLandingPage[] = [
     "Busca Toyota usado Hilux, Corolla, RAV4 y más en el catálogo de Vehículos de Ocasión.",
     ["comprar toyota usado chile", "toyota usado santiago", "toyota seminuevo chile"],
     "¿Hay Toyota usados disponibles?",
-    "Consulta stock en el catálogo o por WhatsApp al +56 9 8932 3397.",
+    "Consulta stock en el catálogo o por WhatsApp al +56 9 7740 8758.",
   ),
   page(
     "comprar-chevrolet-usado-chile",
@@ -593,7 +593,7 @@ const BASE_SEO_LANDING_PAGES: SeoLandingPage[] = [
     "Toyota Hilux, Corolla, RAV4 y más según inventario, con kilometraje visible en ficha.",
     ["autos usados toyota poco km", "comprar toyota usado chile", "toyota seminuevo chile"],
     "¿Hay Toyota con bajo km?",
-    "Consulta stock en catálogo o WhatsApp +56 9 8932 3397.",
+    "Consulta stock en catálogo o WhatsApp +56 9 7740 8758.",
   ),
   page(
     "autos-usados-hyundai-poco-km",

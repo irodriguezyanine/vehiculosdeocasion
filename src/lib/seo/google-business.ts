@@ -74,7 +74,7 @@ export const GOOGLE_BUSINESS_SETUP_CHECKLIST = [
   "Nombre: Vehículos de Ocasión",
   "Categoría principal: Automotora o Concesionario de autos usados",
   "Dirección: Américo Vespucio 288, Santiago (debe coincidir con el sitio web)",
-  "Teléfono: +56 9 8932 3397",
+  "Teléfono: +56 9 7740 8758",
   "Sitio web: https://vehiculosdeocasion.cl",
   "Horario: Lun–Vie 09:00–18:00, Sáb 10:00–14:00",
   "Descripción: usar GOOGLE_BUSINESS_DESCRIPTION del sitio",

@@ -13,6 +13,13 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { CatalogCard } from "@/components/catalog-card";
+import {
+  CONTACT_PHONE,
+  CONTACT_WHATSAPP_DIGITS,
+  WHATSAPP_API_BASE,
+  WHATSAPP_DEFAULT_LINK,
+  WHATSAPP_WA_ME_BASE,
+} from "@/lib/contact";
 import type { CatalogFeed, CatalogItem } from "@/types/catalog";
 import type { OfferRecord } from "@/types/offers";
 import {
@@ -198,9 +205,8 @@ const VEHICLE_CATEGORY_OPTIONS = [
   { value: "otros", label: "Otros" },
 ] as const;
 
-const WHATSAPP_CTA_URL =
-  "https://api.whatsapp.com/send/?phone=5694550660&text=Hola%2C+quiero+asesoria+comercial+en+Vehiculos+de+Ocasion&type=phone_number&app_absent=0";
-const WHATSAPP_PHONE = "5694550660";
+const WHATSAPP_CTA_URL = WHATSAPP_DEFAULT_LINK;
+const WHATSAPP_PHONE = CONTACT_WHATSAPP_DIGITS;
 const CONTACT_EMAIL = "vehiculosdeocasioncl@gmail.com";
 const INSTAGRAM_URL = "https://www.instagram.com/autosdeoc?igsh=YzRqbHQwZ2Q4YTg3";
 const INSTAGRAM_HANDLE = "@vehiculosdeocasioncl";
@@ -213,7 +219,7 @@ const OBSERVATIONS_TEMPLATE_STORAGE_KEY = "vehiculosdeocasion_observations_templ
 const DEFAULT_OBSERVATIONS_TEMPLATE_HTML = `<h3><strong>¿Te interesa esta unidad?</strong></h3>
 <p>En Vehiculos de Ocasion te acompanamos durante todo el proceso de compra.</p>
 <ul>
-  <li>Solicita detalles y apoyo comercial por WhatsApp al <a href="https://wa.me/5694550660" target="_blank" rel="noreferrer" style="color:#7c4a25"><strong>+56 9 4550 660</strong></a>.</li>
+  <li>Solicita detalles y apoyo comercial por WhatsApp al <a href="${WHATSAPP_WA_ME_BASE}" target="_blank" rel="noreferrer" style="color:#7c4a25"><strong>${CONTACT_PHONE}</strong></a>.</li>
   <li>Revisa fotos, ficha tecnica y visor 3D cuando este disponible.</li>
   <li>Coordinamos reserva, documentacion y cierre comercial de forma simple y segura.</li>
 </ul>`;
@@ -4117,7 +4123,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
         "Ven a revisar los vehiculos presencialmente en nuestras oficinas.";
       const coverAppointmentAddress = "Américo Vespucio 288";
       const coverContactLabel = "Contact Center";
-      const coverContactPhone = "+56 9 8932 3397";
+      const coverContactPhone = CONTACT_PHONE;
 
       const COVER_CARD_PAD_TOP = 22;
       const COVER_CARD_PAD_BOTTOM = 24;
@@ -5414,7 +5420,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   }, [selectedVehicle, selectedVehicleLookup, selectedVehicleOverride]);
 
   const leadWhatsappUrl = useMemo(() => {
-    const base = "https://api.whatsapp.com/send/?phone=5694550660";
+    const base = WHATSAPP_API_BASE;
     const text = `Hola, soy ${leadForm.name || "cliente"} y me interesa ${leadForm.interest || "recibir asesoria comercial"}. Mi contacto: ${leadForm.phone || "sin telefono"}.`;
     return `${base}&text=${encodeURIComponent(text)}&type=phone_number&app_absent=0`;
   }, [leadForm]);
@@ -5580,7 +5586,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       logo: "https://vehiculosdeocasion.vercel.app/vehiculos-ocasion-logo.png",
       contactPoint: {
         "@type": "ContactPoint",
-        telephone: "+56-9-4550-660",
+        telephone: CONTACT_PHONE,
         contactType: "customer service",
         areaServed: "CL",
         availableLanguage: "es",
@@ -10174,7 +10180,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
             <div className="mt-4 space-y-3">
               <div className="info-tile">
                 <p className="text-[11px] uppercase tracking-widest text-[#8b6546]">Canal principal</p>
-                <p className="mt-1 text-sm font-semibold text-[#2f1d12]">WhatsApp +56 9 4550 660</p>
+                <p className="mt-1 text-sm font-semibold text-[#2f1d12]">WhatsApp {CONTACT_PHONE}</p>
               </div>
               <div className="info-tile">
                 <p className="text-[11px] uppercase tracking-widest text-[#8b6546]">Correo comercial</p>
@@ -10489,7 +10495,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
               WhatsApp:
               {" "}
               <a href={WHATSAPP_CTA_URL} target="_blank" rel="noreferrer" className="ui-focus text-amber-800 underline">
-                +56 9 4550 660
+                {CONTACT_PHONE}
               </a>
               {" "} · Instagram:
               {" "}

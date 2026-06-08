@@ -166,7 +166,7 @@ export function buildHowToBuyUsedCarJsonLd() {
         "@type": "HowToStep",
         position: 3,
         name: "Contactar por WhatsApp",
-        text: "Consulta disponibilidad y precio al +56 9 8932 3397.",
+        text: "Consulta disponibilidad y precio al +56 9 7740 8758.",
         url: `${siteUrl}/autos-usados-whatsapp`,
       },
       {

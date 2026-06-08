@@ -41,7 +41,7 @@ export function buildCityLandingPages(): SeoLandingPage[] {
     faqs: [
       {
         question: `¿Venden autos usados a compradores de ${target.city}?`,
-        answer: `Sí. El catálogo de Vehículos de Ocasión atiende ${target.city} y todo Chile. Preselecciona online y coordina con el equipo comercial por WhatsApp +56 9 8932 3397.`,
+        answer: `Sí. El catálogo de Vehículos de Ocasión atiende ${target.city} y todo Chile. Preselecciona online y coordina con el equipo comercial por WhatsApp +56 9 7740 8758.`,
         keywords: target.keywords,
       },
     ],
@@ -104,7 +104,7 @@ export function buildBrandLandingPages(): SeoLandingPage[] {
     faqs: [
       {
         question: `¿Hay ${target.brand} usados en stock?`,
-        answer: `Consulta disponibilidad en vehiculosdeocasion.cl o por WhatsApp +56 9 8932 3397.`,
+        answer: `Consulta disponibilidad en vehiculosdeocasion.cl o por WhatsApp +56 9 7740 8758.`,
         keywords: [...target.keywords],
       },
     ],
@@ -141,7 +141,7 @@ const GUIDE_SEO_PAGES = [
     intro: "Para autos usados con financiamiento, contacta al equipo comercial de Vehículos de Ocasión. El catálogo muestra precio base para planificar cuota según unidad.",
     keywords: ["auto usado financiamiento chile", "credito auto usado chile", "financiar auto usado"],
     faqQ: "¿Ofrecen crédito automotriz?",
-    faqA: "Consulta disponibilidad y condiciones comerciales por WhatsApp al +56 9 8932 3397.",
+    faqA: "Consulta disponibilidad y condiciones comerciales por WhatsApp al +56 9 7740 8758.",
   },
   {
     slug: "autos-usados-empresa-chile",

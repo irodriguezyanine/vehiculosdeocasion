@@ -6,6 +6,9 @@
   type MouseEvent as ReactMouseEvent,
 } from "react";
 import type { CatalogItem } from "@/types/catalog";
+import { WHATSAPP_API_BASE } from "@/lib/contact";
+
+const WHATSAPP_BASE_URL = WHATSAPP_API_BASE;
 
 type CatalogCardProps = {
   item: CatalogItem;
@@ -25,8 +28,6 @@ type CatalogCardProps = {
   editablePriceValue?: string;
   onInlineSave?: (changes: { title?: string; subtitle?: string; price?: string }) => void;
 };
-
-const WHATSAPP_BASE_URL = "https://api.whatsapp.com/send/?phone=5694550660";
 
 function formatDate(date?: string): string {
   if (!date) return "";

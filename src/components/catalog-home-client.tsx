@@ -2618,9 +2618,10 @@ function UpcomingAuctionsSection({
 type Props = {
   feed: CatalogFeed;
   initialConfig: EditorConfig;
+  scrollToCatalogOnLoad?: boolean;
 };
 
-export function CatalogHomeClient({ feed, initialConfig }: Props) {
+export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad = false }: Props) {
   const [config, setConfig] = useState<EditorConfig>(() =>
     normalizeEditorConfigClient(initialConfig),
   );
@@ -3564,6 +3565,14 @@ export function CatalogHomeClient({ feed, initialConfig }: Props) {
   useEffect(() => {
     trackEvent("page_view_home", { mode: "catalogo" });
   }, []);
+
+  useEffect(() => {
+    if (!scrollToCatalogOnLoad || typeof window === "undefined") return;
+    setHeroVisible(false);
+    window.requestAnimationFrame(() => {
+      document.getElementById("catalogo")?.scrollIntoView({ block: "start" });
+    });
+  }, [scrollToCatalogOnLoad]);
 
   useEffect(() => {
     if (!systemNotice) return;

@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { SeoLandingPageView } from "@/components/seo-landing-page";
+import { CatalogHomeClient } from "@/components/catalog-home-client";
 import { StructuredData } from "@/components/structured-data";
+import { getCatalogFeed } from "@/lib/catalog";
+import { getEditorConfig } from "@/lib/editor-config";
 import { buildLandingPageJsonLd } from "@/lib/seo/json-ld";
 import { getLandingPageBySlug, SEO_LANDING_SLUGS } from "@/lib/seo/landing-pages";
 import { buildPageMetadata } from "@/lib/seo/metadata";
+
+export const revalidate = 300;
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -31,10 +35,19 @@ export default async function SeoLandingRoute({ params }: PageProps) {
   const page = getLandingPageBySlug(slug);
   if (!page) notFound();
 
+  const [feed, editorConfigResult] = await Promise.all([
+    getCatalogFeed(),
+    getEditorConfig(),
+  ]);
+
   return (
     <>
       <StructuredData data={buildLandingPageJsonLd(page)} />
-      <SeoLandingPageView page={page} />
+      <CatalogHomeClient
+        feed={feed}
+        initialConfig={editorConfigResult.config}
+        scrollToCatalogOnLoad
+      />
     </>
   );
 }

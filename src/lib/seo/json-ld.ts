@@ -46,6 +46,14 @@ export function buildOrganizationJsonLd() {
       "vehículos seminuevos",
       "automotora Santiago",
       "VEDISA REMATES",
+      "autos usados poco kilometraje",
+      "autos usados buen estado",
+      "autos usados baratos Chile",
+      "seminuevos poco km",
+      "autos usados buenas marcas",
+      "Toyota usado Chile",
+      "Hyundai usado Chile",
+      "relación calidad precio auto usado",
     ],
   };
 }
@@ -157,6 +165,13 @@ export function buildVehicleOfferJsonLd(item: CatalogItem, priceLabel?: string |
   const image = item.thumbnail ?? item.images[0];
   const priceDigits = priceLabel?.replace(/[^\d]/g, "") ?? "";
   const price = priceDigits ? Number(priceDigits) : undefined;
+  const mileageRaw = raw.kilometraje ?? raw.km ?? raw.kms ?? raw.odometro ?? raw.mileage;
+  const mileage =
+    typeof mileageRaw === "number"
+      ? mileageRaw
+      : typeof mileageRaw === "string"
+        ? Number(mileageRaw.replace(/[^\d]/g, "")) || undefined
+        : undefined;
 
   return {
     "@context": "https://schema.org",
@@ -168,6 +183,13 @@ export function buildVehicleOfferJsonLd(item: CatalogItem, priceLabel?: string |
     brand: typeof raw.marca === "string" ? raw.marca : undefined,
     model: typeof raw.modelo === "string" ? raw.modelo : undefined,
     vehicleIdentificationNumber: typeof raw.vin === "string" ? raw.vin : undefined,
+    mileageFromOdometer: mileage
+      ? {
+          "@type": "QuantitativeValue",
+          value: mileage,
+          unitCode: "KMT",
+        }
+      : undefined,
     offers: price
       ? {
           "@type": "Offer",
@@ -181,6 +203,33 @@ export function buildVehicleOfferJsonLd(item: CatalogItem, priceLabel?: string |
   };
 }
 
-export function buildHomeJsonLd() {
-  return [buildOrganizationJsonLd(), buildWebsiteJsonLd(), buildFaqPageJsonLd(buildFaqPageItems())];
+export function buildCatalogItemListJsonLd(items: CatalogItem[], limit = 24) {
+  const siteUrl = getSiteUrl();
+  const visible = items.slice(0, limit);
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: "Autos usados y seminuevos disponibles — Vehículos de Ocasión",
+    description:
+      "Inventario de vehículos usados y seminuevos en Chile con fotos, precios y bajo kilometraje relativo según stock.",
+    url: siteUrl,
+    numberOfItems: visible.length,
+    itemListElement: visible.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      item: buildVehicleOfferJsonLd(item),
+    })),
+  };
+}
+
+export function buildHomeJsonLd(catalogItems: CatalogItem[] = []) {
+  const blocks: Array<Record<string, unknown>> = [
+    buildOrganizationJsonLd(),
+    buildWebsiteJsonLd(),
+    buildFaqPageJsonLd(buildFaqPageItems()),
+  ];
+  if (catalogItems.length > 0) {
+    blocks.push(buildCatalogItemListJsonLd(catalogItems));
+  }
+  return blocks;
 }

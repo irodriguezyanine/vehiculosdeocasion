@@ -36,6 +36,7 @@ export default function RootLayout({
     >
       <head>
         <link rel="alternate" type="text/plain" href={`${siteUrl}/llms.txt`} title="LLMs discovery file" />
+        <link rel="alternate" type="text/plain" href={`${siteUrl}/ai.txt`} title="AI discovery file" />
       </head>
       <body className="app-body min-h-full flex flex-col overflow-x-hidden">{children}</body>
     </html>

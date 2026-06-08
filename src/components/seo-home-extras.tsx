@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CHILE_CITY_SEO_TARGETS } from "@/lib/seo/chile-pages";
 import { GLOBAL_USED_CAR_FAQS } from "@/lib/seo/faq-library";
 import { SEO_LANDING_PAGES } from "@/lib/seo/landing-pages";
 import { BUSINESS, SITE_NAME, SITE_TAGLINE } from "@/lib/seo/site-config";
@@ -99,6 +100,21 @@ export function SeoHomeExtras() {
             </div>
           ))}
         </div>
+      </section>
+
+      <section aria-labelledby="seo-cities-heading" className="mb-10">
+        <h2 id="seo-cities-heading" className="mb-4 text-xl font-semibold text-neutral-900">
+          Autos usados en tu ciudad — Chile
+        </h2>
+        <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          {CHILE_CITY_SEO_TARGETS.map((city) => (
+            <li key={city.slug}>
+              <Link href={`/${city.slug}`} className="text-[#8a542f] hover:underline">
+                Autos usados {city.city}
+              </Link>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section aria-labelledby="seo-faq-heading" className="mb-10">

@@ -9,7 +9,8 @@ import {
   getVehicleMileage,
   getVisibleCatalogItems,
 } from "@/lib/catalog-visibility";
-import type { SeoLandingPage } from "@/lib/seo/landing-pages";
+import { GOOGLE_PRIORITY_SLUGS } from "@/lib/seo/google-seo";
+import { getLandingPageBySlug, type SeoLandingPage } from "@/lib/seo/landing-pages";
 import { BUSINESS, SITE_NAME } from "@/lib/seo/site-config";
 import type { CatalogFeed } from "@/types/catalog";
 import type { EditorConfig } from "@/types/editor";
@@ -219,7 +220,7 @@ export function SeoLandingPageClient({ page, feed, config }: SeoLandingPageClien
         </section>
 
         {page.faqs[0] ? (
-          <section aria-labelledby="landing-faq" className="mb-6">
+          <section aria-labelledby="landing-faq" className="mb-8">
             <h2 id="landing-faq" className="mb-3 text-lg font-semibold text-neutral-900">
               Pregunta frecuente
             </h2>
@@ -229,6 +230,27 @@ export function SeoLandingPageClient({ page, feed, config }: SeoLandingPageClien
             </details>
           </section>
         ) : null}
+
+        <section aria-labelledby="related-seo-pages" className="mb-6">
+          <h2 id="related-seo-pages" className="mb-3 text-lg font-semibold text-neutral-900">
+            Más búsquedas de autos usados en Chile
+          </h2>
+          <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {GOOGLE_PRIORITY_SLUGS.filter((slug) => slug !== page.slug)
+              .slice(0, 9)
+              .map((slug) => {
+                const related = getLandingPageBySlug(slug);
+                if (!related) return null;
+                return (
+                  <li key={slug}>
+                    <Link href={`/${slug}`} className="text-[#8a542f] hover:underline">
+                      {related.h1}
+                    </Link>
+                  </li>
+                );
+              })}
+          </ul>
+        </section>
       </main>
     </div>
   );

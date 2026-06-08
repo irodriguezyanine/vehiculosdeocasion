@@ -40,6 +40,15 @@ export function buildOrganizationJsonLd() {
     })),
     sameAs: BUSINESS.sameAs,
     openingHours: BUSINESS.openingHours,
+    contactPoint: [
+      {
+        "@type": "ContactPoint",
+        telephone: BUSINESS.phone,
+        contactType: "sales",
+        areaServed: "CL",
+        availableLanguage: ["Spanish", "es"],
+      },
+    ],
     knowsAbout: [
       "autos usados Chile",
       "comprar auto usado",
@@ -128,11 +137,52 @@ export function buildBreadcrumbJsonLd(items: Array<{ name: string; path: string 
   };
 }
 
-export function buildLandingPageJsonLd(page: SeoLandingPage) {
+export function buildHowToBuyUsedCarJsonLd() {
+  const siteUrl = getSiteUrl();
+  return {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    name: "Cómo comprar auto usado en Chile",
+    description: "Pasos para comprar un auto usado en Chile con Vehículos de Ocasión.",
+    totalTime: "PT30M",
+    step: [
+      {
+        "@type": "HowToStep",
+        position: 1,
+        name: "Buscar en el catálogo",
+        text: "Ingresa a vehiculosdeocasion.cl y filtra por marca, patente o precio.",
+        url: siteUrl,
+      },
+      {
+        "@type": "HowToStep",
+        position: 2,
+        name: "Revisar fotos y kilometraje",
+        text: "Abre la ficha del vehículo, revisa fotos, visor 3D y kilometraje publicado.",
+        url: siteUrl,
+      },
+      {
+        "@type": "HowToStep",
+        position: 3,
+        name: "Contactar por WhatsApp",
+        text: "Consulta disponibilidad y precio al +56 9 8932 3397.",
+        url: `${siteUrl}/autos-usados-whatsapp`,
+      },
+      {
+        "@type": "HowToStep",
+        position: 4,
+        name: "Visitar automotora",
+        text: "Agenda visita en Américo Vespucio 288, Santiago, para revisar el vehículo.",
+        url: siteUrl,
+      },
+    ],
+  };
+}
+
+export function buildLandingPageJsonLd(page: SeoLandingPage, catalogItems: CatalogItem[] = []) {
   const siteUrl = getSiteUrl();
   const url = `${siteUrl}/${page.slug}`;
   const faqs = buildFaqPageItems(page.faqs);
-  return [
+  const blocks: Array<Record<string, unknown>> = [
     buildWebPageJsonLd({
       path: page.slug,
       title: page.title,
@@ -155,6 +205,10 @@ export function buildLandingPageJsonLd(page: SeoLandingPage) {
       url,
     },
   ];
+  if (catalogItems.length > 0) {
+    blocks.push(buildCatalogItemListJsonLd(catalogItems, 12));
+  }
+  return blocks;
 }
 
 export function buildVehicleOfferJsonLd(item: CatalogItem, priceLabel?: string | null) {
@@ -227,6 +281,7 @@ export function buildHomeJsonLd(catalogItems: CatalogItem[] = []) {
     buildOrganizationJsonLd(),
     buildWebsiteJsonLd(),
     buildFaqPageJsonLd(buildFaqPageItems()),
+    buildHowToBuyUsedCarJsonLd(),
   ];
   if (catalogItems.length > 0) {
     blocks.push(buildCatalogItemListJsonLd(catalogItems));

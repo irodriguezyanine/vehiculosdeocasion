@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { getSitemapPriority } from "@/lib/seo/google-seo";
 import { SEO_LANDING_PAGES } from "@/lib/seo/landing-pages";
 import { getSiteUrl } from "@/lib/seo/site-config";
 
@@ -19,8 +20,23 @@ export default function sitemap(): MetadataRoute.Sitemap {
     url: `${siteUrl}/${page.slug}`,
     lastModified: now,
     changeFrequency: "weekly" as const,
-    priority: 0.85,
+    priority: getSitemapPriority(page.slug),
   }));
 
-  return [...home, ...landings];
+  const discovery: MetadataRoute.Sitemap = [
+    {
+      url: `${siteUrl}/llms.txt`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.3,
+    },
+    {
+      url: `${siteUrl}/ai.txt`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.3,
+    },
+  ];
+
+  return [...home, ...landings, ...discovery];
 }

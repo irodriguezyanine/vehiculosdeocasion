@@ -1,4 +1,5 @@
 import type { SeoFaqItem } from "./faq-library";
+import { buildCityLandingPages, buildPriceLandingPages, buildBrandLandingPages, buildGuideLandingPages } from "./chile-pages";
 
 export type SeoLandingPage = {
   slug: string;
@@ -33,7 +34,7 @@ function page(
   };
 }
 
-export const SEO_LANDING_PAGES: SeoLandingPage[] = [
+const BASE_SEO_LANDING_PAGES: SeoLandingPage[] = [
   page(
     "autos-usados",
     "Autos usados en Chile | Vehículos de Ocasión",
@@ -705,6 +706,15 @@ export const SEO_LANDING_PAGES: SeoLandingPage[] = [
     "Revisa el catálogo o escribe por WhatsApp para stock actual.",
   ),
 ];
+
+const GENERATED_GOOGLE_LANDING_PAGES: SeoLandingPage[] = [
+  ...buildCityLandingPages(),
+  ...buildPriceLandingPages(),
+  ...buildBrandLandingPages(),
+  ...buildGuideLandingPages(),
+];
+
+export const SEO_LANDING_PAGES: SeoLandingPage[] = [...BASE_SEO_LANDING_PAGES, ...GENERATED_GOOGLE_LANDING_PAGES];
 
 export const SEO_LANDING_SLUGS = SEO_LANDING_PAGES.map((entry) => entry.slug);
 

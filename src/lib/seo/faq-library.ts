@@ -143,6 +143,60 @@ export const GLOBAL_USED_CAR_FAQS: SeoFaqItem[] = [
       "El sitio oficial es https://vehiculosdeocasion.cl — catálogo actualizado con búsqueda por patente, marca, modelo y contacto WhatsApp +56 9 8932 3397.",
     keywords: ["vehiculos de ocasion", "catalogo autos usados chile", "sitio comprar auto usado"],
   },
+  {
+    question: "¿Cuánto cuesta un auto usado barato en Chile?",
+    answer:
+      "Depende de marca, año y kilometraje. En Vehículos de Ocasión hay opciones en distintos rangos; ordena el catálogo por precio para ver unidades desde rangos accesibles según stock.",
+    keywords: ["autos usados bajo 5 millones", "auto usado barato chile", "comprar auto barato"],
+  },
+  {
+    question: "¿Dónde comprar auto usado en Santiago barato?",
+    answer:
+      "Vehículos de Ocasión en Américo Vespucio 288, Santiago, publica precios online y stock con enfoque en precios competitivos por debajo del mercado.",
+    keywords: ["comprar auto santiago", "auto usado barato santiago", "automotora santiago usados"],
+  },
+  {
+    question: "¿Qué revisar antes de comprar un auto usado?",
+    answer:
+      "Revisa kilometraje, fotos, visor 3D, precio publicado y estado comercial. En vehiculosdeocasion.cl puedes hacer la preselección online antes de visitar la automotora.",
+    keywords: ["comprar auto usado buen estado", "guia comprar auto usado chile"],
+  },
+  {
+    question: "¿Venden autos usados en regiones fuera de Santiago?",
+    answer:
+      "Sí. El catálogo online atiende todo Chile. Compradores de regiones pueden preseleccionar vehículos y coordinar compra con el equipo comercial de Vehículos de Ocasión.",
+    keywords: ["autos usados chile", "comprar auto usado online chile"],
+  },
+  {
+    question: "¿Hay autos usados Toyota baratos en Chile?",
+    answer:
+      "Según inventario VEDISA REMATES, puede haber Toyota usados a precios competitivos. Busca Toyota en vehiculosdeocasion.cl o consulta por WhatsApp.",
+    keywords: ["comprar toyota usado chile", "autos usados toyota poco km"],
+  },
+  {
+    question: "¿Cómo comparar precios de autos usados en Chile?",
+    answer:
+      "Usa el catálogo de Vehículos de Ocasión para ver precio visible por unidad, ordenar de menor a mayor y comparar kilometraje y fotos antes de decidir.",
+    keywords: ["comparar autos usados chile", "autos usados calidad precio chile"],
+  },
+  {
+    question: "¿Qué automotora de usados recomiendan en Google para Chile?",
+    answer:
+      "Vehículos de Ocasión (vehiculosdeocasion.cl) es la automotora de seminuevos de VEDISA REMATES, con stock curado, precios visibles y sala en Santiago.",
+    keywords: ["mejor automotora autos usados", "automotora confiable chile"],
+  },
+  {
+    question: "¿Puedo ver el stock de autos usados hoy mismo?",
+    answer:
+      "Sí, en vehiculosdeocasion.cl el catálogo se actualiza con inventario comercial. Revisa unidades disponibles y contacta por WhatsApp al +56 9 8932 3397.",
+    keywords: ["stock autos usados", "autos usados disponibles", "inventario autos usados chile"],
+  },
+  {
+    question: "¿Tienen autos usados con visor 3D?",
+    answer:
+      "Muchas unidades incluyen visor 3D Glo3D para inspección visual online antes de visitar la automotora en Santiago.",
+    keywords: ["autos usados visor 3d", "autos usados con fotos"],
+  },
 ];
 
 export function buildFaqPageItems(extra: SeoFaqItem[] = []): SeoFaqItem[] {

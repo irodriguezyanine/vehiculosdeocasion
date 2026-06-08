@@ -33,6 +33,9 @@ export function buildSiteMetadata(overrides: Partial<Metadata> = {}): Metadata {
         "max-video-preview": -1,
       },
     },
+    verification: {
+      google: "1ySlQG4DLFr7UtiAc47gQB_7atdekQW-nK-r0Y6OoCA",
+    },
     openGraph: {
       type: "website",
       locale: "es_CL",

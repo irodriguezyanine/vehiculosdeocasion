@@ -4,6 +4,7 @@ import { SeoLandingPageClient } from "@/components/seo-landing-page-client";
 import { StructuredData } from "@/components/structured-data";
 import { getCatalogFeed } from "@/lib/catalog";
 import { getEditorConfig } from "@/lib/editor-config";
+import { getVisibleCatalogItems } from "@/lib/catalog-visibility";
 import { buildLandingPageJsonLd } from "@/lib/seo/json-ld";
 import { getLandingPageBySlug, SEO_LANDING_SLUGS } from "@/lib/seo/landing-pages";
 import { buildPageMetadata } from "@/lib/seo/metadata";
@@ -38,10 +39,11 @@ export default async function SeoLandingRoute({ params }: PageProps) {
     getCatalogFeed(),
     getEditorConfig(),
   ]);
+  const visibleItems = getVisibleCatalogItems(feed.items, editorConfigResult.config);
 
   return (
     <>
-      <StructuredData data={buildLandingPageJsonLd(page)} />
+      <StructuredData data={buildLandingPageJsonLd(page, visibleItems)} />
       <SeoLandingPageClient page={page} feed={feed} config={editorConfigResult.config} />
     </>
   );

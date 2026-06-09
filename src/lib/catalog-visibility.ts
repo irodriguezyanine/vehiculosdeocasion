@@ -43,6 +43,49 @@ export function getVisibleCatalogItems(items: CatalogItem[], config: EditorConfi
   });
 }
 
+const HOME_SECTION_LABELS: Record<string, string> = {
+  "proximos-remates": "Destacados",
+  "ventas-directas": "Venta directa",
+  novedades: "Novedad",
+  catalogo: "Catalogo",
+};
+
+/** Un vehiculo asignado a alguna seccion o categoria gestionada del home. */
+export function isVehicleAssignedToHomeEditorChannels(
+  config: EditorConfig,
+  vehicleKey: string,
+): boolean {
+  for (const ids of Object.values(config.sectionVehicleIds)) {
+    if (ids.includes(vehicleKey)) return true;
+  }
+  for (const category of config.managedCategories ?? []) {
+    if ((category.vehicleIds ?? []).includes(vehicleKey)) return true;
+  }
+  return false;
+}
+
+export function getHomeEditorChannelLabels(config: EditorConfig, vehicleKey: string): string[] {
+  const labels: string[] = [];
+  for (const [sectionId, ids] of Object.entries(config.sectionVehicleIds)) {
+    if (ids.includes(vehicleKey)) {
+      labels.push(HOME_SECTION_LABELS[sectionId] ?? sectionId);
+    }
+  }
+  for (const category of config.managedCategories ?? []) {
+    if ((category.vehicleIds ?? []).includes(vehicleKey)) {
+      labels.push(category.name);
+    }
+  }
+  return labels;
+}
+
+/** Vehiculos visibles y asignados a alguna seccion del home (stock publicado). */
+export function getHomeEditorStockItems(items: CatalogItem[], config: EditorConfig): CatalogItem[] {
+  return getVisibleCatalogItems(items, config).filter((item) =>
+    isVehicleAssignedToHomeEditorChannels(config, getVehicleKey(item)),
+  );
+}
+
 export function buildPriceLabelMap(config: EditorConfig): Record<string, string | null> {
   const map: Record<string, string | null> = {};
   for (const [key, value] of Object.entries(config.vehiclePrices ?? {})) {

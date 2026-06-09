@@ -891,3 +891,199 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
   font-weight: 500;
   text-align: center;
 }
+
+.instagram-section .instagram-panel {
+  border-radius: 1.1rem;
+  border: 1px solid rgba(187, 152, 120, 0.55);
+  background: linear-gradient(180deg, rgba(255, 252, 248, 0.98), rgba(250, 242, 234, 0.96));
+  padding: 1.15rem;
+  box-shadow: 0 14px 28px rgba(81, 52, 34, 0.1);
+}
+
+.instagram-profile-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .instagram-profile-row {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 1.25rem;
+  }
+}
+
+.instagram-avatar-ring {
+  flex-shrink: 0;
+  padding: 3px;
+  border-radius: 9999px;
+  background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+}
+
+.instagram-avatar-inner {
+  width: 76px;
+  height: 76px;
+  border-radius: 9999px;
+  overflow: hidden;
+  border: 3px solid #fff8f1;
+  background: #f6e8db;
+}
+
+@media (min-width: 640px) {
+  .instagram-avatar-inner {
+    width: 88px;
+    height: 88px;
+  }
+}
+
+.instagram-stat {
+  display: flex;
+  flex-direction: column;
+  min-width: 4.5rem;
+}
+
+.instagram-stat-value {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #2f1e13;
+  line-height: 1.1;
+}
+
+.instagram-stat-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #8b6546;
+}
+
+.instagram-follow-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 1px solid rgba(154, 95, 48, 0.55);
+  background: linear-gradient(120deg, #774522, #9b5f33);
+  color: white;
+  padding: 0.35rem 0.95rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .instagram-follow-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 16px rgba(103, 61, 32, 0.28);
+  }
+
+  .instagram-media-tile:hover .instagram-media-image {
+    transform: scale(1.06);
+  }
+
+  .instagram-media-tile:hover .instagram-media-overlay {
+    opacity: 1;
+  }
+}
+
+.instagram-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+@media (min-width: 640px) {
+  .instagram-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .instagram-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+.instagram-media-tile {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: 0.85rem;
+  border: 1px solid rgba(170, 135, 103, 0.55);
+  background: rgb(231 215 199);
+}
+
+.instagram-media-tile--placeholder {
+  background: linear-gradient(135deg, #8b5a33 0%, #5c3820 45%, #3d2415 100%);
+}
+
+.instagram-media-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.45s ease;
+}
+
+.instagram-media-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(240, 148, 51, 0.85), rgba(188, 24, 136, 0.75));
+}
+
+.instagram-media-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  padding: 0.65rem;
+  background: linear-gradient(180deg, rgba(31, 19, 12, 0.05) 10%, rgba(31, 19, 12, 0.82));
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.instagram-media-tile--placeholder .instagram-media-overlay,
+.instagram-media-tile:focus-visible .instagram-media-overlay {
+  opacity: 1;
+}
+
+.instagram-media-overlay-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.instagram-media-badge {
+  align-self: flex-start;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.18);
+  padding: 0.12rem 0.45rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: white;
+}
+
+.instagram-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(231, 215, 199, 0.55) 0%,
+    rgba(255, 248, 241, 0.95) 50%,
+    rgba(231, 215, 199, 0.55) 100%
+  );
+  background-size: 200% 100%;
+  animation: instagram-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes instagram-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

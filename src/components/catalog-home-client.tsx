@@ -13,6 +13,11 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { CatalogCard } from "@/components/catalog-card";
+import { InstagramSection } from "@/components/instagram-section";
+import {
+  INSTAGRAM_HANDLE,
+  INSTAGRAM_PROFILE_URL,
+} from "@/lib/instagram";
 import {
   CONTACT_PHONE,
   CONTACT_WHATSAPP_DIGITS,
@@ -20,6 +25,11 @@ import {
   WHATSAPP_DEFAULT_LINK,
   WHATSAPP_WA_ME_BASE,
 } from "@/lib/contact";
+import {
+  getHomeEditorChannelLabels,
+  isVehicleAssignedToHomeEditorChannels,
+} from "@/lib/catalog-visibility";
+import { SITE_EDITOR_SCOPE } from "@/lib/editor-config";
 import type { CatalogFeed, CatalogItem } from "@/types/catalog";
 import type { OfferRecord } from "@/types/offers";
 import {
@@ -42,7 +52,7 @@ const HOME_CARD_DENSITY_STORAGE_KEY = "vehiculosdeocasion_home_card_density";
 const EDITOR_PAGE_SIZE = 20;
 type AdminTabId = "vehiculos" | "categorias" | "layout" | "analytics" | "ofertas";
 type InventorySubtabId = "actual" | "vendidas";
-type EditorGroupFilter = "all" | SectionId | `managed:${string}`;
+type EditorGroupFilter = "all" | "home" | "unassigned" | SectionId | `managed:${string}`;
 type EditorVisibilityFilter = "all" | "visible" | "hidden";
 type EditorVehicleCategoryFilter = "all" | "livianos" | "pesados" | "maquinaria" | "chatarra" | "otros";
 type BatchAssignTarget =
@@ -163,13 +173,6 @@ type AnalyticsTimelineRow = {
   leads: number;
 };
 
-type InstagramMediaItem = {
-  id: string;
-  imageUrl?: string;
-  permalink: string;
-  caption?: string;
-};
-
 const QUICK_FILTER_LABELS: Record<QuickFilterId, string> = {
   livianos: "Livianos",
   pesados: "Pesados",
@@ -208,8 +211,6 @@ const VEHICLE_CATEGORY_OPTIONS = [
 const WHATSAPP_CTA_URL = WHATSAPP_DEFAULT_LINK;
 const WHATSAPP_PHONE = CONTACT_WHATSAPP_DIGITS;
 const CONTACT_EMAIL = "vehiculosdeocasioncl@gmail.com";
-const INSTAGRAM_URL = "https://www.instagram.com/autosdeoc?igsh=YzRqbHQwZ2Q4YTg3";
-const INSTAGRAM_HANDLE = "@vehiculosdeocasioncl";
 const MAX_COMPARE_ITEMS = 4;
 const ANALYTICS_STORAGE_KEY = "vehiculosdeocasion_analytics_events";
 const ANALYTICS_VISITOR_ID_KEY = "vehiculosdeocasion_analytics_visitor_id";
@@ -2059,147 +2060,6 @@ function FeaturedStrip({ items, onOpenVehicle }: FeaturedStripProps) {
   );
 }
 
-function InstagramGalleryStrip({ mediaItems }: { mediaItems: InstagramMediaItem[] }) {
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
-  const items = useMemo(
-    () =>
-      mediaItems
-        .filter((item) => Boolean(item.permalink))
-        .slice(0, 12),
-    [mediaItems],
-  );
-
-  const updateScrollArrows = useCallback(() => {
-    const node = scrollRef.current;
-    if (!node) return;
-    const maxScrollLeft = Math.max(0, node.scrollWidth - node.clientWidth);
-    const hasOverflow = maxScrollLeft > 4;
-    setCanScrollLeft(hasOverflow && node.scrollLeft > 4);
-    setCanScrollRight(hasOverflow && node.scrollLeft < maxScrollLeft - 4);
-  }, []);
-
-  useEffect(() => {
-    const node = scrollRef.current;
-    if (!node) return;
-    const raf = window.requestAnimationFrame(() => updateScrollArrows());
-    const onScroll = () => updateScrollArrows();
-    const onResize = () => updateScrollArrows();
-    node.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onResize);
-    return () => {
-      window.cancelAnimationFrame(raf);
-      node.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onResize);
-    };
-  }, [updateScrollArrows]);
-
-  const scrollByAmount = (direction: "left" | "right") => {
-    const node = scrollRef.current;
-    if (!node) return;
-    const amount = Math.max(280, Math.round(node.clientWidth * 0.72));
-    node.scrollBy({ left: direction === "left" ? -amount : amount, behavior: "smooth" });
-    window.setTimeout(() => updateScrollArrows(), 320);
-  };
-
-  return (
-    <section className="section-shell">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
-          <p className="premium-kicker">Instagram</p>
-          <h2 className="text-2xl font-bold text-[#2f1e13]">Galeria social</h2>
-        </div>
-        <a
-          href={INSTAGRAM_URL}
-          target="_blank"
-          rel="noreferrer"
-          className="ui-focus rounded-full border border-amber-300 bg-[#fff8f1] px-3 py-1 text-xs font-semibold text-[#6d3f1f] hover:bg-[#f6e8db]"
-        >
-          Ver perfil {INSTAGRAM_HANDLE}
-        </a>
-      </div>
-      {items.length === 0 ? (
-        <div className="rounded-xl border border-amber-200 bg-[#fff8f1] p-4 text-sm text-[#6f583f]">
-          <a href={INSTAGRAM_URL} target="_blank" rel="noreferrer" className="ui-focus font-semibold text-amber-800 underline">
-            Ver Instagram {INSTAGRAM_HANDLE}
-          </a>
-        </div>
-      ) : null}
-      {items.length > 0 ? (
-      <div className="featured-strip-shell relative">
-        <button
-          type="button"
-          onClick={() => scrollByAmount("left")}
-          className={`ui-focus absolute left-2 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-amber-200/50 bg-[#4d301d]/70 text-amber-50 backdrop-blur-sm transition hover:bg-[#4d301d] md:inline-flex ${
-            canScrollLeft ? "opacity-100" : "pointer-events-none opacity-0"
-          }`}
-          aria-label="Desplazar galeria hacia la izquierda"
-          title="Anterior"
-        >
-          <svg viewBox="0 0 20 20" className="h-5 w-5" fill="currentColor" aria-hidden="true">
-            <path fillRule="evenodd" d="M12.78 4.22a.75.75 0 0 1 0 1.06L8.06 10l4.72 4.72a.75.75 0 1 1-1.06 1.06l-5.25-5.25a.75.75 0 0 1 0-1.06l5.25-5.25a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
-          </svg>
-        </button>
-        <button
-          type="button"
-          onClick={() => scrollByAmount("right")}
-          className={`ui-focus absolute right-2 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-amber-200/50 bg-[#4d301d]/70 text-amber-50 backdrop-blur-sm transition hover:bg-[#4d301d] md:inline-flex ${
-            canScrollRight ? "opacity-100" : "pointer-events-none opacity-0"
-          }`}
-          aria-label="Desplazar galeria hacia la derecha"
-          title="Siguiente"
-        >
-          <svg viewBox="0 0 20 20" className="h-5 w-5" fill="currentColor" aria-hidden="true">
-            <path fillRule="evenodd" d="M7.22 15.78a.75.75 0 0 1 0-1.06L11.94 10 7.22 5.28a.75.75 0 1 1 1.06-1.06l5.25 5.25a.75.75 0 0 1 0 1.06l-5.25 5.25a.75.75 0 0 1-1.06 0Z" clipRule="evenodd" />
-          </svg>
-        </button>
-        <div ref={scrollRef} className="featured-strip" tabIndex={0} role="region" aria-label="Galeria horizontal estilo Instagram">
-          {items.map((item) => (
-            <a
-              key={`instagram-card-${item.id}`}
-              href={item.permalink}
-              target="_blank"
-              rel="noreferrer"
-              className="featured-item text-left"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              {item.imageUrl ? (
-                <img
-                  src={item.imageUrl}
-                  alt={item.caption || "Publicacion de Instagram"}
-                  className="featured-image"
-                  loading="lazy"
-                />
-              ) : (
-                <iframe
-                  src={`${item.permalink}embed/captioned`}
-                  title={item.caption || "Publicacion de Instagram"}
-                  className="featured-image border-0"
-                  loading="lazy"
-                />
-              )}
-              <div className="featured-overlay" />
-              <div className="featured-content">
-                <p className="line-clamp-1 text-sm font-semibold uppercase tracking-wide text-white">
-                  {INSTAGRAM_HANDLE}
-                </p>
-                <h3 className="line-clamp-2 text-xl font-bold text-white">
-                  {item.caption?.trim() ? item.caption : "Ver publicacion"}
-                </h3>
-                <div className="mt-2 flex flex-wrap gap-2 text-xs text-amber-100">
-                  <span className="featured-chip">Abrir Instagram</span>
-                </div>
-              </div>
-            </a>
-          ))}
-        </div>
-      </div>
-      ) : null}
-    </section>
-  );
-}
-
 type SectionProps = {
   id: string;
   title: string;
@@ -2682,15 +2542,14 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     interest: "",
   });
   const [leadMessage, setLeadMessage] = useState("");
-  const [instagramMedia, setInstagramMedia] = useState<InstagramMediaItem[]>([]);
   const [systemNotice, setSystemNotice] = useState<SystemNotice | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [adminTab, setAdminTab] = useState<AdminTabId>("vehiculos");
   const [inventorySubtab, setInventorySubtab] = useState<InventorySubtabId>("actual");
   const [auctionFilterId, setAuctionFilterId] = useState("");
-  const [editorGroupFilter, setEditorGroupFilter] = useState<EditorGroupFilter>("all");
+  const [editorGroupFilter, setEditorGroupFilter] = useState<EditorGroupFilter>("home");
   const [editorVisibilityFilter, setEditorVisibilityFilter] =
-    useState<EditorVisibilityFilter>("all");
+    useState<EditorVisibilityFilter>("visible");
   const [editorVehicleCategoryFilter, setEditorVehicleCategoryFilter] =
     useState<EditorVehicleCategoryFilter>("all");
   const [showEditorFiltersMenu, setShowEditorFiltersMenu] = useState(false);
@@ -2853,26 +2712,6 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   ) => {
     setEditingDetails((prev) => ({ ...(prev ?? {}), [field]: value }));
   };
-
-  useEffect(() => {
-    let cancelled = false;
-    const loadInstagramMedia = async () => {
-      try {
-        const response = await fetch("/api/instagram-feed", { cache: "no-store" });
-        if (!response.ok) return;
-        const payload = (await response.json()) as { items?: InstagramMediaItem[] };
-        if (!cancelled && Array.isArray(payload.items)) {
-          setInstagramMedia(payload.items);
-        }
-      } catch {
-        // sin bloqueo para el home si Instagram no responde
-      }
-    };
-    void loadInstagramMedia();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const getEditorInputClass = (field: keyof EditorVehicleDetails): string =>
     `rounded border px-3 py-2 text-sm ${
@@ -3865,6 +3704,61 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
         .filter((category) => category.items.length > 0),
     [config.managedCategories, itemsByKey, homeVisibleKeys, hiddenHomeCategoryIds],
   );
+
+  const homeEditorStockItems = useMemo(
+    () =>
+      activeInventoryItems.filter((item) => {
+        const key = getVehicleKey(item);
+        return !mergedHiddenVehicleIds.has(key) && isVehicleAssignedToHomeEditorChannels(config, key);
+      }),
+    [activeInventoryItems, mergedHiddenVehicleIds, config],
+  );
+
+  const unassignedVisibleItems = useMemo(
+    () =>
+      visibleItems.filter(
+        (item) => !isVehicleAssignedToHomeEditorChannels(config, getVehicleKey(item)),
+      ),
+    [visibleItems, config],
+  );
+
+  const homeStockStats = useMemo(() => {
+    const managedVisibleCount = managedCategorySections.reduce(
+      (sum, section) => sum + section.items.length,
+      0,
+    );
+    return {
+      feedTotal: activeInventoryItems.length,
+      uniqueOnHome: homeEditorStockItems.length,
+      sectionSlotTotal:
+        proximosRemates.length +
+        ventasDirectas.length +
+        novedades.length +
+        catalogoItems.length +
+        managedVisibleCount,
+      unassignedVisible: unassignedVisibleItems.length,
+      hiddenCount: activeInventoryItems.filter((item) =>
+        mergedHiddenVehicleIds.has(getVehicleKey(item)),
+      ).length,
+      bySection: {
+        ventasDirectas: ventasDirectas.length,
+        novedades: novedades.length,
+        catalogo: catalogoItems.length,
+        proximosRemates: proximosRemates.length,
+        managed: managedVisibleCount,
+      },
+    };
+  }, [
+    activeInventoryItems,
+    homeEditorStockItems.length,
+    managedCategorySections,
+    mergedHiddenVehicleIds,
+    proximosRemates.length,
+    ventasDirectas.length,
+    novedades.length,
+    catalogoItems.length,
+    unassignedVisibleItems.length,
+  ]);
   const managedCategoryOrderEntries = useMemo(
     () =>
       (config.managedCategories ?? []).map((category) => ({
@@ -5610,7 +5504,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
         areaServed: "CL",
         availableLanguage: "es",
       },
-      sameAs: ["https://www.instagram.com/autosdeoc?igsh=YzRqbHQwZ2Q4YTg3"],
+      sameAs: [INSTAGRAM_PROFILE_URL],
     }),
     [],
   );
@@ -5648,7 +5542,23 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     const byGroup =
       editorGroupFilter === "all"
         ? source
-        : editorGroupFilter === "proximos-remates"
+        : editorGroupFilter === "home"
+          ? source.filter((item) => {
+              const key = getVehicleKey(item);
+              return (
+                !mergedHiddenVehicleIds.has(key) &&
+                isVehicleAssignedToHomeEditorChannels(config, key)
+              );
+            })
+          : editorGroupFilter === "unassigned"
+            ? source.filter((item) => {
+                const key = getVehicleKey(item);
+                return (
+                  !mergedHiddenVehicleIds.has(key) &&
+                  !isVehicleAssignedToHomeEditorChannels(config, key)
+                );
+              })
+            : editorGroupFilter === "proximos-remates"
           ? source.filter((item) =>
               Boolean(config.vehicleUpcomingAuctionIds[getVehicleKey(item)]),
             )
@@ -5662,7 +5572,10 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                 return (managedCategory.vehicleIds ?? []).includes(getVehicleKey(item));
               })
           : source.filter((item) => {
-              const sectionGroup = editorGroupFilter as Exclude<EditorGroupFilter, "all" | `managed:${string}`>;
+              const sectionGroup = editorGroupFilter as Exclude<
+                EditorGroupFilter,
+                "all" | "home" | "unassigned" | `managed:${string}`
+              >;
               return (config.sectionVehicleIds[sectionGroup] ?? []).includes(getVehicleKey(item));
             });
     const byVisibility =
@@ -5759,13 +5672,22 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   const sectionVehicleCounts = useMemo(
     () =>
       ({
-        "proximos-remates": Object.values(config.vehicleUpcomingAuctionIds).filter(Boolean).length,
-        "ventas-directas": (config.sectionVehicleIds["ventas-directas"] ?? []).length,
-        novedades: (config.sectionVehicleIds.novedades ?? []).length,
-        catalogo: (config.sectionVehicleIds.catalogo ?? []).length,
+        "proximos-remates": proximosRemates.length,
+        "ventas-directas": ventasDirectas.length,
+        novedades: novedades.length,
+        catalogo: catalogoItems.length,
       }) satisfies Record<SectionId, number>,
-    [config.vehicleUpcomingAuctionIds, config.sectionVehicleIds],
+    [proximosRemates.length, ventasDirectas.length, novedades.length, catalogoItems.length],
   );
+
+  const resetAdminInventoryFilters = useCallback(() => {
+    setEditorGroupFilter("home");
+    setEditorVisibilityFilter("visible");
+    setEditorVehicleCategoryFilter("all");
+    setAuctionFilterId("");
+    setSearchTerm("");
+    setEditorPage(1);
+  }, []);
 
   const toggleItemInSection = (sectionId: SectionId, itemKey: string) => {
     setConfig((prev) => {
@@ -6806,6 +6728,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       return;
     }
     setAdminView("editor");
+    resetAdminInventoryFilters();
     setMobileMenuOpen(false);
     trackEvent("admin_login_success");
   };
@@ -6833,6 +6756,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       return;
     }
     setAdminView("editor");
+    resetAdminInventoryFilters();
   };
 
   const retryServerSaveCheck = async () => {
@@ -7849,7 +7773,10 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-lg font-semibold text-slate-900">Modo editor administrador</h3>
-                <p className="text-xs text-slate-500">Lista limpia de unidades con gestion individual de remates, categorias, visibilidad y precio.</p>
+                <p className="text-xs text-slate-500">
+                  Gestiona el stock publicado en vehiculosdeocasion.cl (scope {SITE_EDITOR_SCOPE}). Ocultar o
+                  marcar vendido aqui no modifica TasacionesVedisa ni Catalogo Vedisa.
+                </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {shouldShowSaveIndicator ? (
@@ -7949,6 +7876,38 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                 </div>
                 {inventorySubtab === "actual" ? (
                   <>
+                <div className="rounded-xl border border-amber-200 bg-amber-50/50 px-3 py-2.5 text-xs text-slate-700">
+                  <p className="font-semibold text-slate-900">Stock alineado con el home</p>
+                  <p className="mt-1">
+                    <strong>{homeStockStats.uniqueOnHome}</strong> unidades visibles en home
+                    {" · "}
+                    Ventas directas {homeStockStats.bySection.ventasDirectas}
+                    {" · "}
+                    Novedades {homeStockStats.bySection.novedades}
+                    {" · "}
+                    Catalogo {homeStockStats.bySection.catalogo}
+                    {homeStockStats.bySection.proximosRemates > 0
+                      ? ` · Destacados ${homeStockStats.bySection.proximosRemates}`
+                      : ""}
+                    {homeStockStats.bySection.managed > 0
+                      ? ` · Otras ventas ${homeStockStats.bySection.managed}`
+                      : ""}
+                  </p>
+                  <p className="mt-1 text-slate-600">
+                    Inventario maestro: {homeStockStats.feedTotal} unidades
+                    {" · "}
+                    Sin asignar al home: {homeStockStats.unassignedVisible}
+                    {" · "}
+                    Ocultas: {homeStockStats.hiddenCount}
+                    {homeStockStats.sectionSlotTotal !== homeStockStats.uniqueOnHome ? (
+                      <>
+                        {" · "}
+                        Aviso: una unidad puede aparecer en mas de una seccion (
+                        {homeStockStats.sectionSlotTotal} publicaciones en total).
+                      </>
+                    ) : null}
+                  </p>
+                </div>
                 <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
                   <input
                     value={searchTerm}
@@ -7994,9 +7953,9 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                             }}
                             className="ui-focus w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
                           >
-                            <option value="all">Visibles y ocultos</option>
-                            <option value="visible">Solo visibles</option>
-                            <option value="hidden">Solo ocultos</option>
+                            <option value="visible">Solo visibles en home</option>
+                            <option value="hidden">Solo ocultas</option>
+                            <option value="all">Visibles y ocultas</option>
                           </select>
                           <select
                             value={editorVehicleCategoryFilter}
@@ -8041,7 +8000,9 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                             }}
                             className="ui-focus w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
                           >
-                            <option value="all">Todos los grupos</option>
+                            <option value="home">Stock visible en home</option>
+                            <option value="unassigned">Sin asignar al home</option>
+                            <option value="all">Inventario completo</option>
                             <option value="proximos-remates">Proximos remates</option>
                             <option value="ventas-directas">Ventas directas</option>
                             <option value="novedades">Novedades</option>
@@ -8070,6 +8031,14 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                         setManualDraft(EMPTY_MANUAL_PUBLICATION_DRAFT);
                         setManualUploadedImages([]);
                         setShowManualCreateModal(true);
+                        return;
+                      }
+                      if (editorGroupFilter === "home" || editorGroupFilter === "unassigned") {
+                        showSystemNotice(
+                          "info",
+                          "Elige una seccion",
+                          "Selecciona Ventas directas, Novedades, Catalogo u otra categoria para asignar unidades del inventario maestro.",
+                        );
                         return;
                       }
                       if (editorGroupFilter === "ventas-directas" || editorGroupFilter === "novedades" || editorGroupFilter === "catalogo") {
@@ -8107,9 +8076,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                   {paginatedEditorItems.map((item) => {
                     const key = getVehicleKey(item);
                     const hidden = mergedHiddenVehicleIds.has(key);
-                    const isDirect = (config.sectionVehicleIds["ventas-directas"] ?? []).includes(key);
-                    const isNovelty = (config.sectionVehicleIds.novedades ?? []).includes(key);
-                    const isCatalog = (config.sectionVehicleIds.catalogo ?? []).includes(key);
+                    const channelLabels = getHomeEditorChannelLabels(config, key);
                     const auctionLabel = upcomingAuctionByVehicleKey[key] ?? "Sin remate asignado";
                     return (
                       <article
@@ -8133,13 +8100,9 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                             {getModel(item)}
                           </p>
                           <p className="mt-0.5 line-clamp-1 text-[11px] text-slate-500">
-                            {[
-                              isDirect ? "Venta directa" : null,
-                              isNovelty ? "Novedad" : null,
-                              isCatalog ? "Catalogo" : null,
-                            ]
-                              .filter(Boolean)
-                              .join("  ·  ") || "Sin canal asignado"}
+                            {channelLabels.length > 0
+                              ? channelLabels.join("  ·  ")
+                              : "Sin canal asignado"}
                           </p>
                         </div>
                         <div className="mx-auto h-12 w-20 overflow-hidden rounded-md border border-slate-200 bg-slate-100">
@@ -8227,7 +8190,15 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-3 py-2">
                   <p className="text-xs text-slate-600">
-                    Mostrando {paginatedEditorItems.length} de {filteredEditorItems.length} resultados.
+                    Mostrando {paginatedEditorItems.length} de {filteredEditorItems.length}{" "}
+                    {editorGroupFilter === "home"
+                      ? "en stock del home"
+                      : editorGroupFilter === "unassigned"
+                        ? "sin asignar"
+                        : editorGroupFilter === "all"
+                          ? "del inventario maestro"
+                          : "en este grupo"}
+                    .
                   </p>
                   <div className="flex items-center gap-2">
                     <button
@@ -10464,7 +10435,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
         })}
       </div>
       <section className="relative z-10 mx-auto mb-14 max-w-7xl px-4 sm:px-6 lg:px-8">
-        <InstagramGalleryStrip mediaItems={instagramMedia} />
+        <InstagramSection />
       </section>
       {config.homeLayout.showFeaturedStrip ? (
         <FeaturedStrip items={featuredItems} onOpenVehicle={openVehicleDetail} />
@@ -10518,7 +10489,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
               </a>
               {" "} · Instagram:
               {" "}
-              <a href={INSTAGRAM_URL} target="_blank" rel="noreferrer" className="ui-focus text-amber-800 underline">
+              <a href={INSTAGRAM_PROFILE_URL} target="_blank" rel="noreferrer" className="ui-focus text-amber-800 underline">
                 {INSTAGRAM_HANDLE}
               </a>
             </p>

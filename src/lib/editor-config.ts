@@ -154,6 +154,7 @@ function isEditorConfigUninitialized(config: EditorConfig): boolean {
 }
 
 const LEGACY_GLOBAL_SCOPE = "global";
+const ALLOW_LEGACY_BOOTSTRAP = process.env.CATALOG_EDITOR_ALLOW_LEGACY_BOOTSTRAP === "true";
 
 async function bootstrapSiteConfigFromLegacyGlobal(
   supabase: NonNullable<ReturnType<typeof getServerSupabase>>,
@@ -212,7 +213,7 @@ export async function getEditorConfig(): Promise<EditorConfigLoadResult> {
     persisted = true;
   }
 
-  if (isEditorConfigUninitialized(config)) {
+  if (ALLOW_LEGACY_BOOTSTRAP && isEditorConfigUninitialized(config)) {
     const bootstrapped = await bootstrapSiteConfigFromLegacyGlobal(supabase);
     if (bootstrapped) {
       config = bootstrapped;

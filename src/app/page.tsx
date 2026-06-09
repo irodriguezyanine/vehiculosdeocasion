@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { CatalogHomeClient } from "@/components/catalog-home-client";
-import { SeoHomeExtras } from "@/components/seo-home-extras";
 import { StructuredData } from "@/components/structured-data";
 import { getCatalogFeed } from "@/lib/catalog";
 import { getEditorConfig } from "@/lib/editor-config";
@@ -25,7 +24,6 @@ export default async function Home() {
     <>
       <StructuredData data={buildHomeJsonLd(feed.items)} />
       <CatalogHomeClient feed={feed} initialConfig={editorConfigResult.config} />
-      <SeoHomeExtras />
     </>
   );
 }

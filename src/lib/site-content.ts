@@ -80,3 +80,39 @@ export const SITE_NAV_LINKS = [
   { href: "/nosotros", label: "Nosotros", pathMatch: "/nosotros" as const },
   { href: "/contacto", label: "Contacto", pathMatch: "/contacto" as const },
 ] as const;
+
+export type SiteLocation = {
+  id: string;
+  label: string;
+  addressLine: string;
+  mapsQuery: string;
+};
+
+export const SITE_LOCATIONS: SiteLocation[] = [
+  {
+    id: "oficinas",
+    label: "Oficinas",
+    addressLine: "Américo Vespucio 2880, Piso 7",
+    mapsQuery: "Américo Vespucio 2880, Santiago, Chile",
+  },
+  {
+    id: "exhibicion",
+    label: "Exhibición",
+    addressLine: "Arturo Prat 6457, Noviciado, Pudahuel",
+    mapsQuery: "Arturo Prat 6457, Pudahuel, Chile",
+  },
+];
+
+export const FOOTER_DISCLAIMER =
+  "La información publicada es referencial, complementada con fotografías y videos. Los vehículos se encuentran en exhibición para verificar su estado en forma presencial. VEDISA REMATES garantiza la información publicada en nuestros recintos; una vez retirada de nuestras bodegas, se entiende aceptada a entera conformidad, sin derecho a reclamos posteriores respecto a su estado y equipamiento.";
+
+export const FOOTER_HOURS =
+  "Lunes a Viernes 9:00 - 13:00 / 14:00 - 17:00 · Sábado y Domingo cerrado";
+
+export function buildMapEmbedUrl(query: string): string {
+  return `https://maps.google.com/maps?q=${encodeURIComponent(query)}&z=16&ie=UTF8&iwloc=&output=embed`;
+}
+
+export function buildMapExternalUrl(query: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}

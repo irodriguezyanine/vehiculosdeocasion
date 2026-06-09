@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { SiteFooter } from "@/components/site-footer";
 import { WhatsAppFloatingButton } from "@/components/whatsapp-floating-button";
 import { buildSiteMetadata } from "@/lib/seo/metadata";
 import { getSiteUrl } from "@/lib/seo/site-config";
@@ -42,6 +43,7 @@ export default function RootLayout({
       </head>
       <body className="app-body min-h-full flex flex-col overflow-x-hidden">
         {children}
+        <SiteFooter />
         <WhatsAppFloatingButton />
       </body>
     </html>

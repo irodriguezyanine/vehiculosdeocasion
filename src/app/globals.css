@@ -1087,3 +1087,31 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
     background-position: -200% 0;
   }
 }
+
+.site-footer-link {
+  color: #7c4a25;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: rgba(180, 120, 60, 0.45);
+  text-underline-offset: 3px;
+  transition: color 0.15s ease;
+}
+
+.site-footer-link:hover {
+  color: #5c3218;
+}
+
+.site-map-modal {
+  animation: siteMapModalIn 0.22s ease-out;
+}
+
+@keyframes siteMapModalIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

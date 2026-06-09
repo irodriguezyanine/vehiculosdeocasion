@@ -3925,8 +3925,6 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     config.sectionTexts,
   ]);
 
-  const featuredItems = useMemo(() => homeVisibleItems.slice(0, 16), [homeVisibleItems]);
-
   const favoritesItems = useMemo(
     () => homeVisibleItems.filter((item) => favoriteKeys.includes(getVehicleKey(item))).slice(0, 12),
     [homeVisibleItems, favoriteKeys],
@@ -10323,12 +10321,9 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
           );
         })}
       </div>
-      <section className="relative z-10 mx-auto mb-14 max-w-7xl px-4 sm:px-6 lg:px-8">
+      <section className="relative z-10 mx-auto mb-8 max-w-7xl px-4 sm:px-6 lg:px-8">
         <InstagramSection />
       </section>
-      {config.homeLayout.showFeaturedStrip ? (
-        <FeaturedStrip items={featuredItems} onOpenVehicle={openVehicleDetail} />
-      ) : null}
 
       {selectedVehicle ? (
         <div

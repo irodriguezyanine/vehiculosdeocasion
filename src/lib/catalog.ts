@@ -792,6 +792,53 @@ function normalizeGlo3dTechnicalFields(
     result.tipo_vehiculo = tipoVehiculo;
   }
 
+  const mileage = pickString(merged, ["mileage", "kilometraje", "km", "odometer"]);
+  const doors = pickString(merged, ["doors", "puertas"]);
+  const seating = pickString(merged, ["seating", "asientos", "plazas"]);
+  const engine = pickString(merged, ["engine", "motor", "engin_description"]);
+  const interiorColor = pickString(merged, ["interior_color", "color_interior"]);
+  const certificate = pickString(merged, ["certificate", "certificado"]);
+  const fuelEconomy = pickString(merged, ["fuel_economy", "consumo_combustible"]);
+  const msrp = pickString(merged, ["msrp"]);
+  const stockNumber = pickString(merged, ["stock_number", "stock"]);
+  const downPayment = pickString(merged, ["down_payment", "pie"]);
+  const carfaxUrl = pickString(merged, ["carfax_url"]);
+  const priceSecond = pickString(merged, ["price_second"]);
+  const dun = pickString(merged, ["DUN", "unico_propietario", "single_owner"]);
+
+  if (mileage) {
+    result.mileage = mileage;
+    result.kilometraje = mileage;
+    result.km = mileage;
+  }
+  if (doors) {
+    result.doors = doors;
+    result.puertas = doors;
+  }
+  if (seating) {
+    result.seating = seating;
+    result.asientos = seating;
+  }
+  if (engine) {
+    result.engine = engine;
+    result.motor = engine;
+  }
+  if (interiorColor) {
+    result.interior_color = interiorColor;
+    result.color_interior = interiorColor;
+  }
+  if (certificate) result.certificate = certificate;
+  if (fuelEconomy) result.fuel_economy = fuelEconomy;
+  if (msrp) result.msrp = msrp;
+  if (stockNumber) result.stock_number = stockNumber;
+  if (downPayment) result.down_payment = downPayment;
+  if (carfaxUrl) result.carfax_url = carfaxUrl;
+  if (priceSecond) result.price_second = priceSecond;
+  if (dun) {
+    result.DUN = dun;
+    result.unico_propietario = dun;
+  }
+
   return result;
 }
 
@@ -973,13 +1020,24 @@ function normalizeAutoredTechnicalFields(
   const merged = { ...autoredRaw, ...flat };
   const result: Record<string, unknown> = {};
 
-  const vin = pickString(merged, [
-    "vin",
-    "numero_chasis",
-    "nro_chasis",
-    "chasis",
-    "vehicle_vin",
+  const patente = pickString(merged, ["patente", "PPU", "ppu", "plate", "placa", "fields_PPU"]);
+  const patenteVerifier = pickString(merged, ["dv", "verificador", "patente_dv", "ppu_dv", "patente_verifier"]);
+  const vin = pickString(merged, ["vin", "numero_chasis", "nro_chasis", "chasis", "vehicle_vin", "n_de_vin"]);
+  const nChasis = pickString(merged, ["n_de_chasis", "numero_chasis", "nro_chasis", "ndc"]);
+  const nMotor = pickString(merged, ["n_de_motor", "numero_motor", "motor_number", "ndm"]);
+  const nSerie = pickString(merged, ["n_de_serie", "numero_serie", "serial_number", "nds", "ser"]);
+  const marca = pickString(merged, ["marca", "brand", "make", "original_brand_name"]);
+  const modelo = pickString(merged, ["modelo", "model", "original_model_name", "showName"]);
+  const ano = pickString(merged, ["ano", "anio", "year", "fields_year"]);
+  const version = pickString(merged, ["version", "ver", "trim", "fields_ver"]);
+  const tipoVehiculo = pickString(merged, [
+    "tipo_de_vehiculo",
+    "tipo_vehiculo",
+    "vehicle_type",
+    "vehicle_type_name",
+    "tipo",
   ]);
+  const categoria = pickString(merged, ["categoria", "category", "tipo_unidad", "vehicle_category"]);
   const kilometraje = pickString(merged, [
     "kilometraje",
     "km",
@@ -1015,6 +1073,7 @@ function normalizeAutoredTechnicalFields(
     "tipo_traccion",
     "drivetrain",
     "traction",
+    "drive_type",
   ]);
   const aro = pickString(merged, [
     "aro",
@@ -1028,9 +1087,50 @@ function normalizeAutoredTechnicalFields(
     "cc",
     "motor_cc",
     "engine_cc",
+    "engine",
   ]);
 
+  if (patente) {
+    result.patente = patente;
+    result.PPU = patente;
+  }
+  if (patenteVerifier) result.patente_verifier = patenteVerifier;
   if (vin) result.vin = vin;
+  if (nChasis) {
+    result.n_de_chasis = nChasis;
+    result.numero_chasis = nChasis;
+  }
+  if (nMotor) {
+    result.n_de_motor = nMotor;
+    result.numero_motor = nMotor;
+  }
+  if (nSerie) {
+    result.n_de_serie = nSerie;
+    result.numero_serie = nSerie;
+  }
+  if (marca) {
+    result.marca = marca;
+    result.brand = marca;
+  }
+  if (modelo) {
+    result.modelo = modelo;
+    result.model = modelo;
+  }
+  if (ano) {
+    result.ano = ano;
+    result.anio = ano;
+    result.year = ano;
+  }
+  if (version) {
+    result.version = version;
+    result.ver = version;
+    result.trim = version;
+  }
+  if (tipoVehiculo) {
+    result.tipo_de_vehiculo = tipoVehiculo;
+    result.tipo_vehiculo = tipoVehiculo;
+  }
+  if (categoria) result.categoria = categoria;
   if (kilometraje) {
     result.kilometraje = kilometraje;
     result.km = kilometraje;

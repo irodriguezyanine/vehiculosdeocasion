@@ -1674,6 +1674,49 @@ function buildDetailsDraft(item: CatalogItem, override?: EditorVehicleDetails): 
   };
 }
 
+const PUBLICATION_SECTION_IDS: SectionId[] = [
+  "proximos-remates",
+  "ventas-directas",
+  "novedades",
+  "catalogo",
+];
+
+function buildPublicationDraftFromItem(
+  item: CatalogItem,
+  config: EditorConfig,
+  vehicleKey: string,
+): ManualPublicationDraft {
+  const details = buildDetailsDraft(item, config.vehicleDetails[vehicleKey]);
+  const sectionIds = PUBLICATION_SECTION_IDS.filter((sectionId) =>
+    (config.sectionVehicleIds[sectionId] ?? []).includes(vehicleKey),
+  );
+  const visible = !config.hiddenVehicleIds.includes(vehicleKey);
+  const configuredPrice = config.vehiclePrices[vehicleKey] ?? "";
+  const images = item.images.filter((url) => url.startsWith("http"));
+
+  return {
+    ...EMPTY_MANUAL_PUBLICATION_DRAFT,
+    ...details,
+    status: details.status || item.status || "Disponible",
+    location: details.location ?? item.location ?? "",
+    lot: details.lot ?? item.lot ?? "",
+    auctionDate: details.auctionDate ?? item.auctionDate ?? "",
+    normalPrice: details.originalPrice?.trim()
+      ? toCurrencyInput(details.originalPrice)
+      : toCurrencyInput(configuredPrice),
+    promoEnabled: details.promoEnabled ?? false,
+    promoPrice: details.promoPrice?.trim() ? toCurrencyInput(details.promoPrice) : "",
+    taxFee: details.taxFee?.trim() ? toCurrencyInput(details.taxFee) : "",
+    transferFee: details.transferFee?.trim() ? toCurrencyInput(details.transferFee) : "",
+    upcomingAuctionId: config.vehicleUpcomingAuctionIds[vehicleKey] ?? "",
+    visible,
+    sectionIds: sectionIds.length > 0 ? sectionIds : ["catalogo"],
+    imagesCsv: details.imagesCsv ?? images.join(", "),
+    thumbnail: details.thumbnail ?? item.thumbnail ?? images[0] ?? "",
+    view3dUrl: details.view3dUrl ?? item.view3dUrl ?? "",
+  };
+}
+
 function sanitizeDetails(details: EditorVehicleDetails): EditorVehicleDetails | undefined {
   const clean: EditorVehicleDetails = {
     title: cleanOptional(details.title),
@@ -2556,8 +2599,11 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   const [showEditorFiltersMenu, setShowEditorFiltersMenu] = useState(false);
   const [editorPage, setEditorPage] = useState(1);
   const [editingVehicleKey, setEditingVehicleKey] = useState<string | null>(null);
-  const [managingVehicleKey, setManagingVehicleKey] = useState<string | null>(null);
   const [editingDetails, setEditingDetails] = useState<EditorVehicleDetails | null>(null);
+  const [publicationModalMode, setPublicationModalMode] = useState<"create" | "edit" | null>(null);
+  const [editingPublicationKey, setEditingPublicationKey] = useState<string | null>(null);
+  const [publicationInitialTab, setPublicationInitialTab] = useState<"general" | "tecnica" | "medios" | "publicacion">("general");
+  const [autoredLookupLoading, setAutoredLookupLoading] = useState(false);
   const [newAuctionName, setNewAuctionName] = useState("");
   const [newAuctionDate, setNewAuctionDate] = useState("");
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -6294,12 +6340,78 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     });
   };
 
-  const resetManualCreation = () => {
+  const resetPublicationModal = () => {
     setManualDraft(EMPTY_MANUAL_PUBLICATION_DRAFT);
     setManualUploadedImages([]);
     setManualDropActive(false);
     setDraggedImageIndex(null);
     setShowManualCreateModal(false);
+    setPublicationModalMode(null);
+    setEditingPublicationKey(null);
+    setPublicationInitialTab("general");
+    setAutoredLookupLoading(false);
+  };
+
+  const lookupAutoredPatent = async (patente: string) => {
+    const normalized = patente.toUpperCase().replace(/\s+/g, "").replace(/-/g, "");
+    if (normalized.length < 4) return;
+    setAutoredLookupLoading(true);
+    try {
+      const response = await fetch(
+        `/api/admin/autored-lookup?patente=${encodeURIComponent(normalized)}`,
+        { credentials: "include" },
+      );
+      const payload = (await response.json().catch(() => ({}))) as {
+        ok?: boolean;
+        fields?: Partial<ManualPublicationDraft>;
+        error?: string;
+      };
+      if (!response.ok || !payload.ok || !payload.fields) {
+        if (response.status !== 404) {
+          showSystemNotice(
+            "error",
+            "Autored",
+            payload.error ?? "No se pudo consultar Autored para esta patente.",
+          );
+        }
+        return;
+      }
+      const fields = payload.fields;
+      setManualDraft((prev) => ({
+        ...prev,
+        ...fields,
+        patente: fields.patente ?? normalized,
+        title: prev.title?.trim() || fields.title || prev.title,
+      }));
+    } finally {
+      setAutoredLookupLoading(false);
+    }
+  };
+
+  const openEditVehicleModal = (
+    item: CatalogItem,
+    initialTab: "general" | "tecnica" | "medios" | "publicacion" = "general",
+  ) => {
+    if (!isAdmin || serverSaveStatus !== "ready") {
+      showSystemNotice(
+        "error",
+        "Edicion bloqueada",
+        serverSaveMessage ||
+          "No se puede editar porque el guardado global en servidor no esta disponible.",
+      );
+      return;
+    }
+    const key = getVehicleKey(item);
+    const draft = buildPublicationDraftFromItem(item, config, key);
+    const images = draft.imagesCsv
+      ? normalizeCloudinaryImages(draft.imagesCsv)
+      : item.images.filter((url) => url.startsWith("http"));
+    setEditingPublicationKey(key);
+    setPublicationModalMode("edit");
+    setPublicationInitialTab(initialTab);
+    setManualDraft(draft);
+    setManualUploadedImages(images);
+    setShowManualCreateModal(true);
   };
 
   const openCreateManualModal = () => {
@@ -6310,6 +6422,9 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       editorGroupFilter === "proximos-remates"
         ? [editorGroupFilter]
         : ["catalogo"];
+    setPublicationModalMode("create");
+    setEditingPublicationKey(null);
+    setPublicationInitialTab("general");
     setManualDraft({
       ...EMPTY_MANUAL_PUBLICATION_DRAFT,
       sectionIds: defaultSections,
@@ -6420,13 +6535,152 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       };
     });
 
-    resetManualCreation();
+    resetPublicationModal();
     showSystemNotice(
       "success",
       "Unidad creada",
       patente
         ? `Publicacion manual creada. Se sincronizara automaticamente si GLO3D recibe la patente ${patente}.`
         : "La nueva unidad se agrego correctamente al inventario.",
+    );
+  };
+
+  const saveVehiclePublication = () => {
+    if (publicationModalMode === "create") {
+      createManualPublication();
+      return;
+    }
+    if (!editingPublicationKey) return;
+
+    const patente =
+      cleanOptional(manualDraft.patente)?.toUpperCase().replace(/\s+/g, "").replace(/-/g, "") ?? "";
+    const autoTitle = [manualDraft.brand, manualDraft.model, manualDraft.year]
+      .map((value) => value?.trim())
+      .filter(Boolean)
+      .join(" ");
+    const title = manualDraft.title?.trim() || autoTitle || patente;
+    if (!title && !patente) {
+      showSystemNotice(
+        "error",
+        "Publicacion",
+        "Ingresa al menos patente o titulo/marca-modelo para guardar la unidad.",
+      );
+      return;
+    }
+
+    const cloudinaryImages = Array.from(
+      new Set([...manualUploadedImages, ...normalizeCloudinaryImages(manualDraft.imagesCsv)]),
+    );
+    const sectionIds: SectionId[] =
+      manualDraft.sectionIds.length > 0 ? manualDraft.sectionIds : ["catalogo"];
+    const normalizedNormalPrice = cleanOptional(manualDraft.normalPrice);
+    const normalizedPromoPrice = cleanOptional(manualDraft.promoPrice);
+    if (manualDraft.promoEnabled && !normalizedPromoPrice) {
+      showSystemNotice(
+        "error",
+        "Precio promocional",
+        "Activa un precio de oferta antes de guardar la publicacion.",
+      );
+      return;
+    }
+    const promoEnabled = Boolean(manualDraft.promoEnabled && normalizedPromoPrice);
+    const activePrice = promoEnabled ? normalizedPromoPrice : normalizedNormalPrice;
+    const thumbnail =
+      cleanOptional(manualDraft.thumbnail) ?? cloudinaryImages[0] ?? "/placeholder-car.svg";
+    const detailsDraft = buildManualDraftDetails({
+      ...manualDraft,
+      title,
+      patente,
+      thumbnail,
+      originalPrice: normalizedNormalPrice ?? "",
+      promoPrice: normalizedPromoPrice ?? "",
+      promoEnabled,
+      imagesCsv: cloudinaryImages.join(", "),
+    });
+    const vehicleKey = editingPublicationKey;
+    const editingItem = itemsByKey.get(vehicleKey) ?? null;
+
+    setConfig((prev) => {
+      const nextSectionVehicleIds = { ...prev.sectionVehicleIds };
+      for (const sectionId of PUBLICATION_SECTION_IDS) {
+        const current = nextSectionVehicleIds[sectionId] ?? [];
+        const shouldInclude = sectionIds.includes(sectionId);
+        if (shouldInclude && !current.includes(vehicleKey)) {
+          nextSectionVehicleIds[sectionId] = [...current, vehicleKey];
+        } else if (!shouldInclude && current.includes(vehicleKey)) {
+          nextSectionVehicleIds[sectionId] = current.filter((entry) => entry !== vehicleKey);
+        }
+      }
+
+      const nextHidden = new Set(prev.hiddenVehicleIds);
+      if (!manualDraft.visible) nextHidden.add(vehicleKey);
+      else nextHidden.delete(vehicleKey);
+
+      const nextVehiclePrices = { ...prev.vehiclePrices };
+      if (activePrice) nextVehiclePrices[vehicleKey] = activePrice;
+      else delete nextVehiclePrices[vehicleKey];
+
+      const nextVehicleUpcomingAuctionIds = { ...prev.vehicleUpcomingAuctionIds };
+      if (manualDraft.upcomingAuctionId) {
+        nextVehicleUpcomingAuctionIds[vehicleKey] = manualDraft.upcomingAuctionId;
+      } else {
+        delete nextVehicleUpcomingAuctionIds[vehicleKey];
+      }
+
+      let nextManualPublications = prev.manualPublications ?? [];
+      if (editingItem && isManualCatalogItem(editingItem)) {
+        const manualId = String((editingItem.raw as Record<string, unknown>).manual_id ?? "");
+        nextManualPublications = nextManualPublications.map((entry) => {
+          if (entry.id !== manualId) return entry;
+          return {
+            ...entry,
+            title,
+            subtitle: cleanOptional(manualDraft.subtitle),
+            status: cleanOptional(manualDraft.status),
+            location: cleanOptional(manualDraft.location),
+            lot: cleanOptional(manualDraft.lot),
+            auctionDate: cleanOptional(manualDraft.auctionDate),
+            description: cleanOptional(manualDraft.description),
+            patente: cleanOptional(patente),
+            brand: cleanOptional(manualDraft.brand),
+            model: cleanOptional(manualDraft.model),
+            year: cleanOptional(manualDraft.year),
+            category: cleanOptional(manualDraft.category),
+            images: cloudinaryImages.length > 0 ? cloudinaryImages : [thumbnail],
+            thumbnail,
+            view3dUrl: cleanOptional(manualDraft.view3dUrl),
+            sectionIds,
+            upcomingAuctionId: cleanOptional(manualDraft.upcomingAuctionId),
+            visible: manualDraft.visible,
+            price: activePrice,
+            originalPrice: normalizedNormalPrice,
+            promoPrice: normalizedPromoPrice,
+            promoEnabled,
+          };
+        });
+      }
+
+      return {
+        ...prev,
+        sectionVehicleIds: nextSectionVehicleIds,
+        hiddenVehicleIds: Array.from(nextHidden),
+        vehiclePrices: nextVehiclePrices,
+        vehicleUpcomingAuctionIds: nextVehicleUpcomingAuctionIds,
+        vehicleDetails: {
+          ...prev.vehicleDetails,
+          [vehicleKey]: detailsDraft,
+        },
+        manualPublications: nextManualPublications,
+      };
+    });
+
+    resetPublicationModal();
+    showSystemNotice(
+      "success",
+      "Unidad actualizada",
+      patente
+        ? `Los cambios de ${patente} se guardaron correctamente.`
+        : "Los cambios se guardaron correctamente.",
     );
   };
 
@@ -6583,19 +6837,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   };
 
   const openDetailsEditor = (item: CatalogItem, initialTab: DetailEditorTabId = "general") => {
-    if (!isAdmin || serverSaveStatus !== "ready") {
-      showSystemNotice(
-        "error",
-        "Edicion bloqueada",
-        serverSaveMessage ||
-          "No se puede editar porque el guardado global en servidor no esta disponible.",
-      );
-      return;
-    }
-    const key = getVehicleKey(item);
-    setEditingVehicleKey(key);
-    setEditingDetails(buildDetailsDraft(item, config.vehicleDetails[key]));
-    setDetailEditorTab(initialTab);
+    openEditVehicleModal(item, initialTab === "tecnica" ? "tecnica" : "general");
   };
 
   const saveDetailsEditor = () => {
@@ -6657,7 +6899,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       setServerSaveMessage(errorMessage);
       setAdminView("home");
       setEditingVehicleKey(null);
-      setManagingVehicleKey(null);
+      resetPublicationModal();
       showSystemNotice(
         "error",
         "Edicion bloqueada",
@@ -6847,41 +7089,9 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   const hasActiveSearchOrQuickFilters =
     hasActiveSearch || quickFilters.length > 0 || topSectionFilter !== "all";
 
-  const editingItem = editingVehicleKey ? itemsByKey.get(editingVehicleKey) ?? null : null;
-  const managingItem = managingVehicleKey ? itemsByKey.get(managingVehicleKey) ?? null : null;
-  const managingVehiclePromoMeta = useMemo(() => {
-    if (!managingVehicleKey || !managingItem) {
-      return {
-        originalPrice: "",
-        promoPrice: "",
-        promoEnabled: false,
-        taxFee: "",
-        transferFee: "",
-      };
-    }
-    const rawMeta = getRawPromoMeta(managingItem.raw as Record<string, unknown>);
-    const rawExpenseMeta = getRawExpenseMeta(managingItem.raw as Record<string, unknown>);
-    const details = config.vehicleDetails[managingVehicleKey];
-    const originalPrice =
-      details?.originalPrice?.trim() ??
-      rawMeta.originalPriceLabel ??
-      (config.vehiclePrices[managingVehicleKey] ?? "");
-    const promoEnabled =
-      typeof details?.promoEnabled === "boolean" ? details.promoEnabled : rawMeta.promoEnabled;
-    const promoPrice =
-      details?.promoPrice?.trim() ??
-      rawMeta.promoPriceLabel ??
-      (promoEnabled ? (config.vehiclePrices[managingVehicleKey] ?? "") : "");
-    const taxFee = details?.taxFee?.trim() ?? rawExpenseMeta.taxFeeLabel ?? "";
-    const transferFee = details?.transferFee?.trim() ?? rawExpenseMeta.transferFeeLabel ?? "";
-    return {
-      originalPrice: toCurrencyInput(originalPrice),
-      promoPrice: toCurrencyInput(promoPrice),
-      promoEnabled,
-      taxFee: toCurrencyInput(taxFee),
-      transferFee: toCurrencyInput(transferFee),
-    };
-  }, [config.vehicleDetails, config.vehiclePrices, managingItem, managingVehicleKey]);
+  const editingPublicationItem = editingPublicationKey
+    ? itemsByKey.get(editingPublicationKey) ?? null
+    : null;
 
   const saveInlineCardChanges = useCallback(
     (item: CatalogItem, changes: { title?: string; subtitle?: string; price?: string }) => {
@@ -8033,7 +8243,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             type="button"
-                            onClick={() => setManagingVehicleKey(key)}
+                            onClick={() => openEditVehicleModal(item)}
                             className="ui-focus inline-flex h-7 w-7 items-center justify-center rounded border border-amber-300 bg-stone-100 text-amber-800 transition hover:bg-stone-200"
                             aria-label={`Gestionar unidad ${getPatent(item)}`}
                             title="Gestionar unidad"
@@ -8077,7 +8287,6 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                             type="button"
                             onClick={() => {
                               markVehicleAsSold(key);
-                              setManagingVehicleKey(null);
                               showSystemNotice(
                                 "success",
                                 "Unidad vendida",
@@ -11451,16 +11660,53 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
         </div>
       ) : null}
 
-      {showManualCreateModal ? (
+      {showManualCreateModal && publicationModalMode ? (
         <ManualPublicationModal
+          mode={publicationModalMode}
           draft={manualDraft}
           setDraft={setManualDraft}
           uploadedImages={manualUploadedImages}
           setUploadedImages={setManualUploadedImages}
           uploading={manualUploading}
+          autoredLookupLoading={autoredLookupLoading}
+          onPatenteLookup={lookupAutoredPatent}
           onUploadFiles={uploadManualFiles}
-          onClose={resetManualCreation}
-          onSubmit={createManualPublication}
+          onClose={resetPublicationModal}
+          onSubmit={saveVehiclePublication}
+          initialTab={publicationInitialTab}
+          vehicleSubtitle={
+            editingPublicationItem
+              ? `${getPatent(editingPublicationItem)} · ${getModel(editingPublicationItem)}`
+              : undefined
+          }
+          onMarkSold={
+            publicationModalMode === "edit" && editingPublicationKey
+              ? () => {
+                  markVehicleAsSold(editingPublicationKey);
+                  resetPublicationModal();
+                  showSystemNotice(
+                    "success",
+                    "Unidad vendida",
+                    editingPublicationItem
+                      ? `${getPatent(editingPublicationItem)} paso a historial y dejo de estar visible en inventario/catalogo.`
+                      : "La unidad paso a historial.",
+                  );
+                }
+              : undefined
+          }
+          onDeleteManual={
+            publicationModalMode === "edit" &&
+            editingPublicationItem &&
+            isManualCatalogItem(editingPublicationItem)
+              ? () => {
+                  const manualId = String(
+                    (editingPublicationItem.raw as Record<string, unknown>).manual_id ?? "",
+                  );
+                  if (manualId) deleteManualPublication(manualId);
+                  resetPublicationModal();
+                }
+              : undefined
+          }
           upcomingAuctions={sortedUpcomingAuctions}
           formatAuctionDateLabel={formatAuctionDateLabel}
           toggleSection={toggleManualDraftSection}
@@ -11818,562 +12064,6 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
         </div>
       ) : null}
 
-      {isAdmin && managingVehicleKey && managingItem ? (
-        <div
-          className="fixed inset-0 z-[62] flex items-center justify-center bg-slate-900/70 p-4"
-          onClick={() => setManagingVehicleKey(null)}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Gestionar unidad"
-            className="max-h-[92vh] w-full max-w-2xl overflow-auto rounded-2xl bg-white p-5 shadow-2xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">
-                  Gestionar unidad
-                </p>
-                <h3 className="text-lg font-bold text-slate-900">{getModel(managingItem)}</h3>
-                <p className="text-xs text-slate-500">Patente {getPatent(managingItem)}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setManagingVehicleKey(null)}
-                className="ui-focus rounded border border-slate-300 px-3 py-1 text-xs text-slate-600 transition hover:bg-slate-50"
-              >
-                Cerrar
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Estado y precio
-                </p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
-                    <input
-                      type="checkbox"
-                      checked={!mergedHiddenVehicleIds.has(managingVehicleKey)}
-                      onChange={() => toggleHidden(managingVehicleKey)}
-                    />
-                    Visible en el sitio
-                  </label>
-                  <div className="space-y-2">
-                    <input
-                      className="ui-focus w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                      placeholder="Precio normal CLP"
-                      value={managingVehiclePromoMeta.originalPrice}
-                      onChange={(event) =>
-                        updateVehiclePromoSettings(managingVehicleKey, {
-                          originalPrice: toCurrencyInput(event.target.value),
-                        })
-                      }
-                    />
-                    <label className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">
-                      <input
-                        type="checkbox"
-                        checked={managingVehiclePromoMeta.promoEnabled}
-                        onChange={(event) =>
-                          updateVehiclePromoSettings(managingVehicleKey, {
-                            promoEnabled: event.target.checked,
-                          })
-                        }
-                      />
-                      Precio promocional
-                    </label>
-                    {managingVehiclePromoMeta.promoEnabled ? (
-                      <input
-                        className="ui-focus w-full rounded-md border border-rose-300 bg-white px-3 py-2 text-sm"
-                        placeholder="Precio oferta CLP"
-                        value={managingVehiclePromoMeta.promoPrice}
-                        onChange={(event) =>
-                          updateVehiclePromoSettings(managingVehicleKey, {
-                            promoPrice: toCurrencyInput(event.target.value),
-                          })
-                        }
-                      />
-                    ) : null}
-                    <input
-                      className="ui-focus w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                      placeholder="Gasto impuestos CLP"
-                      value={managingVehiclePromoMeta.taxFee}
-                      onChange={(event) =>
-                        updateVehiclePromoSettings(managingVehicleKey, {
-                          taxFee: toCurrencyInput(event.target.value),
-                        })
-                      }
-                    />
-                    <input
-                      className="ui-focus w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                      placeholder="Gasto transferencia CLP"
-                      value={managingVehiclePromoMeta.transferFee}
-                      onChange={(event) =>
-                        updateVehiclePromoSettings(managingVehicleKey, {
-                          transferFee: toCurrencyInput(event.target.value),
-                        })
-                      }
-                    />
-                  </div>
-                  <select
-                    className="ui-focus rounded-md border border-slate-300 bg-white px-3 py-2 text-sm sm:col-span-2"
-                    value={normalizeVehicleCategoryValue(
-                      String(
-                        config.vehicleDetails[managingVehicleKey]?.category ??
-                          getLookupValue(buildVehicleLookup(managingItem.raw as Record<string, unknown>), [
-                            "categoria",
-                            "tipo_vehiculo",
-                            "tipo",
-                          ]) ??
-                          "",
-                      ),
-                    )}
-                    onChange={(event) => setVehicleCategory(managingVehicleKey, event.target.value)}
-                  >
-                    <option value="">Seleccionar categoria de vehiculo</option>
-                    {VEHICLE_CATEGORY_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Asignacion de remate
-                </p>
-                <select
-                  className="ui-focus w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-                  value={config.vehicleUpcomingAuctionIds[managingVehicleKey] ?? ""}
-                  onChange={(event) =>
-                    assignVehicleToUpcomingAuction(managingVehicleKey, event.target.value)
-                  }
-                >
-                  <option value="">Sin remate</option>
-                  {sortedUpcomingAuctions.map((auction) => (
-                    <option key={auction.id} value={auction.id}>
-                      {auction.name} ({formatAuctionDateLabel(auction.date)})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Canales de publicacion
-                </p>
-                <div className="grid gap-2 sm:grid-cols-3">
-                  {(["ventas-directas", "novedades", "catalogo"] as SectionId[]).map((sectionId) => {
-                    const selected = (config.sectionVehicleIds[sectionId] ?? []).includes(
-                      managingVehicleKey,
-                    );
-                    return (
-                      <label
-                        key={`manage-${managingVehicleKey}-${sectionId}`}
-                        className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm ${
-                          selected
-                            ? "border-amber-300 bg-stone-100 text-amber-900"
-                            : "border-slate-200 bg-white text-slate-700"
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selected}
-                          onChange={() => toggleItemInSection(sectionId, managingVehicleKey)}
-                        />
-                        {SECTION_LABELS[sectionId]}
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap justify-between gap-2 border-t border-slate-200 pt-3">
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      markVehicleAsSold(managingVehicleKey);
-                      setManagingVehicleKey(null);
-                      showSystemNotice(
-                        "success",
-                        "Unidad vendida",
-                        `${getPatent(managingItem)} paso a historial y dejo de estar visible en inventario/catalogo.`,
-                      );
-                    }}
-                    className="ui-focus rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700 transition hover:bg-amber-100"
-                  >
-                    Marcar como vendida
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setManagingVehicleKey(null);
-                      openDetailsEditor(managingItem);
-                    }}
-                    className="ui-focus rounded-md border border-amber-300 bg-stone-100 px-3 py-2 text-sm font-semibold text-amber-800 transition hover:bg-stone-200"
-                  >
-                    Editar ficha completa
-                  </button>
-                  {managingItem && isManualCatalogItem(managingItem) ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const manualId = String(
-                          (managingItem.raw as Record<string, unknown>).manual_id ?? "",
-                        );
-                        if (manualId) deleteManualPublication(manualId);
-                        setManagingVehicleKey(null);
-                      }}
-                      className="ui-focus rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
-                    >
-                      Borrar unidad manual
-                    </button>
-                  ) : null}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setManagingVehicleKey(null)}
-                  className="ui-focus rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
-                >
-                  Listo
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {isAdmin && editingVehicleKey && editingDetails && editingItem ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/70 p-4" onClick={cancelDetailsEditor}>
-          <div role="dialog" aria-modal="true" aria-label="Editar detalle manual" className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-2xl bg-white p-5 shadow-2xl" onClick={(event) => event.stopPropagation()}>
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">Editar detalle manual</h3>
-                <p className="text-xs text-slate-500">
-                  {getPatent(editingItem)}  ·  {getModel(editingItem)}
-                </p>
-              </div>
-              <button type="button" onClick={cancelDetailsEditor} className="ui-focus rounded border border-slate-300 px-3 py-1 text-xs text-slate-600 transition hover:bg-slate-50">
-                Cerrar
-              </button>
-            </div>
-
-            <div className="mb-3 flex flex-wrap gap-2">
-              {([
-                ["general", "Informacion del vehiculo"],
-                ["tecnica", "Detalles tecnicos"],
-              ] as Array<[DetailEditorTabId, string]>).map(([tabId, label]) => (
-                <button
-                  key={tabId}
-                  type="button"
-                  onClick={() => setDetailEditorTab(tabId)}
-                  className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold transition ${
-                    detailEditorTab === tabId
-                      ? "bg-amber-700 text-white"
-                      : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            {detailEditorTab === "general" ? (
-              <div className="space-y-4">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Identificacion y trazabilidad
-                  </p>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Patente" value={editingDetails.patente ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), patente: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Patente verificador (DV)" value={editingDetails.patenteVerifier ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), patenteVerifier: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="VIN" value={editingDetails.vin ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), vin: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="N° Chasis" value={editingDetails.nChasis ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), nChasis: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="N° Motor" value={editingDetails.nMotor ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), nMotor: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="N° Serie" value={editingDetails.nSerie ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), nSerie: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2" placeholder="N° de siniestro" value={editingDetails.nSiniestro ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), nSiniestro: event.target.value }))} />
-                  </div>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Clasificacion comercial
-                  </p>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Marca" value={editingDetails.brand ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), brand: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Modelo" value={editingDetails.model ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), model: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Ano" value={editingDetails.year ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), year: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Version (ver / trim)" value={editingDetails.version ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), version: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Tipo de vehiculo" value={editingDetails.tipoVehiculo ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), tipoVehiculo: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Tipo" value={editingDetails.tipo ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), tipo: event.target.value }))} />
-                    <select
-                      className="rounded border border-slate-300 px-3 py-2 text-sm md:col-span-2"
-                      value={normalizeVehicleCategoryValue(editingDetails.category ?? "")}
-                      onChange={(event) =>
-                        setEditingDetails((prev) => ({
-                          ...(prev ?? {}),
-                          category: event.target.value,
-                        }))
-                      }
-                    >
-                      <option value="">Categoria</option>
-                      {VEHICLE_CATEGORY_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Mecanica y configuracion
-                  </p>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Kilometraje / KM" value={editingDetails.kilometraje ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), kilometraje: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Color" value={editingDetails.color ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), color: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Combustible" value={editingDetails.combustible ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), combustible: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Transmision" value={editingDetails.transmision ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), transmision: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Traccion" value={editingDetails.traccion ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), traccion: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Aro" value={editingDetails.aro ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), aro: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Cilindrada" value={editingDetails.cilindrada ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), cilindrada: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Estado de airbags" value={editingDetails.estadoAirbags ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), estadoAirbags: event.target.value }))} />
-                  </div>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Pruebas y condicion operativa
-                  </p>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    {([
-                      ["llaves", "Llaves (SI/NO)"],
-                      ["aireAcondicionado", "Aire acondicionado (SI/NO)"],
-                      ["unicoPropietario", "Unico propietario (SI/NO)"],
-                      ["condicionado", "Condicionado (SI/NO)"],
-                      ["pruebaMotor", "Prueba de motor (SI/NO)"],
-                      ["pruebaDesplazamiento", "Prueba de desplazamiento (SI/NO)"],
-                    ] as Array<[keyof EditorVehicleDetails, string]>).map(([field, label]) => (
-                      <div key={field} className="space-y-1">
-                        <div className="flex gap-2">
-                          <input
-                            className={`${getEditorInputClass(field)} flex-1`}
-                            placeholder={label}
-                            value={String(editingDetails[field] ?? "")}
-                            onChange={(event) => setEditingDetailField(field, event.target.value)}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setEditingDetailField(field, "SI")}
-                            className="ui-focus rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700"
-                          >
-                            SI
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setEditingDetailField(field, "NO")}
-                            className="ui-focus rounded border border-rose-300 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700"
-                          >
-                            NO
-                          </button>
-                        </div>
-                        {getEditorFieldError(field) ? (
-                          <p className="text-xs text-rose-600">{getEditorFieldError(field)}</p>
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Documentacion y logistica
-                  </p>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Ubicacion fisica" value={editingDetails.ubicacionFisica ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), ubicacionFisica: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Transportista" value={editingDetails.transportista ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), transportista: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Taller" value={editingDetails.taller ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), taller: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Multas" value={editingDetails.multas ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), multas: event.target.value }))} />
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="TAG" value={editingDetails.tag ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), tag: event.target.value }))} />
-                    <div className="space-y-1">
-                      <input className={getEditorInputClass("vencRevisionTecnica")} placeholder="Vencimiento revision tecnica" value={editingDetails.vencRevisionTecnica ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), vencRevisionTecnica: event.target.value }))} />
-                      {getEditorFieldError("vencRevisionTecnica") ? <p className="text-xs text-rose-600">{getEditorFieldError("vencRevisionTecnica")}</p> : null}
-                    </div>
-                    <div className="space-y-1">
-                      <input className={getEditorInputClass("vencPermisoCirculacion")} placeholder="Vencimiento permiso circulacion" value={editingDetails.vencPermisoCirculacion ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), vencPermisoCirculacion: event.target.value }))} />
-                      {getEditorFieldError("vencPermisoCirculacion") ? <p className="text-xs text-rose-600">{getEditorFieldError("vencPermisoCirculacion")}</p> : null}
-                    </div>
-                    <div className="space-y-1">
-                      <input className={getEditorInputClass("vencSeguroObligatorio")} placeholder="Vencimiento seguro obligatorio" value={editingDetails.vencSeguroObligatorio ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), vencSeguroObligatorio: event.target.value }))} />
-                      {getEditorFieldError("vencSeguroObligatorio") ? <p className="text-xs text-rose-600">{getEditorFieldError("vencSeguroObligatorio")}</p> : null}
-                    </div>
-                    <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Nombre propietario anterior" value={editingDetails.nombrePropietarioAnterior ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), nombrePropietarioAnterior: event.target.value }))} />
-                    <div className="space-y-1">
-                      <input className={getEditorInputClass("rutPropietarioAnterior")} placeholder="RUT propietario anterior" value={editingDetails.rutPropietarioAnterior ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), rutPropietarioAnterior: event.target.value }))} />
-                      {getEditorFieldError("rutPropietarioAnterior") ? <p className="text-xs text-rose-600">{getEditorFieldError("rutPropietarioAnterior")}</p> : null}
-                    </div>
-                    <div className="space-y-1 md:col-span-2">
-                      <input className={getEditorInputClass("rutVerificador")} placeholder="RUT verificador" value={editingDetails.rutVerificador ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), rutVerificador: event.target.value }))} />
-                      {getEditorFieldError("rutVerificador") ? <p className="text-xs text-rose-600">{getEditorFieldError("rutVerificador")}</p> : null}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {detailEditorTab === "general" ? (
-              <div className="mt-4 rounded-xl border border-stone-200 bg-stone-100/40 p-3">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-amber-800">
-                  Configuracion editorial y comercial
-                </p>
-                <p className="mb-3 text-xs text-cyan-900/80">
-                  Esta seccion concentra estado comercial, narrativa y campos de publicacion.
-                  Los links crudos de Glo3D se administran automaticamente y estan ocultos para evitar confusion.
-                </p>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Estado" value={editingDetails.status ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), status: event.target.value }))} />
-                  <select
-                    className="rounded border border-slate-300 px-3 py-2 text-sm"
-                    value={editingDetails.vehicleCondition ?? ""}
-                    onChange={(event) =>
-                      setEditingDetails((prev) => ({ ...(prev ?? {}), vehicleCondition: event.target.value }))
-                    }
-                  >
-                    <option value="">Condicion del vehiculo</option>
-                    {VEHICLE_CONDITION_OPTIONS.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                  <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Ubicacion comercial" value={editingDetails.location ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), location: event.target.value }))} />
-                  <input className="rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Lote" value={editingDetails.lot ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), lot: event.target.value }))} />
-                  <div className="space-y-1 md:col-span-2">
-                    <input className={getEditorInputClass("auctionDate")} placeholder="Fecha remate (YYYY-MM-DD o DD/MM/YYYY)" value={editingDetails.auctionDate ?? ""} onChange={(event) => setEditingDetails((prev) => ({ ...(prev ?? {}), auctionDate: event.target.value }))} />
-                    {getEditorFieldError("auctionDate") ? <p className="text-xs text-rose-600">{getEditorFieldError("auctionDate")}</p> : null}
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Observaciones (editor HTML)
-                    </p>
-                    <div className="flex flex-wrap items-center gap-2 rounded border border-slate-300 bg-white px-2 py-2">
-                      <button type="button" onClick={() => runObservationsCommand("bold")} className="ui-focus rounded border border-slate-300 px-2 py-1 text-xs font-bold text-slate-700">B</button>
-                      <button type="button" onClick={() => runObservationsCommand("italic")} className="ui-focus rounded border border-slate-300 px-2 py-1 text-xs italic text-slate-700">I</button>
-                      <button type="button" onClick={() => runObservationsCommand("underline")} className="ui-focus rounded border border-slate-300 px-2 py-1 text-xs underline text-slate-700">U</button>
-                      <button type="button" onClick={() => runObservationsCommand("insertUnorderedList")} className="ui-focus rounded border border-slate-300 px-2 py-1 text-xs text-slate-700">Lista</button>
-                      <button type="button" onClick={() => runObservationsCommand("insertOrderedList")} className="ui-focus rounded border border-slate-300 px-2 py-1 text-xs text-slate-700">1.2.3</button>
-                      <select
-                        className="ui-focus rounded border border-slate-300 px-2 py-1 text-xs text-slate-700"
-                        defaultValue="3"
-                        onChange={(event) => runObservationsCommand("fontSize", event.target.value)}
-                      >
-                        <option value="2">Tamano S</option>
-                        <option value="3">Tamano M</option>
-                        <option value="4">Tamano L</option>
-                        <option value="5">Tamano XL</option>
-                      </select>
-                      <select
-                        className="ui-focus rounded border border-slate-300 px-2 py-1 text-xs text-slate-700"
-                        defaultValue="Arial"
-                        onChange={(event) => runObservationsCommand("fontName", event.target.value)}
-                      >
-                        <option value="Arial">Arial</option>
-                        <option value="Georgia">Georgia</option>
-                        <option value="Tahoma">Tahoma</option>
-                        <option value="Verdana">Verdana</option>
-                        <option value="Courier New">Courier</option>
-                      </select>
-                      <input
-                        type="color"
-                        title="Color de texto"
-                        className="ui-focus h-8 w-10 cursor-pointer rounded border border-slate-300 bg-white p-1"
-                        defaultValue="#0f172a"
-                        onChange={(event) => runObservationsCommand("foreColor", event.target.value)}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const url = window.prompt("URL del enlace");
-                          if (!url) return;
-                          runObservationsCommand("createLink", url);
-                        }}
-                        className="ui-focus rounded border border-slate-300 px-2 py-1 text-xs text-slate-700"
-                      >
-                        Link
-                      </button>
-                      <button type="button" onClick={() => runObservationsCommand("removeFormat")} className="ui-focus rounded border border-slate-300 px-2 py-1 text-xs text-slate-700">Limpiar estilo</button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          applyObservationsTemplate(DEFAULT_OBSERVATIONS_TEMPLATE_HTML);
-                          showSystemNotice("success", "Plantilla base aplicada", "Se cargo la plantilla de observaciones recomendada.");
-                        }}
-                        className="ui-focus rounded border border-indigo-300 bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-700"
-                      >
-                        Plantilla base
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          applyObservationsTemplate(observationsTemplateHtml || DEFAULT_OBSERVATIONS_TEMPLATE_HTML);
-                          showSystemNotice("success", "Plantilla cargada", "Se inserto la plantilla guardada en este navegador.");
-                        }}
-                        className="ui-focus rounded border border-amber-300 bg-stone-100 px-2 py-1 text-xs font-semibold text-amber-800"
-                      >
-                        Usar plantilla guardada
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const editor = manualObservationsEditorRef.current;
-                          if (!editor || !editor.innerHTML.trim()) {
-                            showSystemNotice("error", "Plantilla vacia", "Escribe o pega contenido antes de guardar plantilla.");
-                            return;
-                          }
-                          const html = editor.innerHTML;
-                          setObservationsTemplateHtml(html);
-                          if (typeof window !== "undefined") {
-                            window.localStorage.setItem(OBSERVATIONS_TEMPLATE_STORAGE_KEY, html);
-                          }
-                          showSystemNotice("success", "Plantilla guardada", "La plantilla quedo guardada para proximos vehiculos.");
-                        }}
-                        className="ui-focus rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700"
-                      >
-                        Guardar como plantilla
-                      </button>
-                    </div>
-                    <div
-                      ref={manualObservationsEditorRef}
-                      contentEditable
-                      suppressContentEditableWarning
-                      onInput={(event) => syncManualObservations(event.currentTarget.innerHTML)}
-                      className="ui-focus min-h-52 rounded border border-slate-300 bg-white px-3 py-3 text-sm leading-relaxed text-slate-800"
-                      aria-label="Editor de observaciones con formato HTML"
-                    />
-                    <p className="text-xs text-slate-500">
-                      Puedes usar negritas, listas, colores, tamano y tipo de letra. Se guarda como HTML y puedes reutilizar plantillas.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            <div className="mt-4 flex justify-end gap-2">
-              <button type="button" onClick={cancelDetailsEditor} className="ui-focus rounded border border-slate-300 px-4 py-2 text-sm text-slate-700 transition hover:bg-slate-50">
-                Cancelar
-              </button>
-              <button type="button" onClick={saveDetailsEditor} className="ui-focus rounded bg-amber-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-600">
-                Guardar detalle
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </main>
   );
 }

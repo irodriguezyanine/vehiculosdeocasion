@@ -1,5 +1,9 @@
+import {
+  extractGlo3dEditorDetails,
+  mergeEditorDetailsPreferPrimary,
+} from "@/lib/glo3d-editor-details";
 import type { CatalogItem } from "@/types/catalog";
-import type { EditorConfig, ManualPublication, SectionId } from "@/types/editor";
+import type { EditorConfig, EditorVehicleDetails, ManualPublication, SectionId } from "@/types/editor";
 
 const SECTION_IDS: SectionId[] = [
   "proximos-remates",
@@ -55,6 +59,7 @@ function mergeManualPublicationIntoConfig(
   manual: ManualPublication,
   manualKey: string,
   gloKey: string,
+  gloItem: CatalogItem,
 ): EditorConfig {
   const nextSectionVehicleIds = { ...config.sectionVehicleIds };
   for (const sectionId of manual.sectionIds ?? []) {
@@ -79,23 +84,27 @@ function mergeManualPublicationIntoConfig(
 
   const manualDetails = config.vehicleDetails[manualKey] ?? {};
   const gloDetails = config.vehicleDetails[gloKey] ?? {};
+  const glo3dDetails = extractGlo3dEditorDetails(gloItem);
+  const mergedDetails: EditorVehicleDetails = mergeEditorDetailsPreferPrimary(manualDetails, {
+    ...glo3dDetails,
+    ...gloDetails,
+  });
   const nextDetails = {
     ...config.vehicleDetails,
     [gloKey]: {
-      ...gloDetails,
-      ...manualDetails,
-      title: manualDetails.title ?? manual.title ?? gloDetails.title,
-      patente: manual.patente ?? gloDetails.patente,
-      brand: manual.brand ?? gloDetails.brand,
-      model: manual.model ?? gloDetails.model,
-      year: manual.year ?? gloDetails.year,
-      description: manual.description ?? gloDetails.description,
-      thumbnail: manual.thumbnail ?? gloDetails.thumbnail,
-      view3dUrl: manual.view3dUrl ?? gloDetails.view3dUrl,
-      originalPrice: manual.originalPrice ?? manual.price ?? gloDetails.originalPrice,
-      promoPrice: manual.promoPrice ?? gloDetails.promoPrice,
-      promoEnabled: manual.promoEnabled ?? gloDetails.promoEnabled,
-      imagesCsv: manual.images?.join(", ") ?? gloDetails.imagesCsv,
+      ...mergedDetails,
+      title: manualDetails.title ?? manual.title ?? mergedDetails.title,
+      patente: manual.patente ?? mergedDetails.patente,
+      brand: manual.brand ?? mergedDetails.brand,
+      model: manual.model ?? mergedDetails.model,
+      year: manual.year ?? mergedDetails.year,
+      description: manual.description ?? mergedDetails.description,
+      thumbnail: manual.thumbnail ?? mergedDetails.thumbnail,
+      view3dUrl: manual.view3dUrl ?? gloItem.view3dUrl ?? mergedDetails.view3dUrl,
+      originalPrice: manual.originalPrice ?? manual.price ?? mergedDetails.originalPrice,
+      promoPrice: manual.promoPrice ?? mergedDetails.promoPrice,
+      promoEnabled: manual.promoEnabled ?? mergedDetails.promoEnabled,
+      imagesCsv: manual.images?.join(", ") ?? mergedDetails.imagesCsv,
     },
   };
   delete nextDetails[manualKey];
@@ -140,7 +149,7 @@ export function syncManualPublicationsWithCatalog(
 
     const manualKey = getManualPublicationKey(manual);
     const gloKey = getCatalogVehicleKey(gloItem);
-    nextConfig = mergeManualPublicationIntoConfig(nextConfig, manual, manualKey, gloKey);
+    nextConfig = mergeManualPublicationIntoConfig(nextConfig, manual, manualKey, gloKey, gloItem);
     mergedPatents.push(patent);
   }
 

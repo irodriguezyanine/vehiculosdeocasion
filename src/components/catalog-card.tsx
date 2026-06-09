@@ -416,10 +416,6 @@ export function CatalogCard({
   upcomingAuctionLabel,
   density = "detailed",
   onOpen,
-  isFavorite,
-  onToggleFavorite,
-  isCompared,
-  onToggleCompare,
   onWhatsappClick,
   imageLoading = "lazy",
   canInlineEdit = false,
@@ -729,49 +725,7 @@ export function CatalogCard({
       </div>
 
       <div className="border-t border-amber-200/60 bg-white/35 px-3 pb-3 pt-2.5 max-md:px-3 max-md:pb-3 md:px-4 md:pb-4 md:pt-3">
-        <div className="vehicle-card-actions-grid grid grid-cols-2 gap-1.5 md:grid-cols-4 md:gap-2">
-          <button
-            type="button"
-            onClick={onToggleFavorite}
-            className={`ui-focus inline-flex items-center justify-center rounded-full border px-2.5 py-1.5 text-xs font-semibold shadow-[0_2px_6px_rgba(55,35,19,0.08)] transition max-md:px-2 max-md:py-1.5 md:px-3 md:py-2 ${
-              isFavorite
-                ? "border-amber-300 bg-amber-100 text-[#6f431f]"
-                : "border-amber-300/60 bg-white text-[#7c624d] hover:bg-[#f7eee6]"
-            }`}
-            aria-label={isFavorite ? `Quitar guardado ${item.title}` : `Guardar ${item.title}`}
-            title={isFavorite ? "Guardado" : "Guardar"}
-          >
-            <svg viewBox="0 0 20 20" className="h-[18px] w-[18px]" fill={isFavorite ? "currentColor" : "none"} aria-hidden="true">
-              <path
-                d="M10 2.75l2.16 4.37 4.82.7-3.49 3.4.83 4.8L10 13.74l-4.32 2.28.83-4.8-3.49-3.4 4.82-.7L10 2.75Z"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
-          <button
-            type="button"
-            onClick={onToggleCompare}
-            className={`ui-focus inline-flex items-center justify-center rounded-full border px-2.5 py-1.5 text-xs font-semibold shadow-[0_2px_6px_rgba(55,35,19,0.08)] transition max-md:px-2 max-md:py-1.5 md:px-3 md:py-2 ${
-              isCompared
-                ? "border-amber-300 bg-amber-100 text-[#6f431f]"
-                : "border-amber-300/60 bg-white text-[#7c624d] hover:bg-[#f7eee6]"
-            }`}
-            aria-label={isCompared ? `Quitar comparacion ${item.title}` : `Comparar ${item.title}`}
-            title={isCompared ? "Comparando" : "Comparar"}
-          >
-            <svg viewBox="0 0 20 20" className="h-[18px] w-[18px]" fill="none" aria-hidden="true">
-              {isCompared ? (
-                <path d="M4.5 10.5l3.1 3.1L15.5 5.8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              ) : (
-                <>
-                  <path d="M5 6.25h3M5 13.75h3M12 10h3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                  <circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="1.5" />
-                </>
-              )}
-            </svg>
-          </button>
+        <div className="vehicle-card-actions-grid grid grid-cols-2 gap-1.5 md:gap-2">
           <button
             type="button"
             onClick={async () => {
@@ -814,7 +768,7 @@ export function CatalogCard({
             target="_blank"
             rel="noreferrer"
             onClick={onWhatsappClick}
-            className="ui-focus inline-flex min-h-11 items-center justify-center rounded-full border border-[#2ac76d] bg-[#25D366] px-3 py-2 text-xs font-semibold text-white shadow-[0_3px_10px_rgba(37,211,102,0.35)] transition hover:-translate-y-0.5 hover:brightness-95 max-md:col-span-2 md:col-span-1"
+            className="ui-focus inline-flex min-h-11 items-center justify-center rounded-full border border-[#2ac76d] bg-[#25D366] px-3 py-2 text-xs font-semibold text-white shadow-[0_3px_10px_rgba(37,211,102,0.35)] transition hover:-translate-y-0.5 hover:brightness-95"
             aria-label={`Contactar por WhatsApp por ${item.title}`}
             title="WhatsApp"
           >

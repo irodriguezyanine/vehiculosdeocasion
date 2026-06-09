@@ -20,14 +20,21 @@ const SECTION_LABELS: Record<SectionId, string> = {
 };
 
 type ManualPublicationModalProps = {
+  mode?: "create" | "edit";
   draft: ManualPublicationDraft;
   setDraft: Dispatch<SetStateAction<ManualPublicationDraft>>;
   uploadedImages: string[];
   setUploadedImages: Dispatch<SetStateAction<string[]>>;
   uploading: boolean;
+  autoredLookupLoading?: boolean;
+  onPatenteLookup?: (patente: string) => void;
   onUploadFiles: (files: File[]) => Promise<void>;
   onClose: () => void;
   onSubmit: () => void;
+  onMarkSold?: () => void;
+  onDeleteManual?: () => void;
+  vehicleSubtitle?: string;
+  initialTab?: ModalTab;
   upcomingAuctions: UpcomingAuction[];
   formatAuctionDateLabel: (value: string) => string;
   toggleSection: (sectionId: SectionId) => void;
@@ -56,22 +63,34 @@ const inputClass =
   "ui-focus w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-slate-900";
 
 export function ManualPublicationModal({
+  mode = "create",
   draft,
   setDraft,
   uploadedImages,
   setUploadedImages,
   uploading,
+  autoredLookupLoading = false,
+  onPatenteLookup,
   onUploadFiles,
   onClose,
   onSubmit,
+  onMarkSold,
+  onDeleteManual,
+  vehicleSubtitle,
+  initialTab = "general",
   upcomingAuctions,
   formatAuctionDateLabel,
   toggleSection,
 }: ManualPublicationModalProps) {
-  const [tab, setTab] = useState<ModalTab>("general");
+  const [tab, setTab] = useState<ModalTab>(initialTab);
   const [dropActive, setDropActive] = useState(false);
   const [draggedImageIndex, setDraggedImageIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const isEditMode = mode === "edit";
+
+  useEffect(() => {
+    setTab(initialTab);
+  }, [initialTab, mode]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -101,7 +120,7 @@ export function ManualPublicationModal({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Crear nueva publicacion"
+        aria-label={isEditMode ? "Editar publicacion" : "Crear nueva publicacion"}
         className="manual-publication-modal flex max-h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-amber-200/50 bg-[#fffaf5] shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
@@ -109,12 +128,26 @@ export function ManualPublicationModal({
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-900">
-                Nueva publicacion manual
+                {isEditMode ? "Editar unidad" : "Nueva publicacion manual"}
               </p>
-              <h3 className="mt-1 text-xl font-bold text-[#2f1d12]">Crear unidad sin GLO3D</h3>
+              <h3 className="mt-1 text-xl font-bold text-[#2f1d12]">
+                {isEditMode ? "Gestionar ficha completa" : "Crear unidad sin GLO3D"}
+              </h3>
               <p className="mt-1 max-w-2xl text-sm text-slate-600">
-                Publica una unidad completa desde cero. Si luego llega la misma patente desde GLO3D, el sistema
-                conservara precio, canales y ficha editada.
+                {isEditMode ? (
+                  <>
+                    {vehicleSubtitle ? (
+                      <span className="font-medium text-slate-700">{vehicleSubtitle}</span>
+                    ) : null}
+                    {vehicleSubtitle ? " · " : null}
+                    Edita todos los datos, fotos y canales de publicacion desde un solo lugar.
+                  </>
+                ) : (
+                  <>
+                    Publica una unidad completa desde cero. Si luego llega la misma patente desde GLO3D, el sistema
+                    conservara precio, canales y ficha editada.
+                  </>
+                )}
               </p>
             </div>
             <button
@@ -153,12 +186,20 @@ export function ManualPublicationModal({
                 </p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Field label="Patente *">
-                    <input
-                      className={inputClass}
-                      value={draft.patente ?? ""}
-                      onChange={(event) => patch({ patente: event.target.value.toUpperCase() })}
-                      placeholder="ABCD12"
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        className={inputClass}
+                        value={draft.patente ?? ""}
+                        onChange={(event) => patch({ patente: event.target.value.toUpperCase() })}
+                        onBlur={(event) => onPatenteLookup?.(event.target.value)}
+                        placeholder="ABCD12"
+                      />
+                      {autoredLookupLoading ? (
+                        <span className="inline-flex items-center rounded-md border border-amber-200 bg-amber-50 px-2 text-xs font-medium text-amber-800">
+                          Autored...
+                        </span>
+                      ) : null}
+                    </div>
                   </Field>
                   <Field label="Verificador (DV)">
                     <input
@@ -554,9 +595,29 @@ export function ManualPublicationModal({
 
         <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-amber-200/60 bg-[#f8efe4] px-5 py-4">
           <p className="text-xs text-slate-600">
-            Patente recomendada para sincronizar automaticamente cuando GLO3D publique la unidad.
+            {isEditMode
+              ? "Los cambios se guardan en la configuracion global del inventario."
+              : "Patente recomendada para sincronizar automaticamente cuando GLO3D publique la unidad."}
           </p>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {isEditMode && onMarkSold ? (
+              <button
+                type="button"
+                onClick={onMarkSold}
+                className="ui-focus rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700 transition hover:bg-amber-100"
+              >
+                Marcar como vendida
+              </button>
+            ) : null}
+            {isEditMode && onDeleteManual ? (
+              <button
+                type="button"
+                onClick={onDeleteManual}
+                className="ui-focus rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
+              >
+                Borrar unidad manual
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={onClose}
@@ -569,7 +630,7 @@ export function ManualPublicationModal({
               onClick={onSubmit}
               className="ui-focus rounded-md bg-amber-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-600"
             >
-              Crear publicacion
+              {isEditMode ? "Guardar cambios" : "Crear publicacion"}
             </button>
           </div>
         </footer>

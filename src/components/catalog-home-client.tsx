@@ -16,6 +16,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CatalogCard } from "@/components/catalog-card";
 import { InstagramSection } from "@/components/instagram-section";
+import { ManualPublicationModal } from "@/components/manual-publication-modal";
 import { SiteHeader } from "@/components/site-header";
 import {
   INSTAGRAM_HANDLE,
@@ -28,6 +29,17 @@ import {
   WHATSAPP_DEFAULT_LINK,
   WHATSAPP_WA_ME_BASE,
 } from "@/lib/contact";
+import {
+  EMPTY_MANUAL_PUBLICATION_DRAFT,
+  buildManualDraftDetails,
+  type ManualPublicationDraft,
+} from "@/lib/manual-publication-draft";
+import {
+  isManualCatalogItem,
+  getManualPublicationKey,
+  filterManualItemsWithoutGloDuplicate,
+  syncManualPublicationsWithCatalog,
+} from "@/lib/manual-publication-sync";
 import { COMMERCIAL_EMAIL } from "@/lib/site-content";
 import {
   getHomeEditorChannelLabels,
@@ -381,54 +393,6 @@ function normalizeEditorConfigClient(
     managedCategories: value?.managedCategories ?? defaults.managedCategories,
   };
 }
-
-type ManualPublicationDraft = {
-  title: string;
-  subtitle: string;
-  status: string;
-  location: string;
-  lot: string;
-  auctionDate: string;
-  description: string;
-  patente: string;
-  brand: string;
-  model: string;
-  year: string;
-  category: string;
-  imagesCsv: string;
-  thumbnail: string;
-  view3dUrl: string;
-  normalPrice: string;
-  promoEnabled: boolean;
-  promoPrice: string;
-  upcomingAuctionId: string;
-  visible: boolean;
-  sectionIds: SectionId[];
-};
-
-const EMPTY_MANUAL_PUBLICATION_DRAFT: ManualPublicationDraft = {
-  title: "",
-  subtitle: "",
-  status: "Disponible",
-  location: "",
-  lot: "",
-  auctionDate: "",
-  description: "",
-  patente: "",
-  brand: "",
-  model: "",
-  year: "",
-  category: "",
-  imagesCsv: "",
-  thumbnail: "",
-  view3dUrl: "",
-  normalPrice: "",
-  promoEnabled: false,
-  promoPrice: "",
-  upcomingAuctionId: "",
-  visible: true,
-  sectionIds: ["catalogo"],
-};
 
 function normalizeText(value?: string): string {
   return (value ?? "")
@@ -2618,6 +2582,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   const [manualDropActive, setManualDropActive] = useState(false);
   const [draggedImageIndex, setDraggedImageIndex] = useState<number | null>(null);
   const manualFileInputRef = useRef<HTMLInputElement | null>(null);
+  const glo3dSyncSignatureRef = useRef("");
   const [loginEmail, setLoginEmail] = useState("jpmontero@vedisaremates.cl");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
@@ -3481,12 +3446,17 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     [config.manualPublications],
   );
 
+  const manualItemsForDisplay = useMemo(
+    () => filterManualItemsWithoutGloDuplicate(manualItems, rawItems),
+    [manualItems, rawItems],
+  );
+
   const items = useMemo(
     () =>
-      [...rawItems, ...manualItems].map((item) =>
+      [...rawItems, ...manualItemsForDisplay].map((item) =>
         applyDetailsOverride(item, config.vehicleDetails[getVehicleKey(item)]),
       ),
-    [rawItems, manualItems, config.vehicleDetails],
+    [rawItems, manualItemsForDisplay, config.vehicleDetails],
   );
 
   const itemsByKey = useMemo(() => {
@@ -3522,7 +3492,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       set.add(soldVehicleId);
     }
     for (const manual of config.manualPublications ?? []) {
-      if (!manual.visible) set.add(`manual-${manual.id}`);
+      if (!manual.visible) set.add(getManualPublicationKey(manual));
     }
     return set;
   }, [config.hiddenVehicleIds, config.manualPublications, config.soldVehicleIds]);
@@ -5732,7 +5702,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       if (set.has(itemKey)) set.delete(itemKey);
       else set.add(itemKey);
       const manualPublications = (prev.manualPublications ?? []).map((entry) => {
-        if (`manual-${entry.id}` !== itemKey) return entry;
+        if (getManualPublicationKey(entry) !== itemKey) return entry;
         return { ...entry, visible: set.has(itemKey) ? false : true };
       });
       return { ...prev, hiddenVehicleIds: Array.from(set), manualPublications };
@@ -5891,7 +5861,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       hiddenSet.delete(vehicleKey);
 
       const manualPublications = (prev.manualPublications ?? []).map((entry) => {
-        if (`manual-${entry.id}` !== vehicleKey) return entry;
+        if (getManualPublicationKey(entry) !== vehicleKey) return entry;
         return { ...entry, visible: true };
       });
 
@@ -5911,7 +5881,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     setConfig((prev) => {
       const nextVehiclePrices = { ...prev.vehiclePrices, [itemKey]: value };
       const nextManualPublications = (prev.manualPublications ?? []).map((entry) => {
-        if (`manual-${entry.id}` !== itemKey) return entry;
+        if (getManualPublicationKey(entry) !== itemKey) return entry;
         const promoEnabled = Boolean(entry.promoEnabled && (entry.promoPrice ?? "").trim());
         return {
           ...entry,
@@ -5970,7 +5940,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
 
       const nextVehiclePrices = { ...prev.vehiclePrices, [itemKey]: activePrice };
       const nextManualPublications = (prev.manualPublications ?? []).map((entry) => {
-        if (`manual-${entry.id}` !== itemKey) return entry;
+        if (getManualPublicationKey(entry) !== itemKey) return entry;
         return {
           ...entry,
           originalPrice: nextOriginalPrice || undefined,
@@ -6332,23 +6302,40 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     setShowManualCreateModal(false);
   };
 
+  const openCreateManualModal = () => {
+    const defaultSections: SectionId[] =
+      editorGroupFilter === "ventas-directas" ||
+      editorGroupFilter === "novedades" ||
+      editorGroupFilter === "catalogo" ||
+      editorGroupFilter === "proximos-remates"
+        ? [editorGroupFilter]
+        : ["catalogo"];
+    setManualDraft({
+      ...EMPTY_MANUAL_PUBLICATION_DRAFT,
+      sectionIds: defaultSections,
+    });
+    setManualUploadedImages([]);
+    setShowManualCreateModal(true);
+  };
+
   const createManualPublication = () => {
-    const title = manualDraft.title.trim();
-    if (!title) {
-      showSystemNotice("error", "Publicacion manual", "La publicacion manual necesita al menos un titulo.");
+    const patente = cleanOptional(manualDraft.patente)?.toUpperCase().replace(/\s+/g, "").replace(/-/g, "") ?? "";
+    const autoTitle = [manualDraft.brand, manualDraft.model, manualDraft.year]
+      .map((value) => value?.trim())
+      .filter(Boolean)
+      .join(" ");
+    const title = manualDraft.title?.trim() || autoTitle || patente;
+    if (!title && !patente) {
+      showSystemNotice(
+        "error",
+        "Publicacion manual",
+        "Ingresa al menos patente o titulo/marca-modelo para crear la publicacion.",
+      );
       return;
     }
     const cloudinaryImages = Array.from(
       new Set([...manualUploadedImages, ...normalizeCloudinaryImages(manualDraft.imagesCsv)]),
     );
-    if (cloudinaryImages.length === 0) {
-      showSystemNotice(
-        "error",
-        "Imagenes requeridas",
-        "Debes ingresar al menos una URL de imagen de Cloudinary.",
-      );
-      return;
-    }
     const id = crypto.randomUUID();
     const sectionIds: SectionId[] =
       manualDraft.sectionIds.length > 0 ? manualDraft.sectionIds : ["catalogo"];
@@ -6364,6 +6351,8 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     }
     const promoEnabled = Boolean(manualDraft.promoEnabled && normalizedPromoPrice);
     const activePrice = promoEnabled ? normalizedPromoPrice : normalizedNormalPrice;
+    const thumbnail =
+      cleanOptional(manualDraft.thumbnail) ?? cloudinaryImages[0] ?? "/placeholder-car.svg";
 
     const manual: ManualPublication = {
       id,
@@ -6374,13 +6363,13 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       lot: cleanOptional(manualDraft.lot),
       auctionDate: cleanOptional(manualDraft.auctionDate),
       description: cleanOptional(manualDraft.description),
-      patente: cleanOptional(manualDraft.patente),
+      patente: cleanOptional(patente),
       brand: cleanOptional(manualDraft.brand),
       model: cleanOptional(manualDraft.model),
       year: cleanOptional(manualDraft.year),
       category: cleanOptional(manualDraft.category),
-      images: cloudinaryImages,
-      thumbnail: cleanOptional(manualDraft.thumbnail) ?? cloudinaryImages[0],
+      images: cloudinaryImages.length > 0 ? cloudinaryImages : [thumbnail],
+      thumbnail,
       view3dUrl: cleanOptional(manualDraft.view3dUrl),
       sectionIds,
       upcomingAuctionId: cleanOptional(manualDraft.upcomingAuctionId),
@@ -6391,9 +6380,20 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       promoEnabled,
     };
 
+    const itemKey = getManualPublicationKey(manual);
+    const detailsDraft = buildManualDraftDetails({
+      ...manualDraft,
+      title,
+      patente,
+      thumbnail,
+      originalPrice: normalizedNormalPrice ?? "",
+      promoPrice: normalizedPromoPrice ?? "",
+      promoEnabled,
+      imagesCsv: cloudinaryImages.join(", "),
+    });
+
     setConfig((prev) => {
       const nextSectionVehicleIds = { ...prev.sectionVehicleIds };
-      const itemKey = `manual-${id}`;
       for (const sectionId of sectionIds) {
         const set = new Set(nextSectionVehicleIds[sectionId] ?? []);
         set.add(itemKey);
@@ -6412,17 +6412,29 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
         hiddenVehicleIds: Array.from(nextHidden),
         vehiclePrices: nextVehiclePrices,
         vehicleUpcomingAuctionIds: nextVehicleUpcomingAuctionIds,
+        vehicleDetails: {
+          ...prev.vehicleDetails,
+          [itemKey]: detailsDraft,
+        },
         manualPublications: [...(prev.manualPublications ?? []), manual],
       };
     });
 
     resetManualCreation();
-    showSystemNotice("success", "Unidad creada", "La nueva unidad se agrego correctamente al inventario.");
+    showSystemNotice(
+      "success",
+      "Unidad creada",
+      patente
+        ? `Publicacion manual creada. Se sincronizara automaticamente si GLO3D recibe la patente ${patente}.`
+        : "La nueva unidad se agrego correctamente al inventario.",
+    );
   };
 
   const deleteManualPublication = (manualId: string) => {
-    const key = `manual-${manualId}`;
     setConfig((prev) => {
+      const manual = (prev.manualPublications ?? []).find((entry) => entry.id === manualId);
+      if (!manual) return prev;
+      const key = getManualPublicationKey(manual);
       const nextSectionVehicleIds: Record<SectionId, string[]> = {
         "proximos-remates": (prev.sectionVehicleIds["proximos-remates"] ?? []).filter((id) => id !== key),
         "ventas-directas": (prev.sectionVehicleIds["ventas-directas"] ?? []).filter((id) => id !== key),
@@ -6434,6 +6446,8 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       delete nextPrices[key];
       const nextAssignments = { ...prev.vehicleUpcomingAuctionIds };
       delete nextAssignments[key];
+      const nextDetails = { ...prev.vehicleDetails };
+      delete nextDetails[key];
 
       return {
         ...prev,
@@ -6442,6 +6456,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
         hiddenVehicleIds: nextHidden,
         vehiclePrices: nextPrices,
         vehicleUpcomingAuctionIds: nextAssignments,
+        vehicleDetails: nextDetails,
       };
     });
   };
@@ -6657,6 +6672,24 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     setLastAutoSaveAt(new Date().toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" }));
     lastPersistedConfigRef.current = JSON.stringify(nextConfig);
   }, [showSystemNotice]);
+
+  useEffect(() => {
+    setConfig((prev) => {
+      const { config: synced, mergedPatents } = syncManualPublicationsWithCatalog(prev, rawItems);
+      if (mergedPatents.length === 0) return prev;
+      const signature = mergedPatents.slice().sort().join("|");
+      if (glo3dSyncSignatureRef.current === signature) return prev;
+      glo3dSyncSignatureRef.current = signature;
+      window.setTimeout(() => {
+        showSystemNotice(
+          "success",
+          "Sincronizacion GLO3D",
+          `${mergedPatents.length} publicacion(es) manual(es) enlazada(s) con GLO3D: ${mergedPatents.join(", ")}.`,
+        );
+      }, 0);
+      return synced;
+    });
+  }, [rawItems, showSystemNotice]);
 
   useEffect(() => {
     if (isBootstrapping || !isAdmin || serverSaveStatus !== "ready") return;
@@ -7901,50 +7934,52 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                   <button
                     type="button"
                     onClick={() => {
-                      if (adminTab === "vehiculos" && editorGroupFilter === "all") {
-                        setManualDraft(EMPTY_MANUAL_PUBLICATION_DRAFT);
-                        setManualUploadedImages([]);
-                        setShowManualCreateModal(true);
-                        return;
-                      }
-                      if (editorGroupFilter === "home" || editorGroupFilter === "unassigned") {
+                      if (adminTab !== "vehiculos") {
                         showSystemNotice(
                           "info",
-                          "Elige una seccion",
-                          "Selecciona Ventas directas, Novedades, Catalogo u otra categoria para asignar unidades del inventario maestro.",
+                          "Inventario",
+                          "La creacion manual de publicaciones esta disponible en la pestana Inventario.",
                         );
                         return;
                       }
-                      if (editorGroupFilter === "ventas-directas" || editorGroupFilter === "novedades" || editorGroupFilter === "catalogo") {
-                        openBatchAssignModal({ type: "section", sectionId: editorGroupFilter });
-                        return;
-                      }
-                      if (editorGroupFilter === "proximos-remates") {
-                        if (!auctionFilterId) {
-                          showSystemNotice(
-                            "info",
-                            "Selecciona un remate",
-                            "Para agregar en proximos remates, elige un remate especifico primero.",
-                          );
-                          return;
-                        }
-                        openBatchAssignModal({ type: "auction", auctionId: auctionFilterId });
-                        return;
-                      }
-                      showSystemNotice(
-                        "info",
-                        "Elige un grupo",
-                        "Selecciona una categoria o remate para agregar unidades del inventario.",
-                      );
+                      openCreateManualModal();
                     }}
-                    className="ui-focus inline-flex h-full min-h-10 items-center justify-center rounded-md border border-amber-300 bg-stone-100 px-3 text-amber-800 transition hover:bg-stone-200"
-                    aria-label="Agregar unidades del inventario o crear unidad manual"
-                    title="Agregar o crear unidad"
+                    className="ui-focus inline-flex h-full min-h-10 items-center justify-center rounded-md border border-amber-300 bg-amber-700 px-3 text-white transition hover:bg-amber-600"
+                    aria-label="Crear nueva publicacion manual"
+                    title="Crear nueva publicacion"
                   >
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-700 text-xs text-white">
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white/15 text-sm font-bold">
                       +
                     </span>
                   </button>
+                  {adminTab === "vehiculos" &&
+                  (editorGroupFilter === "ventas-directas" ||
+                    editorGroupFilter === "novedades" ||
+                    editorGroupFilter === "catalogo" ||
+                    editorGroupFilter === "proximos-remates") ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (editorGroupFilter === "proximos-remates") {
+                          if (!auctionFilterId) {
+                            showSystemNotice(
+                              "info",
+                              "Selecciona un remate",
+                              "Para agregar desde inventario maestro, elige un remate especifico primero.",
+                            );
+                            return;
+                          }
+                          openBatchAssignModal({ type: "auction", auctionId: auctionFilterId });
+                          return;
+                        }
+                        openBatchAssignModal({ type: "section", sectionId: editorGroupFilter });
+                      }}
+                      className="ui-focus inline-flex h-full min-h-10 items-center justify-center rounded-md border border-amber-300 bg-stone-100 px-3 text-xs font-semibold text-amber-900 transition hover:bg-stone-200"
+                      title="Agregar unidades desde inventario maestro"
+                    >
+                      Maestro
+                    </button>
+                  ) : null}
                 </div>
                 <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-2">
                   {paginatedEditorItems.map((item) => {
@@ -11417,279 +11452,19 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       ) : null}
 
       {showManualCreateModal ? (
-        <div
-          className="fixed inset-0 z-[75] flex items-center justify-center bg-slate-900/70 p-4"
-          onClick={resetManualCreation}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Crear nueva unidad manual"
-            className="max-h-[92vh] w-full max-w-5xl overflow-auto rounded-2xl bg-white p-5 shadow-2xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">Agregar nueva unidad al inventario</h3>
-                <p className="text-xs text-slate-500">
-                  Carga imagenes desde tu PC (drag & drop o seleccion multiple) y crea la publicacion manual.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={resetManualCreation}
-                className="ui-focus rounded border border-slate-300 px-3 py-1 text-xs text-slate-600 transition hover:bg-slate-50"
-              >
-                Cerrar
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div
-                onDragOver={(event) => {
-                  event.preventDefault();
-                  setManualDropActive(true);
-                }}
-                onDragLeave={() => setManualDropActive(false)}
-                onDrop={(event) => {
-                  void handleManualDropFiles(event);
-                }}
-                className={`rounded-xl border-2 border-dashed p-4 text-center transition ${
-                  manualDropActive
-                    ? "border-amber-600 bg-stone-100"
-                    : "border-stone-300 bg-slate-50"
-                }`}
-              >
-                <p className="text-sm font-semibold text-slate-700">
-                  Arrastra aqui multiples fotos para subirlas a Cloudinary
-                </p>
-                <p className="mt-1 text-xs text-slate-500">
-                  Tambien puedes seleccionar muchas fotos desde tu equipo.
-                </p>
-                <div className="mt-3 flex flex-wrap justify-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => manualFileInputRef.current?.click()}
-                    disabled={manualUploading}
-                    className="ui-focus rounded-md bg-amber-700 px-3 py-2 text-xs font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60"
-                  >
-                    {manualUploading ? "Subiendo..." : "Seleccionar fotos"}
-                  </button>
-                  <input
-                    ref={manualFileInputRef}
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="hidden"
-                    onChange={(event) => {
-                      const files = Array.from(event.target.files ?? []);
-                      void uploadManualFiles(files);
-                    }}
-                  />
-                </div>
-              </div>
-
-              {manualUploadedImages.length > 0 ? (
-                <div className="rounded-xl border border-slate-200 bg-white p-3">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-600">
-                    Imagenes subidas (arrastra para ordenar)
-                  </p>
-                  <div className="grid gap-2 sm:grid-cols-3 md:grid-cols-4">
-                    {manualUploadedImages.map((imageUrl, index) => (
-                      <div
-                        key={`${imageUrl}-${index}`}
-                        draggable
-                        onDragStart={() => setDraggedImageIndex(index)}
-                        onDragOver={(event) => event.preventDefault()}
-                        onDrop={() => {
-                          if (draggedImageIndex === null) return;
-                          reorderManualImage(draggedImageIndex, index);
-                          setDraggedImageIndex(null);
-                        }}
-                        className="group relative overflow-hidden rounded-lg border border-slate-200 bg-slate-100"
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={imageUrl} alt={`Imagen ${index + 1}`} className="h-24 w-full object-cover" />
-                        <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/50 px-2 py-1 text-[10px] text-white">
-                          <span>#{index + 1}</span>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setManualUploadedImages((prev) => prev.filter((_, imageIndex) => imageIndex !== index))
-                            }
-                            className="ui-focus rounded bg-white/20 px-1.5 py-0.5"
-                          >
-                            Quitar
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="grid gap-2 md:grid-cols-2">
-                <input
-                  value={manualDraft.title}
-                  onChange={(event) => setManualDraft((prev) => ({ ...prev, title: event.target.value }))}
-                  placeholder="Titulo publicacion"
-                  className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
-                />
-                <input
-                  value={manualDraft.subtitle}
-                  onChange={(event) => setManualDraft((prev) => ({ ...prev, subtitle: event.target.value }))}
-                  placeholder="Subtitulo"
-                  className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
-                />
-                <input
-                  value={manualDraft.patente}
-                  onChange={(event) => setManualDraft((prev) => ({ ...prev, patente: event.target.value }))}
-                  placeholder="Patente"
-                  className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
-                />
-                <input
-                  value={manualDraft.brand}
-                  onChange={(event) => setManualDraft((prev) => ({ ...prev, brand: event.target.value }))}
-                  placeholder="Marca"
-                  className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
-                />
-                <input
-                  value={manualDraft.model}
-                  onChange={(event) => setManualDraft((prev) => ({ ...prev, model: event.target.value }))}
-                  placeholder="Modelo"
-                  className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
-                />
-                <input
-                  value={manualDraft.year}
-                  onChange={(event) => setManualDraft((prev) => ({ ...prev, year: event.target.value }))}
-                  placeholder="Ano"
-                  className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
-                />
-                <div className="space-y-2 rounded-md border border-stone-300 bg-stone-100/40 p-2 md:col-span-2">
-                  <div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-center">
-                    <input
-                      value={manualDraft.normalPrice}
-                      onChange={(event) => setManualDraft((prev) => ({ ...prev, normalPrice: event.target.value }))}
-                      placeholder="Precio normal CLP"
-                      className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
-                    />
-                    <label className="inline-flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-                      <input
-                        type="checkbox"
-                        checked={manualDraft.promoEnabled}
-                        onChange={(event) =>
-                          setManualDraft((prev) => ({ ...prev, promoEnabled: event.target.checked }))
-                        }
-                      />
-                      Precio promocional
-                    </label>
-                  </div>
-                  {manualDraft.promoEnabled ? (
-                    <input
-                      value={manualDraft.promoPrice}
-                      onChange={(event) => setManualDraft((prev) => ({ ...prev, promoPrice: event.target.value }))}
-                      placeholder="Precio oferta CLP"
-                      className="ui-focus rounded-md border border-amber-300 bg-white px-3 py-2 text-sm font-semibold text-amber-900"
-                    />
-                  ) : null}
-                </div>
-                <input
-                  value={manualDraft.auctionDate}
-                  onChange={(event) => setManualDraft((prev) => ({ ...prev, auctionDate: event.target.value }))}
-                  placeholder="Fecha (YYYY-MM-DD)"
-                  className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
-                />
-                <input
-                  value={manualDraft.location}
-                  onChange={(event) => setManualDraft((prev) => ({ ...prev, location: event.target.value }))}
-                  placeholder="Ubicacion"
-                  className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm md:col-span-2"
-                />
-                <textarea
-                  value={manualDraft.description}
-                  onChange={(event) => setManualDraft((prev) => ({ ...prev, description: event.target.value }))}
-                  placeholder="Descripcion personalizada"
-                  className="ui-focus min-h-20 rounded-md border border-stone-300 bg-white px-3 py-2 text-sm md:col-span-2"
-                />
-                <details className="md:col-span-2">
-                  <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Opciones avanzadas (links Cloudinary / Glo3D)
-                  </summary>
-                  <div className="mt-2 grid gap-2">
-                    <textarea
-                      value={manualDraft.imagesCsv}
-                      onChange={(event) => setManualDraft((prev) => ({ ...prev, imagesCsv: event.target.value }))}
-                      placeholder="URLs adicionales de Cloudinary separadas por coma (opcional)"
-                      className="ui-focus min-h-16 rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
-                    />
-                    <input
-                      value={manualDraft.thumbnail}
-                      onChange={(event) => setManualDraft((prev) => ({ ...prev, thumbnail: event.target.value }))}
-                      placeholder="URL portada Cloudinary (opcional, si no se usa la primera)"
-                      className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
-                    />
-                    <input
-                      value={manualDraft.view3dUrl}
-                      onChange={(event) => setManualDraft((prev) => ({ ...prev, view3dUrl: event.target.value }))}
-                      placeholder="URL visor 3D (opcional)"
-                      className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
-                    />
-                  </div>
-                </details>
-                <select
-                  value={manualDraft.upcomingAuctionId}
-                  onChange={(event) => setManualDraft((prev) => ({ ...prev, upcomingAuctionId: event.target.value }))}
-                  className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
-                >
-                  <option value="">Sin remate</option>
-                  {sortedUpcomingAuctions.map((auction) => (
-                    <option key={auction.id} value={auction.id}>
-                      {auction.name} ({formatAuctionDateLabel(auction.date)})
-                    </option>
-                  ))}
-                </select>
-                <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={manualDraft.visible}
-                    onChange={(event) => setManualDraft((prev) => ({ ...prev, visible: event.target.checked }))}
-                  />
-                  Visible
-                </label>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                {(["proximos-remates", "ventas-directas", "novedades", "catalogo"] as SectionId[]).map((sectionId) => (
-                  <label key={`manual-modal-section-${sectionId}`} className="inline-flex items-center gap-2 rounded-full border border-stone-300 bg-white px-3 py-1 text-xs text-amber-900">
-                    <input
-                      type="checkbox"
-                      checked={manualDraft.sectionIds.includes(sectionId)}
-                      onChange={() => toggleManualDraftSection(sectionId)}
-                    />
-                    {SECTION_LABELS[sectionId]}
-                  </label>
-                ))}
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={resetManualCreation}
-                  className="ui-focus rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={createManualPublication}
-                  className="ui-focus rounded-md bg-amber-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-amber-600"
-                >
-                  Crear publicacion manual
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ManualPublicationModal
+          draft={manualDraft}
+          setDraft={setManualDraft}
+          uploadedImages={manualUploadedImages}
+          setUploadedImages={setManualUploadedImages}
+          uploading={manualUploading}
+          onUploadFiles={uploadManualFiles}
+          onClose={resetManualCreation}
+          onSubmit={createManualPublication}
+          upcomingAuctions={sortedUpcomingAuctions}
+          formatAuctionDateLabel={formatAuctionDateLabel}
+          toggleSection={toggleManualDraftSection}
+        />
       ) : null}
 
       {showOfferModal && selectedVehicle ? (
@@ -12244,11 +12019,14 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                   >
                     Editar ficha completa
                   </button>
-                  {managingVehicleKey.startsWith("manual-") ? (
+                  {managingItem && isManualCatalogItem(managingItem) ? (
                     <button
                       type="button"
                       onClick={() => {
-                        deleteManualPublication(managingVehicleKey.replace("manual-", ""));
+                        const manualId = String(
+                          (managingItem.raw as Record<string, unknown>).manual_id ?? "",
+                        );
+                        if (manualId) deleteManualPublication(manualId);
                         setManagingVehicleKey(null);
                       }}
                       className="ui-focus rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"

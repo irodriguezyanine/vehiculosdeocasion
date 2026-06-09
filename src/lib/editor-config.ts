@@ -61,8 +61,8 @@ function normalizeConfig(config?: Partial<EditorConfig> | null): EditorConfig {
       : config?.homeLayout?.heroSecondaryCtaLabel ?? defaults.homeLayout.heroSecondaryCtaLabel;
   const incomingSecondaryHref = config?.homeLayout?.heroSecondaryCtaHref?.trim();
   const normalizedSecondaryHref =
-    !incomingSecondaryHref || incomingSecondaryHref === "#proximos-remates"
-      ? "#contacto"
+    !incomingSecondaryHref || incomingSecondaryHref === "#proximos-remates" || incomingSecondaryHref === "#contacto"
+      ? "/contacto"
       : config?.homeLayout?.heroSecondaryCtaHref ?? defaults.homeLayout.heroSecondaryCtaHref;
   return {
     sectionVehicleIds: {

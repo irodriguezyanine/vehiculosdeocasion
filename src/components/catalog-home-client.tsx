@@ -13,8 +13,10 @@ import {
 } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { CatalogCard } from "@/components/catalog-card";
 import { InstagramSection } from "@/components/instagram-section";
+import { SiteHeader } from "@/components/site-header";
 import {
   INSTAGRAM_HANDLE,
   INSTAGRAM_PROFILE_URL,
@@ -26,6 +28,7 @@ import {
   WHATSAPP_DEFAULT_LINK,
   WHATSAPP_WA_ME_BASE,
 } from "@/lib/contact";
+import { COMMERCIAL_EMAIL } from "@/lib/site-content";
 import {
   getHomeEditorChannelLabels,
   isVehicleAssignedToHomeEditorChannels,
@@ -71,11 +74,6 @@ type QuickFilterId =
   | "categoriaOtros";
 type CardDensity = "compact" | "detailed";
 type DetailEditorTabId = "general" | "tecnica";
-type ClientLeadForm = {
-  name: string;
-  phone: string;
-  interest: string;
-};
 type OfferFormState = {
   customerName: string;
   customerEmail: string;
@@ -211,7 +209,7 @@ const VEHICLE_CATEGORY_OPTIONS = [
 
 const WHATSAPP_CTA_URL = WHATSAPP_DEFAULT_LINK;
 const WHATSAPP_PHONE = CONTACT_WHATSAPP_DIGITS;
-const CONTACT_EMAIL = "vehiculosdeocasioncl@gmail.com";
+const CONTACT_EMAIL = COMMERCIAL_EMAIL;
 const MAX_COMPARE_ITEMS = 4;
 const ANALYTICS_STORAGE_KEY = "vehiculosdeocasion_analytics_events";
 const ANALYTICS_VISITOR_ID_KEY = "vehiculosdeocasion_analytics_visitor_id";
@@ -273,7 +271,7 @@ function normalizeEditorConfigClient(
   const requestedHeroKicker = "Automotora y compraventa";
   const requestedPrimaryCta = "Ver catalogo disponible";
   const requestedSecondaryCta = "Contactar por WhatsApp";
-  const requestedSecondaryHref = "#contacto";
+  const requestedSecondaryHref = "/contacto";
   const incomingHeroTitle = value?.homeLayout?.heroTitle;
   const normalizedHeroTitle =
     !incomingHeroTitle ||
@@ -306,7 +304,8 @@ function normalizeEditorConfigClient(
   const normalizedSecondaryHref =
     !incomingSecondaryHref ||
     incomingSecondaryHref === "#proximos-remates" ||
-    incomingSecondaryHref === "#como-participar"
+    incomingSecondaryHref === "#como-participar" ||
+    incomingSecondaryHref === "#contacto"
       ? requestedSecondaryHref
       : value?.homeLayout?.heroSecondaryCtaHref ?? defaults.homeLayout.heroSecondaryCtaHref;
   return {
@@ -2537,7 +2536,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   );
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminView, setAdminView] = useState<"editor" | "home">("home");
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const searchParams = useSearchParams();
   const [showLogin, setShowLogin] = useState(false);
   const [saving, setSaving] = useState(false);
   const [autoSaveState, setAutoSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -2580,12 +2579,6 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   });
   const [compareKeys, setCompareKeys] = useState<string[]>([]);
   const [showComparePanel, setShowComparePanel] = useState(false);
-  const [leadForm, setLeadForm] = useState<ClientLeadForm>({
-    name: "",
-    phone: "",
-    interest: "",
-  });
-  const [leadMessage, setLeadMessage] = useState("");
   const [systemNotice, setSystemNotice] = useState<SystemNotice | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [adminTab, setAdminTab] = useState<AdminTabId>("vehiculos");
@@ -2826,6 +2819,12 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       setObservationsTemplateHtml(saved);
     }
   }, []);
+
+  useEffect(() => {
+    if (searchParams.get("login") !== "1" || isAdmin) return;
+    setShowLogin(true);
+    trackEvent("login_modal_open");
+  }, [searchParams, isAdmin]);
 
   const getActiveHeroEditor = useCallback(() => (
     activeHeroRichEditor === "kicker"
@@ -5377,23 +5376,6 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     };
   }, [selectedVehicle, selectedVehicleLookup, selectedVehicleOverride]);
 
-  const leadWhatsappUrl = useMemo(() => {
-    const base = WHATSAPP_API_BASE;
-    const text = `Hola, soy ${leadForm.name || "cliente"} y me interesa ${leadForm.interest || "recibir asesoria comercial"}. Mi contacto: ${leadForm.phone || "sin telefono"}.`;
-    return `${base}&text=${encodeURIComponent(text)}&type=phone_number&app_absent=0`;
-  }, [leadForm]);
-
-  const submitLeadForm = () => {
-    if (!leadForm.name.trim() || !leadForm.phone.trim()) {
-      setLeadMessage("Completa nombre y telefono para continuar.");
-      trackEvent("lead_form_invalid");
-      return;
-    }
-    trackEvent("lead_form_submit", { name: leadForm.name, phone: leadForm.phone, interest: leadForm.interest });
-    setLeadMessage("Perfecto. Te estamos redirigiendo a WhatsApp para contacto inmediato.");
-    window.open(leadWhatsappUrl, "_blank", "noreferrer");
-  };
-
   const openOfferModal = useCallback(() => {
     if (!selectedVehicle) return;
     if (selectedVehicleReferencePriceAmount <= 0) {
@@ -6774,7 +6756,6 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     }
     setAdminView("editor");
     resetAdminInventoryFilters();
-    setMobileMenuOpen(false);
     trackEvent("admin_login_success");
   };
 
@@ -6782,7 +6763,6 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
     setIsAdmin(false);
     setAdminView("home");
-    setMobileMenuOpen(false);
     setServerSaveStatus("checking");
     setServerSaveMessage("");
     trackEvent("admin_logout");
@@ -6822,19 +6802,6 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     );
   };
 
-  const topSectionTabs: Array<{ id: SectionId; label: string }> = [
-    { id: "proximos-remates", label: "Destacados" },
-    { id: "ventas-directas", label: "Ventas directas" },
-    { id: "novedades", label: "Novedades" },
-    { id: "catalogo", label: "Catalogo" },
-  ];
-
-  const handleTopSectionTabClick = (sectionId: SectionId) => {
-    setTopSectionFilter((prev) => (prev === sectionId ? "all" : sectionId));
-    if (typeof document === "undefined") return;
-    const target = document.getElementById(sectionId);
-    if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
 
   const canAdminEditNow = isAdmin && serverSaveStatus === "ready";
   const showAdminEditor = isAdmin && adminView === "editor";
@@ -7638,173 +7605,47 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
         dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
       />
 
-      <section className="top-nav-shell sticky z-30">
-        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-3 py-2 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between gap-3 md:gap-4">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-2"
-              onClick={(event) => {
-                if (isAdmin && adminView === "editor") {
-                  event.preventDefault();
-                  setAdminView("home");
-                }
-                setTopSectionFilter("all");
-                setHomeSearchTerm("");
-                setQuickFilters([]);
-                setMobileMenuOpen(false);
-                if (typeof window !== "undefined") {
-                  window.scrollTo({ top: 0, behavior: "smooth" });
-                }
-              }}
-            >
-              <Image
-                src="/vehiculos-ocasion-logo.png"
-                alt="Logo Vehículos de Ocasión"
-                width={72}
-                height={72}
-                priority
-                className="h-14 w-14 rounded-full object-cover sm:h-16 sm:w-16"
-              />
-              <span className="brand-wordmark hidden text-xl text-[#4d2f1d] sm:inline-block">
-                Vehiculos de Ocasion
-              </span>
-            </Link>
+      <SiteHeader
+        onLogoClick={(event) => {
+          if (isAdmin && adminView === "editor") {
+            event.preventDefault();
+            setAdminView("home");
+          }
+          setTopSectionFilter("all");
+          setHomeSearchTerm("");
+          setQuickFilters([]);
+          if (typeof window !== "undefined") {
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }
+        }}
+        onLoginClick={() => {
+          setShowLogin(true);
+          trackEvent("login_modal_open");
+        }}
+        isAdmin={isAdmin}
+        adminView={adminView}
+        onViewHome={() => setAdminView("home")}
+        onOpenEditor={openAdminEditorView}
+        onLogout={logout}
+      >
+        {feed.warning ? (
+          <p className="rounded-md border border-amber-300/60 bg-amber-100 px-3 py-2 text-sm text-amber-900">{feed.warning}</p>
+        ) : null}
+        {isAdmin && serverSaveStatus === "blocked" ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-800">
+            <span>{`Edicion bloqueada: ${serverSaveMessage || "servidor no disponible"}`}</span>
             <button
               type="button"
-              onClick={() => setMobileMenuOpen((prev) => !prev)}
-              className="ui-focus touch-target inline-flex items-center justify-center rounded-lg border border-amber-300/70 bg-[#fff8f1] text-[#6b3d1e] md:hidden"
-              aria-label={mobileMenuOpen ? "Cerrar menu" : "Abrir menu"}
-              aria-expanded={mobileMenuOpen}
-              aria-controls="mobile-main-menu"
+              onClick={() => {
+                void retryServerSaveCheck();
+              }}
+              className="ui-focus rounded-full border border-current px-3 py-1 text-[11px] font-bold"
             >
-              <span className="text-lg leading-none">{mobileMenuOpen ? "×" : "☰"}</span>
+              Reintentar conexion
             </button>
-            <div className="hidden items-center gap-2 md:flex">
-              <nav className="flex flex-wrap gap-2 text-sm">
-                {topSectionTabs.map((tab) => (
-                  <button
-                    key={`top-tab-desktop-${tab.id}`}
-                    type="button"
-                    onClick={() => handleTopSectionTabClick(tab.id)}
-                    className={`premium-link-pill ui-focus ${
-                      topSectionFilter === tab.id ? "border-amber-400 bg-amber-700 text-white" : ""
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </nav>
-              {isAdmin ? (
-                <>
-                  {adminView === "editor" ? (
-                    <button
-                      className="ui-focus rounded-full border border-slate-300 bg-white px-3 py-1 text-xs text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-100"
-                      onClick={() => setAdminView("home")}
-                    >
-                      Ver home
-                    </button>
-                  ) : (
-                    <button
-                      className="ui-focus rounded-full border border-amber-300 bg-stone-100 px-3 py-1 text-xs text-amber-800 transition hover:-translate-y-0.5 hover:bg-stone-200"
-                      onClick={openAdminEditorView}
-                    >
-                      Volver al editor
-                    </button>
-                  )}
-                  <button className="ui-focus rounded-full bg-slate-900 px-3 py-1 text-xs text-white transition hover:-translate-y-0.5 hover:bg-slate-700" onClick={logout}>
-                    Salir editor
-                  </button>
-                </>
-              ) : (
-                <button className="ui-focus rounded-full bg-amber-700 px-3 py-1 text-xs text-white transition hover:-translate-y-0.5 hover:bg-amber-600" onClick={() => { setShowLogin(true); trackEvent("login_modal_open"); }}>
-                  Login
-                </button>
-              )}
-            </div>
           </div>
-          {mobileMenuOpen ? (
-            <>
-              <button
-                type="button"
-                className="mobile-menu-backdrop md:hidden"
-                aria-label="Cerrar menu"
-                onClick={() => setMobileMenuOpen(false)}
-              />
-              <div id="mobile-main-menu" className="mobile-menu-panel rounded-lg border border-slate-200 bg-white p-3 md:hidden">
-              <nav className="flex flex-col gap-2 text-sm">
-                {topSectionTabs.map((tab) => (
-                  <button
-                    key={`top-tab-mobile-${tab.id}`}
-                    type="button"
-                    onClick={() => {
-                      handleTopSectionTabClick(tab.id);
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`premium-link-pill ui-focus text-center ${
-                      topSectionFilter === tab.id ? "border-amber-400 bg-amber-700 text-white" : ""
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </nav>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {isAdmin ? (
-                  <>
-                    {adminView === "editor" ? (
-                      <button
-                        className="ui-focus flex-1 rounded-full border border-slate-300 bg-white px-3 py-1 text-xs text-slate-700"
-                        onClick={() => {
-                          setAdminView("home");
-                          setMobileMenuOpen(false);
-                        }}
-                      >
-                        Ver home
-                      </button>
-                    ) : (
-                      <button
-                        className="ui-focus flex-1 rounded-full border border-amber-300 bg-stone-100 px-3 py-1 text-xs text-amber-800"
-                        onClick={() => {
-                          openAdminEditorView();
-                          setMobileMenuOpen(false);
-                        }}
-                      >
-                        Volver al editor
-                      </button>
-                    )}
-                    <button className="ui-focus flex-1 rounded-full bg-slate-900 px-3 py-1 text-xs text-white" onClick={logout}>
-                      Salir editor
-                    </button>
-                  </>
-                ) : (
-                  <button className="ui-focus w-full rounded-full bg-amber-700 px-3 py-1 text-xs text-white" onClick={() => { setShowLogin(true); setMobileMenuOpen(false); trackEvent("login_modal_open"); }}>
-                    Login
-                  </button>
-                )}
-              </div>
-            </div>
-            </>
-          ) : null}
-          {feed.warning ? (
-            <p className="rounded-md border border-amber-300/60 bg-amber-100 px-3 py-2 text-sm text-amber-900">{feed.warning}</p>
-          ) : null}
-          {isAdmin && serverSaveStatus === "blocked" ? (
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-800">
-              <span>{`Edicion bloqueada: ${serverSaveMessage || "servidor no disponible"}`}</span>
-              <button
-                type="button"
-                onClick={() => {
-                  void retryServerSaveCheck();
-                }}
-                className="ui-focus rounded-full border border-current px-3 py-1 text-[11px] font-bold"
-              >
-                Reintentar conexion
-              </button>
-            </div>
-          ) : null}
-        </div>
-      </section>
+        ) : null}
+      </SiteHeader>
 
       {showAdminEditor ? (
         <section className="relative z-10 mx-auto mt-6 max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -10488,112 +10329,6 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       {config.homeLayout.showFeaturedStrip ? (
         <FeaturedStrip items={featuredItems} onOpenVehicle={openVehicleDetail} />
       ) : null}
-      <section className="relative z-10 mx-auto mt-10 mb-14 grid max-w-7xl gap-6 px-4 sm:px-6 lg:mt-12 lg:grid-cols-2 lg:px-8">
-        <div className="section-shell">
-          <p className="premium-kicker">Confianza Vehículos de Ocasión</p>
-          <h2 className="text-2xl font-bold text-slate-900">Experiencia respaldada</h2>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {[
-              ["Precios competitivos", "Seleccionamos unidades con una propuesta de valor por debajo del promedio del mercado."],
-              ["Visor GLO3D", "Publicamos vehiculos con una experiencia inmersiva para revisar detalles con mayor confianza."],
-              ["Asesoria directa", "Te apoyamos por WhatsApp durante todo el proceso de compra o reserva de tu unidad."],
-              ["Gestion documental", "Coordinamos el cierre comercial y la documentacion para una compra mas simple."],
-            ].map(([title, text]) => (
-              <div key={title} className="rounded-xl border border-slate-200 bg-white p-4">
-                <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
-                <p className="mt-1 text-sm text-slate-600">{text}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="section-shell">
-          <p className="premium-kicker">Preguntas frecuentes</p>
-          <h2 className="text-2xl font-bold text-slate-900">Resuelve dudas rapidas</h2>
-          <div className="mt-4 space-y-2">
-            {[
-              ["¿Como reservo un vehiculo?", "Contactanos por WhatsApp y te guiamos con toda la informacion comercial de la unidad."],
-              ["¿Puedo revisar vehiculos antes?", "Si. Podemos coordinar revision presencial y tambien apoyarte con fotos, video y GLO3D."],
-              ["¿Todos los vehiculos tienen visor 3D?", "No todos, pero los que lo tienen aparecen marcados como 3D."],
-              ["¿Donde recibo apoyo comercial?", "Nuestro equipo responde por WhatsApp e Instagram en horario comercial."],
-            ].map(([question, answer]) => (
-              <details key={question} className="rounded-lg border border-slate-200 bg-white p-3">
-                <summary className="cursor-pointer py-1 text-sm font-semibold text-slate-900">{question}</summary>
-                <p className="mt-2 text-sm text-slate-600">{answer}</p>
-              </details>
-            ))}
-          </div>
-          <div id="contacto" className="mt-4 rounded-lg border border-stone-300 bg-stone-100/70 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-amber-900">Contacto comercial</p>
-            <p className="mt-1 text-sm text-slate-700">
-              <a href={`mailto:${CONTACT_EMAIL}`} className="ui-focus text-amber-800 underline">
-                {CONTACT_EMAIL}
-              </a>
-            </p>
-            <p className="mt-1 text-sm text-slate-700">
-              WhatsApp:
-              {" "}
-              <a href={WHATSAPP_CTA_URL} target="_blank" rel="noreferrer" className="ui-focus text-amber-800 underline">
-                {CONTACT_PHONE}
-              </a>
-              {" "} · Instagram:
-              {" "}
-              <a href={INSTAGRAM_PROFILE_URL} target="_blank" rel="noreferrer" className="ui-focus text-amber-800 underline">
-                {INSTAGRAM_HANDLE}
-              </a>
-            </p>
-          </div>
-        </div>
-      </section>
-      <section className="relative z-10 mx-auto mb-14 max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="section-shell">
-          <p className="premium-kicker">Asesoria personalizada</p>
-          <h2 className="text-2xl font-bold text-slate-900">Te ayudamos a encontrar tu proxima unidad</h2>
-          <p className="mt-2 text-sm text-slate-600">
-            Dejanos tus datos y te contactamos por WhatsApp para guiarte en la compra de tu vehiculo.
-          </p>
-          <div className="mt-4 grid gap-3 md:grid-cols-4">
-            <input
-              value={leadForm.name}
-              onChange={(event) =>
-                setLeadForm((prev) => ({ ...prev, name: event.target.value }))
-              }
-              className="ui-focus min-h-11 rounded-md border border-slate-300 bg-white px-3 py-2 text-base md:text-sm"
-              placeholder="Nombre"
-              aria-label="Nombre de contacto"
-              autoComplete="name"
-            />
-            <input
-              value={leadForm.phone}
-              onChange={(event) =>
-                setLeadForm((prev) => ({ ...prev, phone: event.target.value }))
-              }
-              className="ui-focus min-h-11 rounded-md border border-slate-300 bg-white px-3 py-2 text-base md:text-sm"
-              placeholder="Telefono"
-              aria-label="Telefono de contacto"
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel"
-            />
-            <input
-              value={leadForm.interest}
-              onChange={(event) =>
-                setLeadForm((prev) => ({ ...prev, interest: event.target.value }))
-              }
-              className="ui-focus min-h-11 rounded-md border border-slate-300 bg-white px-3 py-2 text-base md:text-sm"
-              placeholder="¿Que vehiculo buscas?"
-              aria-label="Interes de vehiculo"
-            />
-            <button
-              type="button"
-              onClick={submitLeadForm}
-              className="ui-focus min-h-11 rounded-md bg-amber-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600"
-            >
-              Solicitar asesoria
-            </button>
-          </div>
-          {leadMessage ? <p className="mt-2 text-xs font-semibold text-amber-800">{leadMessage}</p> : null}
-        </div>
-      </section>
 
       {selectedVehicle ? (
         <div

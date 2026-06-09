@@ -25,6 +25,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   const discovery: MetadataRoute.Sitemap = [
     {
+      url: `${siteUrl}/nosotros`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.85,
+    },
+    {
+      url: `${siteUrl}/contacto`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.85,
+    },
+    {
       url: `${siteUrl}/dejar-resena`,
       lastModified: now,
       changeFrequency: "monthly",

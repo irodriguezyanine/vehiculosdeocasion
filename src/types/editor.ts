@@ -201,7 +201,7 @@ export const DEFAULT_EDITOR_CONFIG: EditorConfig = {
     heroPrimaryCtaLabel: "Ver catálogo disponible",
     heroPrimaryCtaHref: "#catalogo",
     heroSecondaryCtaLabel: "Contactar por WhatsApp",
-    heroSecondaryCtaHref: "#contacto",
+    heroSecondaryCtaHref: "/contacto",
     heroAlignment: "left",
     heroTheme: "slate",
     heroMaxWidth: "xl",

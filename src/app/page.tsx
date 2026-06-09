@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { CatalogHomeClient } from "@/components/catalog-home-client";
 import { StructuredData } from "@/components/structured-data";
 import { getCatalogFeed } from "@/lib/catalog";
@@ -23,7 +24,9 @@ export default async function Home() {
   return (
     <>
       <StructuredData data={buildHomeJsonLd(feed.items)} />
-      <CatalogHomeClient feed={feed} initialConfig={editorConfigResult.config} />
+      <Suspense fallback={null}>
+        <CatalogHomeClient feed={feed} initialConfig={editorConfigResult.config} />
+      </Suspense>
     </>
   );
 }

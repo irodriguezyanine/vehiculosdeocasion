@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { WhatsAppFloatingButton } from "@/components/whatsapp-floating-button";
 import { buildSiteMetadata } from "@/lib/seo/metadata";
 import { getSiteUrl } from "@/lib/seo/site-config";
 import "./globals.css";
@@ -39,7 +40,10 @@ export default function RootLayout({
         <link rel="alternate" type="text/plain" href={`${siteUrl}/ai.txt`} title="AI discovery file" />
         <link rel="alternate" type="application/rss+xml" href={`${siteUrl}/feed.xml`} title="RSS catálogo autos usados" />
       </head>
-      <body className="app-body min-h-full flex flex-col overflow-x-hidden">{children}</body>
+      <body className="app-body min-h-full flex flex-col overflow-x-hidden">
+        {children}
+        <WhatsAppFloatingButton />
+      </body>
     </html>
   );
 }

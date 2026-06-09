@@ -4658,6 +4658,25 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     [homeVisibleItems, compareKeys],
   );
 
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (selectedVehicle) {
+      document.body.setAttribute("data-vehicle-detail-open", "true");
+      document.body.removeAttribute("data-compare-open");
+    } else {
+      document.body.removeAttribute("data-vehicle-detail-open");
+      if (compareItems.length > 0) {
+        document.body.setAttribute("data-compare-open", "true");
+      } else {
+        document.body.removeAttribute("data-compare-open");
+      }
+    }
+    return () => {
+      document.body.removeAttribute("data-vehicle-detail-open");
+      document.body.removeAttribute("data-compare-open");
+    };
+  }, [selectedVehicle, compareItems.length]);
+
   const selectedVehicleLookup = useMemo(
     () =>
       selectedVehicle
@@ -12240,19 +12259,6 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
             </div>
           </div>
         </div>
-      ) : null}
-      {showPublicHome ? (
-        <a
-          href={WHATSAPP_CTA_URL}
-          target="_blank"
-          rel="noreferrer"
-          onClick={() => trackEvent("whatsapp_click_floating")}
-          className={`ui-focus mobile-fab fixed right-4 z-40 inline-flex min-h-11 items-center gap-2 rounded-full bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white shadow-lg md:hidden ${
-            selectedVehicle ? "mobile-fab-with-bar" : compareItems.length > 0 ? "mobile-fab-with-compare" : ""
-          }`}
-        >
-          <span>WhatsApp</span>
-        </a>
       ) : null}
 
       {systemNotice ? (

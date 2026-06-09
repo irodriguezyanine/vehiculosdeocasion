@@ -1,10 +1,6 @@
-import { BUSINESS } from "@/lib/seo/site-config";
-
-export const INSTAGRAM_USERNAME = "vehiculosdeocasioncl";
+export const INSTAGRAM_USERNAME = "autosdeoc";
 export const INSTAGRAM_HANDLE = `@${INSTAGRAM_USERNAME}`;
-export const INSTAGRAM_PROFILE_URL = BUSINESS.sameAs.find((url) =>
-  url.includes("instagram.com"),
-) ?? `https://www.instagram.com/${INSTAGRAM_USERNAME}/`;
+export const INSTAGRAM_PROFILE_URL = `https://www.instagram.com/${INSTAGRAM_USERNAME}/`;
 
 export type InstagramProfile = {
   username: string;
@@ -35,7 +31,7 @@ export const INSTAGRAM_FALLBACK_PROFILE: InstagramProfile = {
   username: INSTAGRAM_USERNAME,
   fullName: "Vehículos de Ocasión",
   biography:
-    "Automotora oficial de vehículos seminuevos de VEDISA REMATES. Catálogo, fotos, visor 3D y contacto directo por WhatsApp.",
+    "Vehículos de Ocasión es una empresa especializada en la comercialización de vehículos a precios competitivos, por debajo del promedio del mercado.",
   profileUrl: INSTAGRAM_PROFILE_URL,
 };
 

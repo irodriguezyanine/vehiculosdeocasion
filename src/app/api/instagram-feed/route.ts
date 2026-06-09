@@ -143,7 +143,9 @@ async function fetchFromGraphApi(token: string): Promise<InstagramFeedResponse |
         followersCount: profileData.followers_count,
         followingCount: profileData.follows_count,
         postsCount: profileData.media_count,
-        profileUrl: INSTAGRAM_PROFILE_URL,
+        profileUrl: profileData.username
+          ? `https://www.instagram.com/${profileData.username}/`
+          : INSTAGRAM_PROFILE_URL,
       },
       items,
       source: "graph_api",

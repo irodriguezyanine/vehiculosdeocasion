@@ -40,7 +40,7 @@ export const BUSINESS = {
     "Los Lagos",
   ],
   sameAs: [
-    "https://www.instagram.com/vehiculosdeocasioncl",
+    "https://www.instagram.com/autosdeoc",
     "https://www.vedisaremates.cl",
   ],
   parentOrganization: "VEDISA REMATES",

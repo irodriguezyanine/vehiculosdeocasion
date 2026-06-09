@@ -6795,7 +6795,11 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   const showAdminEditor = isAdmin && adminView === "editor";
   const showPublicHome = !isAdmin || adminView === "home";
   const shouldShowSaveIndicator =
-    serverSaveStatus !== "ready" || autoSaveState !== "idle" || saving;
+    serverSaveStatus === "blocked" ||
+    autoSaveState === "saving" ||
+    autoSaveState === "saved" ||
+    autoSaveState === "error" ||
+    saving;
   const hasActiveSearch = homeSearchTerm.trim().length > 0;
   const hasActiveSearchOrQuickFilters =
     hasActiveSearch || quickFilters.length > 0 || topSectionFilter !== "all";
@@ -7740,19 +7744,9 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
           {feed.warning ? (
             <p className="rounded-md border border-amber-300/60 bg-amber-100 px-3 py-2 text-sm text-amber-900">{feed.warning}</p>
           ) : null}
-          {isAdmin && serverSaveStatus !== "ready" ? (
-            <div
-              className={`flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs font-semibold ${
-                serverSaveStatus === "checking"
-                  ? "border-amber-300 bg-amber-50 text-amber-800"
-                  : "border-rose-300 bg-rose-50 text-rose-800"
-              }`}
-            >
-              <span>
-                {serverSaveStatus === "checking"
-                  ? "Verificando guardado global en servidor..."
-                  : `Edicion bloqueada: ${serverSaveMessage || "servidor no disponible"}`}
-              </span>
+          {isAdmin && serverSaveStatus === "blocked" ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-800">
+              <span>{`Edicion bloqueada: ${serverSaveMessage || "servidor no disponible"}`}</span>
               <button
                 type="button"
                 onClick={() => {
@@ -7784,8 +7778,6 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                     className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
                       serverSaveStatus === "blocked" || autoSaveState === "error"
                         ? "border border-rose-200 bg-rose-50 text-rose-700"
-                        : serverSaveStatus === "checking"
-                          ? "border border-amber-200 bg-amber-50 text-amber-700"
                         : autoSaveState === "saving" || saving
                           ? "border border-amber-200 bg-amber-50 text-amber-700"
                           : "border border-emerald-200 bg-emerald-50 text-emerald-700"
@@ -7795,7 +7787,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                       <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
                         <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm0-11a.75.75 0 0 1 .75.75v3.75a.75.75 0 0 1-1.5 0V7.75A.75.75 0 0 1 10 7Zm0 7a.875.875 0 1 0 0-1.75.875.875 0 0 0 0 1.75Z" clipRule="evenodd" />
                       </svg>
-                    ) : serverSaveStatus === "checking" || autoSaveState === "saving" || saving ? (
+                    ) : autoSaveState === "saving" || saving ? (
                       <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 animate-spin" fill="none" aria-hidden="true">
                         <circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="2" strokeOpacity="0.28" />
                         <path d="M17 10a7 7 0 0 0-7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -7808,8 +7800,6 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                     <span>
                       {serverSaveStatus === "blocked"
                         ? "Edicion bloqueada (sin guardado global)"
-                        : serverSaveStatus === "checking"
-                          ? "Verificando guardado global..."
                         : autoSaveState === "error"
                           ? "Error de guardado en servidor"
                         : autoSaveState === "saving" || saving

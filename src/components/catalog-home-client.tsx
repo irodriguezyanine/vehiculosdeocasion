@@ -8,6 +8,7 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent,
+  type ReactNode,
   type WheelEvent as ReactWheelEvent,
 } from "react";
 import Image from "next/image";
@@ -2060,6 +2061,67 @@ function FeaturedStrip({ items, onOpenVehicle }: FeaturedStripProps) {
   );
 }
 
+type MinimizableSectionHeaderProps = {
+  kicker?: string;
+  title: string;
+  subtitle?: string;
+  count: number;
+  countLabel?: string;
+  isMinimized: boolean;
+  onToggleMinimize: () => void;
+  titleClassName?: string;
+  subtitleClassName?: string;
+  trailing?: ReactNode;
+};
+
+function MinimizableSectionHeader({
+  kicker,
+  title,
+  subtitle,
+  count,
+  countLabel = "publicaciones",
+  isMinimized,
+  onToggleMinimize,
+  titleClassName = "text-2xl font-bold text-[#2f1e13]",
+  subtitleClassName = "mt-1 text-sm text-[#6f563f]",
+  trailing,
+}: MinimizableSectionHeaderProps) {
+  return (
+    <header
+      className={`flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between ${
+        isMinimized ? "mb-0" : "mb-4"
+      }`}
+    >
+      <div className="min-w-0 flex-1">
+        {isMinimized ? (
+          <h2 className="text-xl font-bold text-[#2f1e13]">{title}</h2>
+        ) : (
+          <>
+            {kicker ? <p className="premium-kicker">{kicker}</p> : null}
+            <h2 className={titleClassName}>{title}</h2>
+            {subtitle ? <p className={subtitleClassName}>{subtitle}</p> : null}
+          </>
+        )}
+      </div>
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <span className="inline-flex w-fit rounded-full border border-amber-300/70 bg-[#f3e3d4] px-3 py-1 text-xs font-semibold text-[#6b3d1e]">
+          {count} {countLabel}
+        </span>
+        <button
+          type="button"
+          onClick={onToggleMinimize}
+          className="ui-focus inline-flex rounded-full border border-amber-300/70 bg-white px-3 py-1 text-xs font-semibold text-[#6b3d1e] transition hover:bg-[#fff6ec]"
+          aria-expanded={!isMinimized}
+          aria-label={`${isMinimized ? "Expandir" : "Minimizar"} seccion ${title}`}
+        >
+          {isMinimized ? "Expandir" : "Minimizar"}
+        </button>
+        {!isMinimized ? trailing : null}
+      </div>
+    </header>
+  );
+}
+
 type SectionProps = {
   id: string;
   title: string;
@@ -2326,39 +2388,27 @@ function Section({
   canInlineEdit = false,
   onInlineSaveItem,
 }: SectionProps) {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isMinimized, setIsMinimized] = useState(false);
 
   return (
-    <section id={id} className="section-shell scroll-mt-24">
-      <header className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="premium-kicker">Seccion destacada</p>
-          <h2 className="text-2xl font-bold text-[#2f1e13]">{title}</h2>
-          <p className="mt-1 text-sm text-[#6f563f]">{subtitle}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-flex w-fit rounded-full border border-amber-300/70 bg-[#f3e3d4] px-3 py-1 text-xs font-semibold text-[#6b3d1e]">
-            {items.length} publicaciones
-          </span>
-          {items.length > 0 ? (
-            <button
-              type="button"
-              onClick={() => setIsExpanded((prev) => !prev)}
-              className="ui-focus inline-flex rounded-full border border-amber-300/70 bg-white px-3 py-1 text-xs font-semibold text-[#6b3d1e] transition hover:bg-[#fff6ec]"
-              aria-expanded={isExpanded}
-              aria-label={`${isExpanded ? "Contraer" : "Expandir"} seccion ${title}`}
-            >
-              {isExpanded ? "Contraer" : "Expandir"}
-            </button>
-          ) : null}
-        </div>
-      </header>
+    <section
+      id={id}
+      className={`section-shell scroll-mt-24 ${isMinimized ? "py-4 sm:py-4" : ""}`}
+    >
+      <MinimizableSectionHeader
+        kicker="Seccion destacada"
+        title={title}
+        subtitle={subtitle}
+        count={items.length}
+        isMinimized={isMinimized}
+        onToggleMinimize={() => setIsMinimized((prev) => !prev)}
+      />
 
-      {items.length === 0 ? (
+      {isMinimized ? null : items.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-amber-300/70 bg-[#f9efe5] p-6 text-sm text-[#7a614d]">
           No encontramos unidades en esta seccion. Prueba limpiar filtros o cambiar el tipo de vehiculo.
         </div>
-      ) : isExpanded ? (
+      ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {items.map((item, index) => (
             <CatalogCard
@@ -2389,21 +2439,6 @@ function Section({
             />
           ))}
         </div>
-      ) : (
-        <HorizontalCardsRail
-          sectionKey={id}
-          items={items}
-          priceMap={priceMap}
-          upcomingAuctionByVehicleKey={upcomingAuctionByVehicleKey}
-          favoriteKeys={favoriteKeys}
-          onToggleFavorite={onToggleFavorite}
-          compareKeys={compareKeys}
-          onToggleCompare={onToggleCompare}
-          onOpenVehicle={onOpenVehicle}
-          cardDensity={cardDensity}
-          canInlineEdit={canInlineEdit}
-          onInlineSaveItem={onInlineSaveItem}
-        />
       )}
     </section>
   );
@@ -2439,18 +2474,26 @@ function UpcomingAuctionsSection({
   canInlineEdit = false,
   onInlineSaveItem,
 }: UpcomingAuctionsSectionProps) {
+  const [isMinimized, setIsMinimized] = useState(false);
   const visibleGroups = groups.filter((group) => group.items.length > 0);
   if (visibleGroups.length === 0) return null;
+  const totalItems = visibleGroups.reduce((sum, group) => sum + group.items.length, 0);
 
   return (
-    <section id="proximos-remates" className="section-shell scroll-mt-24">
-      <header className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="premium-kicker">Vitrina destacada</p>
-          <h2 className="text-2xl font-bold text-[#2f1e13]">Destacados</h2>
-          <p className="mt-1 text-sm text-[#6f563f]">Unidades priorizadas y organizadas para facilitar tu decision de compra.</p>
-        </div>
-      </header>
+    <section
+      id="proximos-remates"
+      className={`section-shell scroll-mt-24 ${isMinimized ? "py-4 sm:py-4" : ""}`}
+    >
+      <MinimizableSectionHeader
+        kicker="Vitrina destacada"
+        title="Destacados"
+        subtitle="Unidades priorizadas y organizadas para facilitar tu decision de compra."
+        count={totalItems}
+        countLabel={totalItems === 1 ? "publicacion" : "publicaciones"}
+        isMinimized={isMinimized}
+        onToggleMinimize={() => setIsMinimized((prev) => !prev)}
+      />
+      {isMinimized ? null : (
       <div className="space-y-8">
         {visibleGroups.map(({ auction, items }) => (
           <div key={auction.id}>
@@ -2477,6 +2520,7 @@ function UpcomingAuctionsSection({
           </div>
         ))}
       </div>
+      )}
     </section>
   );
 }
@@ -2645,6 +2689,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   const [activeHeroRichEditor, setActiveHeroRichEditor] = useState<"kicker" | "title" | "subtitle">("subtitle");
   const [isDownloadingCalendarPdf, setIsDownloadingCalendarPdf] = useState(false);
   const [showHomeFiltersPanel, setShowHomeFiltersPanel] = useState(false);
+  const [catalogSectionMinimized, setCatalogSectionMinimized] = useState(false);
   const homeSearchShellRef = useRef<HTMLDivElement | null>(null);
   const [heroToolbarState, setHeroToolbarState] = useState(() => ({
     formatBlock: "p" as "p" | "h2" | "h3",
@@ -10375,32 +10420,45 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
           }
           if (filteredCatalogItems.length === 0) return null;
           return (
-            <section key="public-catalogo" id="catalogo" className="section-shell scroll-mt-24">
-              <header className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <p className="premium-kicker">Explora y decide</p>
-                  <h2 className="text-2xl font-bold text-slate-900">{config.sectionTexts.catalogo.title}</h2>
-                  <p className="mt-1 text-sm text-slate-600">
-                    {config.sectionTexts.catalogo.subtitle} Usa filtros y comparacion para decidir mas rapido.
-                  </p>
+            <section
+              key="public-catalogo"
+              id="catalogo"
+              className={`section-shell scroll-mt-24 ${catalogSectionMinimized ? "py-4 sm:py-4" : ""}`}
+            >
+              <MinimizableSectionHeader
+                kicker="Explora y decide"
+                title={config.sectionTexts.catalogo.title}
+                subtitle={`${config.sectionTexts.catalogo.subtitle} Usa filtros y comparacion para decidir mas rapido.`}
+                count={filteredCatalogItems.length}
+                isMinimized={catalogSectionMinimized}
+                onToggleMinimize={() => setCatalogSectionMinimized((prev) => !prev)}
+                titleClassName="text-2xl font-bold text-slate-900"
+                subtitleClassName="mt-1 text-sm text-slate-600"
+              />
+              {!catalogSectionMinimized && !hasHomePreFilter ? (
+                <div className="mb-4 flex flex-wrap gap-2">
+                  {(["livianos", "pesados", "maquinaria", "otros"] as VehicleTypeId[]).map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => setActiveTypeTab(type)}
+                      className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold transition ${
+                        activeTypeTab === type
+                          ? "bg-amber-700 text-white shadow-sm"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      }`}
+                    >
+                      {type === "livianos"
+                        ? "Vehiculos livianos"
+                        : type === "pesados"
+                          ? "Vehiculos pesados"
+                          : type === "maquinaria"
+                            ? "Maquinaria"
+                            : "Otros"}
+                    </button>
+                  ))}
                 </div>
-                {hasHomePreFilter ? null : (
-                  <div className="flex flex-wrap gap-2">
-                    {(["livianos", "pesados", "maquinaria", "otros"] as VehicleTypeId[]).map((type) => (
-                      <button
-                        key={type}
-                        onClick={() => setActiveTypeTab(type)}
-                        className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold transition ${
-                          activeTypeTab === type ? "bg-amber-700 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                        }`}
-                      >
-                        {type === "livianos" ? "Vehiculos livianos" : type === "pesados" ? "Vehiculos pesados" : type === "maquinaria" ? "Maquinaria" : "Otros"}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </header>
-              {filteredCatalogItems.length === 0 ? (
+              ) : null}
+              {catalogSectionMinimized ? null : filteredCatalogItems.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500">
                   No encontramos vehiculos para esta combinacion.
                   {" "}

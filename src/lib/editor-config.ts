@@ -224,6 +224,28 @@ export async function getEditorConfig(): Promise<EditorConfigLoadResult> {
   return { config, persisted, scopeId };
 }
 
+export async function checkEditorPersistenceHealth(): Promise<{ ok: boolean; error?: string }> {
+  const supabase = getServerSupabase();
+  if (!supabase) {
+    return {
+      ok: false,
+      error: "Falta SUPABASE_SERVICE_ROLE_KEY o URL para guardar configuracion.",
+    };
+  }
+
+  const { error } = await supabase.from(EDITOR_TABLE).select("id").eq("id", EDITOR_ROW_ID).limit(1);
+  if (error) {
+    return {
+      ok: false,
+      error:
+        `No se pudo acceder a la tabla '${EDITOR_TABLE}'. ` +
+        "Verifica que exista con columnas id (pk) y config (jsonb).",
+    };
+  }
+
+  return { ok: true };
+}
+
 export async function saveEditorConfig(config: EditorConfig, updatedBy: string): Promise<{ ok: boolean; error?: string }> {
   const supabase = getServerSupabase();
   if (!supabase) {

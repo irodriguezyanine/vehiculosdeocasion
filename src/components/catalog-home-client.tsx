@@ -13,7 +13,7 @@ import {
 } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { CatalogCard } from "@/components/catalog-card";
 import { InstagramSection } from "@/components/instagram-section";
 import { BulkManualPublicationsModal } from "@/components/bulk-manual-publications-modal";
@@ -63,6 +63,10 @@ import {
   normalizePatentToken,
 } from "@/lib/patent-input";
 import { SITE_EDITOR_SCOPE } from "@/lib/editor-config";
+import {
+  collectAutoredLookupPatents,
+  enrichPublishedVehiclesConfig,
+} from "@/lib/enrich-published-vehicles";
 import type { CatalogFeed, CatalogItem } from "@/types/catalog";
 import type { OfferRecord } from "@/types/offers";
 import {
@@ -2743,6 +2747,7 @@ type Props = {
 };
 
 export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad = false }: Props) {
+  const router = useRouter();
   const [config, setConfig] = useState<EditorConfig>(() =>
     normalizeEditorConfigClient(initialConfig),
   );
@@ -2753,7 +2758,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   const [saving, setSaving] = useState(false);
   const [autoSaveState, setAutoSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [lastAutoSaveAt, setLastAutoSaveAt] = useState<string>("");
-  const [serverSaveStatus, setServerSaveStatus] = useState<"checking" | "ready" | "blocked">(
+  const [serverSaveStatus, setServerSaveStatus] = useState<"checking" | "ready" | "offline">(
     "checking",
   );
   const [serverSaveMessage, setServerSaveMessage] = useState("");
@@ -2859,6 +2864,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     promoPrice: "",
   });
   const [revalidating, setRevalidating] = useState(false);
+  const [catalogItems, setCatalogItems] = useState<CatalogItem[]>(() => feed.items);
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [analyticsRangeDays, setAnalyticsRangeDays] = useState<7 | 30 | 90>(30);
   const [analyticsEvents, setAnalyticsEvents] = useState<AnalyticsEventPayload[]>([]);
@@ -3284,7 +3290,11 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     }`
   ), []);
 
-  const rawItems = feed.items;
+  const rawItems = catalogItems;
+
+  useEffect(() => {
+    setCatalogItems(feed.items);
+  }, [feed.items]);
   const updateVehicleUrlParam = useCallback((vehicleKey?: string) => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
@@ -3368,15 +3378,13 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     });
   }, [showOfferModal, selectedVehicle, config.vehiclePrices]);
 
-  const verifyServerPersistence = useCallback(async (configToVerify: EditorConfig) => {
+  const verifyServerPersistence = useCallback(async () => {
     setServerSaveStatus("checking");
     setServerSaveMessage("");
     try {
-      const response = await fetch("/api/admin/editor-config", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
+      const response = await fetch("/api/admin/editor-config/health", {
+        cache: "no-store",
         credentials: "include",
-        body: JSON.stringify({ config: configToVerify }),
       });
       const payload = (await response.json().catch(() => ({}))) as { error?: string };
       if (!response.ok) {
@@ -3387,21 +3395,20 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
         }
         const errorMessage =
           payload.error ??
-          "No se pudo validar el guardado global en servidor. La edicion queda bloqueada.";
-        setServerSaveStatus("blocked");
+          "No se pudo conectar con el guardado global en servidor. Los cambios se guardan en este navegador.";
+        setServerSaveStatus("offline");
         setServerSaveMessage(errorMessage);
         setAutoSaveState("error");
         return { ok: false as const, error: errorMessage };
       }
       setServerSaveStatus("ready");
       setServerSaveMessage("");
-      setAutoSaveState("saved");
-      setLastAutoSaveAt(new Date().toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" }));
+      setAutoSaveState("idle");
       return { ok: true as const };
     } catch {
       const errorMessage =
-        "No hay conexion con el guardado global. La edicion queda bloqueada hasta recuperar el servidor.";
-      setServerSaveStatus("blocked");
+        "Sin conexion al guardado global. Los cambios se guardan en este navegador hasta recuperar el servidor.";
+      setServerSaveStatus("offline");
       setServerSaveMessage(errorMessage);
       setAutoSaveState("error");
       return { ok: false as const, error: errorMessage };
@@ -3449,7 +3456,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
         }
 
         if (loggedIn) {
-          await verifyServerPersistence(resolvedConfig);
+          await verifyServerPersistence();
         } else {
           setServerSaveStatus("checking");
           setServerSaveMessage("");
@@ -6838,15 +6845,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     item: CatalogItem,
     initialTab: "general" | "tecnica" | "medios" | "publicacion" = "general",
   ) => {
-    if (!isAdmin || serverSaveStatus !== "ready") {
-      showSystemNotice(
-        "error",
-        "Edicion bloqueada",
-        serverSaveMessage ||
-          "No se puede editar porque el guardado global en servidor no esta disponible.",
-      );
-      return;
-    }
+    if (!isAdmin || isBootstrapping) return;
     const key = getVehicleKey(item);
     const draft = buildPublicationDraftFromItem(item, config, key);
     const images = draft.imagesCsv
@@ -7318,52 +7317,53 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   };
 
   const persistEditorConfig = useCallback(async (nextConfig: EditorConfig) => {
+    localStorage.setItem(EDITOR_STORAGE_KEY, JSON.stringify(nextConfig));
     setSaving(true);
     setAutoSaveState("saving");
-    const response = await fetch("/api/admin/editor-config", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ config: nextConfig }),
-    });
-    const payload = (await response.json().catch(() => ({}))) as { error?: string };
-    setSaving(false);
-    if (!response.ok) {
-      setAutoSaveState("error");
-      if (response.status === 401) {
-        setIsAdmin(false);
-        setAdminView("home");
-        setShowLogin(true);
-        setServerSaveStatus("blocked");
-        setServerSaveMessage("Sesion vencida. Inicia sesion para habilitar guardado global.");
-        showSystemNotice(
-          "error",
-          "Sesion expirada",
-          "Inicia sesion nuevamente para volver a habilitar la edicion y el guardado global.",
-        );
+    try {
+      const response = await fetch("/api/admin/editor-config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ config: nextConfig }),
+      });
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) {
+        setAutoSaveState("error");
+        if (response.status === 401) {
+          setIsAdmin(false);
+          setAdminView("home");
+          setShowLogin(true);
+          setServerSaveStatus("offline");
+          setServerSaveMessage("Sesion vencida. Inicia sesion para sincronizar con el servidor.");
+          showSystemNotice(
+            "error",
+            "Sesion expirada",
+            "Inicia sesion nuevamente para volver a sincronizar con el guardado global.",
+          );
+          return;
+        }
+        const errorMessage =
+          payload.error ??
+          "No se pudo guardar en servidor. Los cambios quedaron en este navegador.";
+        setServerSaveStatus("offline");
+        setServerSaveMessage(errorMessage);
         return;
       }
+      setServerSaveStatus("ready");
+      setServerSaveMessage("");
+      setAutoSaveState("saved");
+      setLastAutoSaveAt(new Date().toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" }));
+      lastPersistedConfigRef.current = JSON.stringify(nextConfig);
+    } catch {
       const errorMessage =
-        payload.error ??
-        "No se pudo guardar en servidor. La edicion queda bloqueada para evitar cambios solo locales.";
-      setServerSaveStatus("blocked");
+        "Sin conexion al guardar en servidor. Los cambios quedaron en este navegador.";
+      setServerSaveStatus("offline");
       setServerSaveMessage(errorMessage);
-      setAdminView("home");
-      setEditingVehicleKey(null);
-      resetPublicationModal();
-      showSystemNotice(
-        "error",
-        "Edicion bloqueada",
-        errorMessage,
-      );
-      return;
+      setAutoSaveState("error");
+    } finally {
+      setSaving(false);
     }
-    localStorage.setItem(EDITOR_STORAGE_KEY, JSON.stringify(nextConfig));
-    setServerSaveStatus("ready");
-    setServerSaveMessage("");
-    setAutoSaveState("saved");
-    setLastAutoSaveAt(new Date().toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" }));
-    lastPersistedConfigRef.current = JSON.stringify(nextConfig);
   }, [showSystemNotice]);
 
   useEffect(() => {
@@ -7385,7 +7385,12 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   }, [rawItems, showSystemNotice]);
 
   useEffect(() => {
-    if (isBootstrapping || !isAdmin || serverSaveStatus !== "ready") return;
+    if (isBootstrapping || !isAdmin) return;
+    localStorage.setItem(EDITOR_STORAGE_KEY, JSON.stringify(config));
+  }, [config, isAdmin, isBootstrapping]);
+
+  useEffect(() => {
+    if (isBootstrapping || !isAdmin) return;
     const serializedConfig = JSON.stringify(config);
     if (!autoSaveReadyRef.current) {
       autoSaveReadyRef.current = true;
@@ -7397,17 +7402,31 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       void persistEditorConfig(config);
     }, 550);
     return () => window.clearTimeout(timeout);
-  }, [config, isAdmin, isBootstrapping, persistEditorConfig, serverSaveStatus]);
+  }, [config, isAdmin, isBootstrapping, persistEditorConfig]);
 
   useEffect(() => {
     const previousAdminView = previousAdminViewRef.current;
     previousAdminViewRef.current = adminView;
     const leavingEditor = previousAdminView === "editor" && adminView !== "editor";
-    if (!leavingEditor || isBootstrapping || !isAdmin || serverSaveStatus !== "ready") return;
+    if (!leavingEditor || isBootstrapping || !isAdmin) return;
     const serializedConfig = JSON.stringify(config);
     if (serializedConfig === lastPersistedConfigRef.current) return;
     void persistEditorConfig(config);
-  }, [adminView, config, isAdmin, isBootstrapping, persistEditorConfig, serverSaveStatus]);
+  }, [adminView, config, isAdmin, isBootstrapping, persistEditorConfig]);
+
+  useEffect(() => {
+    if (!isAdmin || serverSaveStatus !== "offline" || isBootstrapping) return;
+    const interval = window.setInterval(() => {
+      void verifyServerPersistence().then((result) => {
+        if (!result.ok) return;
+        const serializedConfig = JSON.stringify(config);
+        if (serializedConfig !== lastPersistedConfigRef.current) {
+          void persistEditorConfig(config);
+        }
+      });
+    }, 30000);
+    return () => window.clearInterval(interval);
+  }, [config, isAdmin, isBootstrapping, persistEditorConfig, serverSaveStatus, verifyServerPersistence]);
 
   useEffect(() => {
     if (autoSaveState !== "saved") return;
@@ -7420,12 +7439,85 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   const revalidateInventory = async () => {
     setRevalidating(true);
     try {
-      const response = await fetch("/api/admin/revalidate", { method: "POST" });
-      if (!response.ok) throw new Error("Error al revalidar");
+      const revalidateResponse = await fetch("/api/admin/revalidate", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!revalidateResponse.ok) throw new Error("Error al revalidar");
+
+      const catalogResponse = await fetch(`/api/catalogo?_=${Date.now()}`, {
+        cache: "no-store",
+      });
+      if (!catalogResponse.ok) throw new Error("Error al cargar catalogo");
+      const freshFeed = (await catalogResponse.json()) as CatalogFeed;
+      const freshItems = freshFeed.items ?? [];
+      setCatalogItems(freshItems);
+
+      let workingConfig = config;
+      const { config: syncedConfig, mergedPatents } = syncManualPublicationsWithCatalog(
+        workingConfig,
+        freshItems,
+      );
+      workingConfig = syncedConfig;
+
+      const patentes = collectAutoredLookupPatents(workingConfig, freshItems);
+      const autoredByPatent: Record<string, Partial<ManualPublicationDraft>> = {};
+
+      for (let index = 0; index < patentes.length; index += 40) {
+        const batch = patentes.slice(index, index + 40);
+        const autoredResponse = await fetch("/api/admin/autored-lookup-bulk", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ patentes: batch }),
+        });
+        const autoredPayload = (await autoredResponse.json().catch(() => ({}))) as {
+          ok?: boolean;
+          results?: Array<{
+            patente: string;
+            ok: boolean;
+            fields?: Partial<ManualPublicationDraft>;
+          }>;
+        };
+        if (!autoredResponse.ok || !autoredPayload.ok || !autoredPayload.results) continue;
+        for (const entry of autoredPayload.results) {
+          if (entry.ok && entry.fields) autoredByPatent[entry.patente] = entry.fields;
+        }
+      }
+
+      const { config: enrichedConfig, stats } = enrichPublishedVehiclesConfig(
+        workingConfig,
+        freshItems,
+        autoredByPatent,
+      );
+      setConfig(enrichedConfig);
+      await persistEditorConfig(enrichedConfig);
+      router.refresh();
+
+      const summaryParts = [
+        `${freshItems.length} unidades en bodega`,
+        `${stats.publishedCount} publicadas revisadas`,
+      ];
+      if (mergedPatents.length > 0) {
+        summaryParts.push(`${mergedPatents.length} manual(es) enlazada(s) con GLO3D`);
+      }
+      if (stats.gloEnriched > 0) {
+        summaryParts.push(`${stats.gloEnriched} completada(s) con datos GLO3D`);
+      }
+      if (stats.autoredEnriched > 0) {
+        summaryParts.push(`${stats.autoredEnriched} completada(s) con Autored`);
+      }
+      if (stats.manualMediaUpdated > 0) {
+        summaryParts.push(`${stats.manualMediaUpdated} con fotos/visor 3D actualizados`);
+      }
+      if (stats.fieldsFilled > 0) {
+        summaryParts.push(`${stats.fieldsFilled} campo(s) de ficha rellenados`);
+      }
+
       showSystemNotice(
         "success",
         "Inventario actualizado",
-        "El catalogo se actualizo con los vehiculos en bodega del sistema interno. Recarga la pagina para ver los cambios.",
+        `${summaryParts.join(". ")}.`,
       );
     } catch {
       showSystemNotice(
@@ -7463,23 +7555,20 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       trackEvent("admin_login_failed");
       return;
     }
-    const persistenceCheck = await verifyServerPersistence(config);
+    const persistenceCheck = await verifyServerPersistence();
     setShowLogin(false);
     setLoginPassword("");
     setIsAdmin(true);
-    if (!persistenceCheck.ok) {
-      setAdminView("home");
-      showSystemNotice(
-        "error",
-        "Edicion bloqueada",
-        persistenceCheck.error ??
-          "No se puede editar hasta recuperar el guardado global en servidor.",
-      );
-      trackEvent("admin_login_success");
-      return;
-    }
     setAdminView("editor");
     resetAdminInventoryFilters();
+    if (!persistenceCheck.ok) {
+      showSystemNotice(
+        "info",
+        "Guardado local activo",
+        persistenceCheck.error ??
+          "Puedes editar con normalidad. Los cambios se sincronizaran cuando el servidor este disponible.",
+      );
+    }
     trackEvent("admin_login_success");
   };
 
@@ -7494,44 +7583,45 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
 
   const openAdminEditorView = () => {
     if (!isAdmin) return;
-    if (serverSaveStatus !== "ready") {
-      setAdminView("home");
-      showSystemNotice(
-        "error",
-        "Edicion bloqueada",
-        serverSaveMessage ||
-          "No se puede editar porque el guardado global en servidor no esta disponible.",
-      );
-      return;
-    }
     setAdminView("editor");
     resetAdminInventoryFilters();
+    if (serverSaveStatus === "offline") {
+      showSystemNotice(
+        "info",
+        "Sincronizacion pendiente",
+        serverSaveMessage ||
+          "Puedes editar con normalidad. Los cambios se guardan en este navegador y se sincronizaran al recuperar el servidor.",
+      );
+    }
   };
 
   const retryServerSaveCheck = async () => {
     if (!isAdmin) return;
-    const result = await verifyServerPersistence(config);
+    const result = await verifyServerPersistence();
     if (!result.ok) {
       showSystemNotice(
         "error",
-        "Guardado global no disponible",
-        result.error ?? "No se pudo reconectar al servidor de guardado.",
+        "Servidor no disponible",
+        result.error ?? "No se pudo reconectar al guardado global.",
       );
       return;
+    }
+    const serializedConfig = JSON.stringify(config);
+    if (serializedConfig !== lastPersistedConfigRef.current) {
+      await persistEditorConfig(config);
     }
     showSystemNotice(
       "success",
       "Guardado global activo",
-      "La edicion vuelve a estar habilitada para todos.",
+      "La configuracion quedo sincronizada con el servidor.",
     );
   };
 
-
-  const canAdminEditNow = isAdmin && serverSaveStatus === "ready";
+  const canAdminEditNow = isAdmin && !isBootstrapping;
   const showAdminEditor = isAdmin && adminView === "editor";
   const showPublicHome = !isAdmin || adminView === "home";
   const shouldShowSaveIndicator =
-    serverSaveStatus === "blocked" ||
+    serverSaveStatus === "offline" ||
     autoSaveState === "saving" ||
     autoSaveState === "saved" ||
     autoSaveState === "error" ||
@@ -7546,14 +7636,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
 
   const saveInlineCardChanges = useCallback(
     (item: CatalogItem, changes: { title?: string; subtitle?: string; price?: string }) => {
-      if (!canAdminEditNow) {
-        showSystemNotice(
-          "error",
-          "Edicion bloqueada",
-          "No se puede editar porque el guardado global no esta disponible.",
-        );
-        return;
-      }
+      if (!canAdminEditNow) return;
       const key = getVehicleKey(item);
       const nextTitle = changes.title?.trim();
       if (typeof nextTitle === "string" && !nextTitle) {
@@ -8323,9 +8406,9 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
         {feed.warning ? (
           <p className="rounded-md border border-amber-300/60 bg-amber-100 px-3 py-2 text-sm text-amber-900">{feed.warning}</p>
         ) : null}
-        {isAdmin && serverSaveStatus === "blocked" ? (
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-800">
-            <span>{`Edicion bloqueada: ${serverSaveMessage || "servidor no disponible"}`}</span>
+        {isAdmin && serverSaveStatus === "offline" ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
+            <span>{`Sincronizacion pendiente: ${serverSaveMessage || "servidor no disponible"}. Puedes seguir editando; los cambios se guardan en este navegador.`}</span>
             <button
               type="button"
               onClick={() => {
@@ -8354,14 +8437,14 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                 {shouldShowSaveIndicator ? (
                   <span
                     className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
-                      serverSaveStatus === "blocked" || autoSaveState === "error"
-                        ? "border border-rose-200 bg-rose-50 text-rose-700"
+                      serverSaveStatus === "offline" || autoSaveState === "error"
+                        ? "border border-amber-200 bg-amber-50 text-amber-800"
                         : autoSaveState === "saving" || saving
                           ? "border border-amber-200 bg-amber-50 text-amber-700"
                           : "border border-emerald-200 bg-emerald-50 text-emerald-700"
                     }`}
                   >
-                    {serverSaveStatus === "blocked" || autoSaveState === "error" ? (
+                    {serverSaveStatus === "offline" || autoSaveState === "error" ? (
                       <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
                         <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm0-11a.75.75 0 0 1 .75.75v3.75a.75.75 0 0 1-1.5 0V7.75A.75.75 0 0 1 10 7Zm0 7a.875.875 0 1 0 0-1.75.875.875 0 0 0 0 1.75Z" clipRule="evenodd" />
                       </svg>
@@ -8376,10 +8459,10 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                       </svg>
                     )}
                     <span>
-                      {serverSaveStatus === "blocked"
-                        ? "Edicion bloqueada (sin guardado global)"
+                      {serverSaveStatus === "offline"
+                        ? "Guardado local (sin servidor)"
                         : autoSaveState === "error"
-                          ? "Error de guardado en servidor"
+                          ? "Error al sincronizar con servidor"
                         : autoSaveState === "saving" || saving
                           ? "Guardando cambios..."
                           : `Guardado ${lastAutoSaveAt ? `· ${lastAutoSaveAt}` : ""}`}

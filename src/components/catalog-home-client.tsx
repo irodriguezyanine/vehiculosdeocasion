@@ -58,6 +58,7 @@ import {
   applyManualPublicationBundlesToConfig,
   buildManualPublicationFromDraft,
 } from "@/lib/create-manual-publication";
+import { buildVehicleTitleFromParts } from "@/lib/vehicle-title";
 import {
   extractPatentTokens,
   normalizePatentToken,
@@ -6830,7 +6831,6 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
           {
             ...prev,
             patente: fields.patente ?? normalized,
-            title: prev.title?.trim() || fields.title || prev.title,
           },
           fields,
         ),
@@ -6888,10 +6888,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
 
   const createManualPublication = () => {
     const patente = cleanOptional(manualDraft.patente)?.toUpperCase().replace(/\s+/g, "").replace(/-/g, "") ?? "";
-    const autoTitle = [manualDraft.brand, manualDraft.model, manualDraft.year]
-      .map((value) => value?.trim())
-      .filter(Boolean)
-      .join(" ");
+    const autoTitle = buildVehicleTitleFromParts(manualDraft);
     const title = manualDraft.title?.trim() || autoTitle || patente;
     if (!title && !patente) {
       showSystemNotice(
@@ -7007,10 +7004,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
 
     const patente =
       cleanOptional(manualDraft.patente)?.toUpperCase().replace(/\s+/g, "").replace(/-/g, "") ?? "";
-    const autoTitle = [manualDraft.brand, manualDraft.model, manualDraft.year]
-      .map((value) => value?.trim())
-      .filter(Boolean)
-      .join(" ");
+    const autoTitle = buildVehicleTitleFromParts(manualDraft);
     const title = manualDraft.title?.trim() || autoTitle || patente;
     if (!title && !patente) {
       showSystemNotice(

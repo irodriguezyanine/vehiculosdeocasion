@@ -1,5 +1,6 @@
 import { mapAutoredToDraftPartial } from "@/lib/autored-lookup";
 import type { ManualPublicationDraft } from "@/lib/manual-publication-draft";
+import { buildVehicleTitleFromParts } from "@/lib/vehicle-title";
 import type { CatalogItem } from "@/types/catalog";
 import type { EditorVehicleDetails } from "@/types/editor";
 
@@ -213,12 +214,18 @@ export function applyAutoredLookupToDraft(
   for (const field of AUTORED_IDENTIFICATION_FIELDS) {
     const value = fields[field]?.trim();
     if (!value) continue;
-    if (field === "title") {
-      if (!next.title?.trim()) next.title = value;
-      continue;
-    }
+    if (field === "title") continue;
     next[field] = value;
   }
 
-  return mergeAutoredMechanicalIntoDraft(next, fields, true);
+  const merged = mergeAutoredMechanicalIntoDraft(next, fields, true);
+  const autoTitle = buildVehicleTitleFromParts({
+    brand: merged.brand,
+    model: merged.model,
+    year: merged.year,
+    version: merged.version,
+  });
+  if (autoTitle) merged.title = autoTitle;
+
+  return merged;
 }

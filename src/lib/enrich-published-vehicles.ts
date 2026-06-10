@@ -6,6 +6,7 @@ import {
   normalizePatent,
 } from "@/lib/manual-publication-sync";
 import { normalizePatentToken } from "@/lib/patent-input";
+import { buildVehicleTitleFromParts } from "@/lib/vehicle-title";
 import {
   AUTORED_IDENTIFICATION_FIELDS,
   AUTORED_MECHANICAL_FIELDS,
@@ -196,16 +197,16 @@ function enrichManualPublicationFromSources(
   }
 
   if (autored) {
-    if (!next.brand?.trim() && autored.brand?.trim()) next.brand = autored.brand.trim();
-    if (!next.model?.trim() && autored.model?.trim()) next.model = autored.model.trim();
-    if (!next.year?.trim() && autored.year?.trim()) next.year = autored.year.trim();
-    if (!next.title?.trim()) {
-      const autoTitle = [autored.brand, autored.model, autored.year]
-        .map((value) => value?.trim())
-        .filter(Boolean)
-        .join(" ");
-      if (autoTitle) next.title = autoTitle;
-    }
+    if (autored.brand?.trim()) next.brand = autored.brand.trim();
+    if (autored.model?.trim()) next.model = autored.model.trim();
+    if (autored.year?.trim()) next.year = autored.year.trim();
+    const autoTitle = buildVehicleTitleFromParts({
+      brand: next.brand,
+      model: next.model,
+      year: next.year,
+      version: autored.version,
+    });
+    if (autoTitle) next.title = autoTitle;
   }
 
   return { manual: next, mediaUpdated };

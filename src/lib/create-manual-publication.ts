@@ -4,6 +4,7 @@ import {
   type ManualPublicationDraft,
 } from "@/lib/manual-publication-draft";
 import { getManualPublicationKey } from "@/lib/manual-publication-sync";
+import { buildVehicleTitleFromParts } from "@/lib/vehicle-title";
 import type { EditorConfig, EditorVehicleDetails, ManualPublication, SectionId } from "@/types/editor";
 
 const PLACEHOLDER_THUMBNAIL = "/placeholder-car.svg";
@@ -28,10 +29,7 @@ export function buildManualPublicationFromDraft(
   options?: { id?: string; uploadedImages?: string[] },
 ): BuildManualPublicationResult {
   const patente = cleanOptional(draft.patente)?.toUpperCase().replace(/\s+/g, "").replace(/-/g, "") ?? "";
-  const autoTitle = [draft.brand, draft.model, draft.year]
-    .map((value) => value?.trim())
-    .filter(Boolean)
-    .join(" ");
+  const autoTitle = buildVehicleTitleFromParts(draft);
   const title = draft.title?.trim() || autoTitle || patente;
   if (!title && !patente) {
     return { ok: false, error: "Falta patente o titulo/marca-modelo." };
@@ -112,10 +110,7 @@ export function buildManualDraftFromAutoredFields(
   sectionIds: SectionId[],
 ): ManualPublicationDraft {
   const normalized = patente.toUpperCase().replace(/\s+/g, "").replace(/-/g, "");
-  const autoTitle = [fields.brand, fields.model, fields.year]
-    .map((value) => value?.trim())
-    .filter(Boolean)
-    .join(" ");
+  const autoTitle = buildVehicleTitleFromParts(fields);
 
   return {
     ...EMPTY_MANUAL_PUBLICATION_DRAFT,

@@ -1,4 +1,5 @@
 import type { ManualPublicationDraft } from "@/lib/manual-publication-draft";
+import { buildVehicleTitleFromParts } from "@/lib/vehicle-title";
 import { AutoredLookupError, type AutoredLookupErrorCode } from "@/lib/autored-errors";
 import {
   getAutoredCooldownRemainingMs,
@@ -330,7 +331,7 @@ export function mapAutoredToDraftPartial(
   if (cilindrada) partial.cilindrada = cilindrada;
   if (kilometraje) partial.kilometraje = kilometraje;
 
-  const autoTitle = [brand, model, year].filter(Boolean).join(" ");
+  const autoTitle = buildVehicleTitleFromParts({ brand, model, year, version });
   if (autoTitle) partial.title = autoTitle;
 
   return partial;

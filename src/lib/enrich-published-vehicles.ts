@@ -1,5 +1,10 @@
 import { extractGlo3dEditorDetails, mergeEditorDetailsPreferPrimary } from "@/lib/glo3d-editor-details";
 import {
+  isPlaceholderCatalogThumbnail,
+  resolveCatalogItemThumbnail,
+  resolveGlo3dThumbnailFromRecord,
+} from "@/lib/catalog";
+import {
   getManualPublicationKey,
   getCatalogItemPatent,
   getCatalogVehicleKey,
@@ -31,8 +36,7 @@ export type EnrichPublishedStats = {
 };
 
 function isPlaceholderThumbnail(value?: string | null): boolean {
-  const trimmed = value?.trim();
-  return !trimmed || trimmed === PLACEHOLDER_THUMBNAIL || trimmed.endsWith("/placeholder-car.svg");
+  return isPlaceholderCatalogThumbnail(value);
 }
 
 function collectPublishedVehicleKeys(config: EditorConfig): string[] {
@@ -112,7 +116,10 @@ function enrichDetailsFromCatalogItem(
   const merged = mergeEditorDetailsPreferPrimary(draftToEditorDetails(draft), gloEditor);
 
   const images = item.images.filter((url) => url.startsWith("http"));
-  if (!merged.thumbnail?.trim() && (item.thumbnail || images[0])) {
+  const resolvedThumbnail = resolveCatalogItemThumbnail(item);
+  if (isPlaceholderThumbnail(merged.thumbnail) && resolvedThumbnail) {
+    merged.thumbnail = resolvedThumbnail;
+  } else if (!merged.thumbnail?.trim() && (item.thumbnail || images[0])) {
     merged.thumbnail = item.thumbnail ?? images[0];
   }
   if (!merged.view3dUrl?.trim() && item.view3dUrl?.trim()) {
@@ -182,7 +189,11 @@ function enrichManualPublicationFromSources(
 
   if (item) {
     const images = item.images.filter((url) => url.startsWith("http"));
-    if (isPlaceholderThumbnail(next.thumbnail) && (item.thumbnail || images[0])) {
+    const resolvedThumbnail = resolveCatalogItemThumbnail(item);
+    if (isPlaceholderThumbnail(next.thumbnail) && resolvedThumbnail) {
+      next.thumbnail = resolvedThumbnail;
+      mediaUpdated = true;
+    } else if (isPlaceholderThumbnail(next.thumbnail) && (item.thumbnail || images[0])) {
       next.thumbnail = item.thumbnail ?? images[0] ?? next.thumbnail;
       mediaUpdated = true;
     }
@@ -284,11 +295,14 @@ export function mergeGlo3dResponseIntoCatalogItems(
 
     const raw = item.raw as Record<string, unknown>;
     const technicalFields = glo3d.technicalFields ?? {};
-    const glo3dImages = typeof glo3d.raw?.thumb_url === "string" ? [glo3d.raw.thumb_url] : [];
+    const glo3dThumb = glo3d.raw ? resolveGlo3dThumbnailFromRecord(glo3d.raw) : undefined;
     return {
       ...item,
       view3dUrl: item.view3dUrl ?? glo3d.view3dUrl,
-      thumbnail: item.thumbnail ?? glo3dImages[0],
+      thumbnail:
+        !isPlaceholderCatalogThumbnail(item.thumbnail) && item.thumbnail
+          ? item.thumbnail
+          : glo3dThumb ?? item.thumbnail,
       raw: {
         ...raw,
         ...technicalFields,
@@ -304,14 +318,7 @@ function buildSyntheticCatalogItemFromGlo3d(
 ): CatalogItem {
   const technicalFields = glo3d.technicalFields ?? {};
   const raw = glo3d.raw ?? {};
-  const thumb =
-    typeof raw.thumb_url === "string"
-      ? raw.thumb_url
-      : typeof raw.thumbnail === "string"
-        ? raw.thumbnail
-        : typeof raw.thumb === "string"
-          ? raw.thumb
-          : undefined;
+  const thumb = resolveGlo3dThumbnailFromRecord(raw);
 
   return {
     id: patent,

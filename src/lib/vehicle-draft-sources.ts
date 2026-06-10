@@ -17,8 +17,12 @@ export const AUTORED_MECHANICAL_FIELDS = [
 export type AutoredMechanicalField = (typeof AUTORED_MECHANICAL_FIELDS)[number];
 
 function pickString(item: Record<string, unknown>, aliases: string[]): string | undefined {
-  for (const key of aliases) {
-    const value = item[key];
+  const map = new Map<string, unknown>();
+  for (const [key, value] of Object.entries(item)) {
+    map.set(key.toLowerCase(), value);
+  }
+  for (const alias of aliases) {
+    const value = map.get(alias.toLowerCase());
     if (typeof value === "string" && value.trim()) return value.trim();
     if (typeof value === "number" && Number.isFinite(value)) return String(value);
   }
@@ -83,7 +87,7 @@ function buildGlo3dMergedRaw(item: CatalogItem): Record<string, unknown> {
   const raw = (item.raw ?? {}) as Record<string, unknown>;
   const glo3dRaw = (raw.glo3d as Record<string, unknown> | undefined) ?? {};
   const customSpecs = extractGlo3dCustomSpecMap(glo3dRaw);
-  return { ...customSpecs, ...glo3dRaw, ...raw };
+  return { ...raw, ...glo3dRaw, ...customSpecs };
 }
 
 const GLO3D_OPERATION_FIELDS: Array<{

@@ -943,7 +943,109 @@ function normalizeGlo3dTechnicalFields(
     result.unico_propietario = dun;
   }
 
+  for (const [key, value] of Object.entries(customSpecFields)) {
+    if (!isMeaningfulValue(value)) continue;
+    const normalizedKey = normalizeCustomSpecKey(key);
+    if (normalizedKey && !(normalizedKey in result)) result[normalizedKey] = value;
+    const literalKey = key.trim();
+    if (literalKey && !(literalKey in result)) result[literalKey] = value;
+  }
+
   return result;
+}
+
+export const PLACEHOLDER_CATALOG_THUMBNAIL = "/placeholder-car.svg";
+
+export function isPlaceholderCatalogThumbnail(value?: string | null): boolean {
+  const trimmed = value?.trim();
+  return !trimmed || trimmed === PLACEHOLDER_CATALOG_THUMBNAIL || trimmed.endsWith(PLACEHOLDER_CATALOG_THUMBNAIL);
+}
+
+function isLikelyCatalogImageUrl(url: string): boolean {
+  const normalized = url.toLowerCase();
+  if (normalized.includes("glo3d.net/iframe") || normalized.includes("<iframe")) return false;
+  if (/\.(jpg|jpeg|png|webp|gif|bmp|avif)(\?|$)/i.test(normalized)) return true;
+  return /cdn\.|cloudfront|amazonaws|supabase|cloudinary|glo3d|thumb|image|photo|media|foto/.test(
+    normalized,
+  );
+}
+
+export function resolveGlo3dThumbnailFromRecord(raw: Record<string, unknown>): string | undefined {
+  const flat = flattenObject(raw);
+  const customSpecs = extractCustomSpecFieldMap(raw);
+  const merged = { ...flat, ...customSpecs, ...raw };
+
+  const fromFields = normalizeImageList(
+    getStringFromKeys(merged, [
+      "thumb_url",
+      "thumbnail",
+      "thumb",
+      "image",
+      "main_image",
+      "cover",
+      "preview",
+      "preview_url",
+      "preview_image",
+      "poster",
+      "poster_url",
+      "thumb_frame",
+      "thumbFrame",
+      "first_frame",
+      "photo",
+      "main_photo",
+      "image_url",
+      "thumbnail_url",
+      "thumb_src",
+    ]) ??
+      pickString(merged, [
+        "thumb_url",
+        "thumbnail",
+        "thumb",
+        "image_url",
+        "preview",
+        "poster",
+        "main_image",
+      ]),
+  );
+  for (const candidate of fromFields) {
+    if (isLikelyCatalogImageUrl(candidate)) return candidate.replace(/\$.*$/, "");
+  }
+
+  for (const key of ["src", "src_with_params", "thumb_src"]) {
+    const rawValue = getStringFromKeys(merged, [key]);
+    if (!rawValue) continue;
+    const url = extractEmbedUrl(rawValue) ?? (rawValue.startsWith("http") ? rawValue : undefined);
+    if (!url || !isLikelyCatalogImageUrl(url)) continue;
+    return url.replace(/\$.*$/, "");
+  }
+
+  return undefined;
+}
+
+export function resolveCatalogItemThumbnail(item: CatalogItem): string | undefined {
+  const raw = item.raw as Record<string, unknown>;
+  const glo3dRaw = (raw.glo3d as Record<string, unknown> | undefined) ?? {};
+  const candidates = [
+    item.thumbnail,
+    ...item.images,
+    resolveGlo3dThumbnailFromRecord(raw),
+    resolveGlo3dThumbnailFromRecord(glo3dRaw),
+    getStringFromKeys(raw, ["thumbnail", "thumb", "imagen_principal", "foto_portada"]),
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string" || isPlaceholderCatalogThumbnail(candidate)) continue;
+    const normalized = candidate.startsWith("//")
+      ? `https:${candidate}`
+      : candidate.startsWith("/")
+        ? undefined
+        : candidate;
+    if (!normalized?.startsWith("http")) continue;
+    if (!isLikelyCatalogImageUrl(normalized)) continue;
+    return normalized.replace(/\$.*$/, "");
+  }
+
+  return undefined;
 }
 
 function buildGlo3dInventoryEntryFromRawItem(item: Record<string, unknown>): Glo3dInventoryEntry {
@@ -1111,15 +1213,30 @@ export async function lookupGlo3dByStocks(
 
 function applyGlo3dEntryToItem(item: CatalogItem, glo3d: Glo3dInventoryEntry): CatalogItem {
   const raw = item.raw as Record<string, unknown>;
-  const glo3dImages = normalizeImageList(
-    getStringFromKeys(glo3d.raw, ["thumb_url", "thumbnail", "thumb", "image", "main_image", "cover"]) ??
-      pickString(glo3d.raw, ["thumb_url", "thumbnail"]),
-  );
+  const glo3dThumb = resolveGlo3dThumbnailFromRecord(glo3d.raw);
+  const glo3dImages = glo3dThumb
+    ? [glo3dThumb]
+    : normalizeImageList(
+        getStringFromKeys(glo3d.raw, [
+          "thumb_url",
+          "thumbnail",
+          "thumb",
+          "image",
+          "main_image",
+          "cover",
+          "preview",
+          "poster",
+        ]) ?? pickString(glo3d.raw, ["thumb_url", "thumbnail", "thumb"]),
+      );
   const mergedImages = item.images.length > 0 ? item.images : glo3dImages;
+  const resolvedThumbnail =
+    !isPlaceholderCatalogThumbnail(item.thumbnail) && item.thumbnail
+      ? item.thumbnail
+      : glo3dThumb ?? mergedImages[0];
   return {
     ...item,
     view3dUrl: item.view3dUrl ?? glo3d.view3dUrl,
-    thumbnail: item.thumbnail ?? mergedImages[0],
+    thumbnail: resolvedThumbnail,
     images: mergedImages,
     raw: {
       ...mergeRawPreferPrimary(raw, glo3d.technicalFields),

@@ -71,6 +71,11 @@ import {
   mergeGlo3dResponseIntoCatalogItems,
 } from "@/lib/enrich-published-vehicles";
 import {
+  isPlaceholderCatalogThumbnail,
+  resolveCatalogItemThumbnail,
+  resolveGlo3dThumbnailFromRecord,
+} from "@/lib/catalog";
+import {
   getAutoredClientCooldownMs,
   lookupAutoredPatentClient,
   lookupAutoredPatentsSequential,
@@ -1657,9 +1662,20 @@ function mapManualPublicationToCatalogItem(entry: ManualPublication): CatalogIte
 function buildDetailsDraft(item: CatalogItem, override?: EditorVehicleDetails): EditorVehicleDetails {
   const raw = item.raw as Record<string, unknown>;
   const lookup = buildVehicleLookup(raw);
+  const glo3dOps = extractGlo3dOperationDetails(item);
   const cav = (raw.cav_campos as Record<string, unknown> | undefined) ?? {};
   const rawPromoMeta = getRawPromoMeta(raw);
   const baseImages = item.images.filter((url) => url.startsWith("http")).join(", ");
+  const pickOp = (
+    key: keyof EditorVehicleDetails,
+    aliases: string[],
+  ): string => {
+    const fromOverride = String(override?.[key] ?? "").trim();
+    if (fromOverride) return fromOverride;
+    const fromGlo3d = String(glo3dOps[key] ?? "").trim();
+    if (fromGlo3d) return fromGlo3d;
+    return String(getLookupValue(lookup, aliases) ?? "").trim();
+  };
   return {
     title: override?.title ?? item.title,
     subtitle: override?.subtitle ?? (item.subtitle ?? ""),
@@ -1720,15 +1736,16 @@ function buildDetailsDraft(item: CatalogItem, override?: EditorVehicleDetails): 
       ),
     status: override?.status ?? (item.status ?? ""),
     location: override?.location ?? (item.location ?? ""),
-    ubicacionFisica:
-      override?.ubicacionFisica ??
-      String(getLookupValue(lookup, ["ubicacion_fisica", "ubi", "ubicacion", "location", "glo3d.ubicacion_fisica"]) ?? ""),
-    transportista:
-      override?.transportista ??
-      String(getLookupValue(lookup, ["transportista", "tra", "glo3d.transportista"]) ?? ""),
-    taller:
-      override?.taller ??
-      String(getLookupValue(lookup, ["taller", "tal", "glo3d.taller"]) ?? ""),
+    ubicacionFisica: pickOp("ubicacionFisica", [
+      "ubicacion_fisica",
+      "ubi",
+      "ubicacion",
+      "location",
+      "glo3d.ubicacion_fisica",
+      "glo3d.ubi",
+    ]),
+    transportista: pickOp("transportista", ["transportista", "tra", "glo3d.transportista", "glo3d.tra"]),
+    taller: pickOp("taller", ["taller", "tal", "glo3d.taller", "glo3d.tal"]),
     lot: override?.lot ?? (item.lot ?? ""),
     auctionDate: override?.auctionDate ?? (item.auctionDate ?? ""),
     description: override?.description ?? String(raw.descripcion ?? raw.description ?? ""),
@@ -1829,50 +1846,79 @@ function buildDetailsDraft(item: CatalogItem, override?: EditorVehicleDetails): 
           "cilindrada",
         ]) ?? cav.cilindrada ?? "",
       ),
-    llaves:
-      override?.llaves ??
-      String(getLookupValue(lookup, ["llaves", "lla", "keys", "has_keys", "tiene_llaves", "glo3d.llaves"]) ?? ""),
-    aireAcondicionado:
-      override?.aireAcondicionado ??
-      String(getLookupValue(lookup, ["aire_acondicionado", "air_conditioning", "has_ac", "ac", "glo3d.aire_acondicionado"]) ?? ""),
-    unicoPropietario:
-      override?.unicoPropietario ??
-      String(getLookupValue(lookup, ["unico_propietario", "dun", "DUN", "single_owner", "one_owner", "glo3d.unico_propietario"]) ?? ""),
-    condicionado:
-      override?.condicionado ??
-      String(getLookupValue(lookup, ["condicionado", "conditioned", "acondicionado", "glo3d.condicionado"]) ?? ""),
-    multas:
-      override?.multas ??
-      String(getLookupValue(lookup, ["multas", "mul", "Mul", "glo3d.multas"]) ?? ""),
-    tag: override?.tag ?? String(getLookupValue(lookup, ["tag", "TAG", "glo3d.tag"]) ?? ""),
-    vencRevisionTecnica:
-      override?.vencRevisionTecnica ??
-      String(getLookupValue(lookup, ["vencimiento_revision_tecnica", "vrt", "glo3d.vencimiento_revision_tecnica"]) ?? ""),
-    vencPermisoCirculacion:
-      override?.vencPermisoCirculacion ??
-      String(getLookupValue(lookup, ["vencimiento_permiso_circulacion", "vpc", "glo3d.vencimiento_permiso_circulacion"]) ?? ""),
-    vencSeguroObligatorio:
-      override?.vencSeguroObligatorio ??
-      String(getLookupValue(lookup, ["vencimiento_seguro_obligatorio", "vso", "glo3d.vencimiento_seguro_obligatorio"]) ?? ""),
-    pruebaMotor:
-      override?.pruebaMotor ??
-      String(getLookupValue(lookup, ["prueba_motor", "pdm", "glo3d.prueba_motor"]) ?? ""),
-    pruebaDesplazamiento:
-      override?.pruebaDesplazamiento ??
-      String(getLookupValue(lookup, ["prueba_desplazamiento", "pdd", "glo3d.prueba_desplazamiento"]) ?? ""),
-    estadoAirbags:
-      override?.estadoAirbags ??
-      String(getLookupValue(lookup, ["estado_airbags", "eda", "glo3d.estado_airbags"]) ?? ""),
-    nombrePropietarioAnterior:
-      override?.nombrePropietarioAnterior ??
-      String(getLookupValue(lookup, ["nombre_propietario_anterior", "npa", "glo3d.nombre_propietario_anterior"]) ?? ""),
-    rutPropietarioAnterior:
-      override?.rutPropietarioAnterior ??
-      String(getLookupValue(lookup, ["rut_propietario_anterior", "rpa", "glo3d.rut_propietario_anterior"]) ?? ""),
+    llaves: pickOp("llaves", ["llaves", "lla", "keys", "has_keys", "tiene_llaves", "glo3d.llaves", "glo3d.lla"]),
+    aireAcondicionado: pickOp("aireAcondicionado", [
+      "aire_acondicionado",
+      "air_conditioning",
+      "has_ac",
+      "ac",
+      "glo3d.aire_acondicionado",
+    ]),
+    unicoPropietario: pickOp("unicoPropietario", [
+      "unico_propietario",
+      "dun",
+      "DUN",
+      "single_owner",
+      "one_owner",
+      "glo3d.unico_propietario",
+      "glo3d.dun",
+    ]),
+    condicionado: pickOp("condicionado", [
+      "condicionado",
+      "conditioned",
+      "acondicionado",
+      "glo3d.condicionado",
+    ]),
+    multas: pickOp("multas", ["multas", "mul", "Mul", "glo3d.multas", "glo3d.mul"]),
+    tag: pickOp("tag", ["tag", "TAG", "glo3d.tag"]),
+    vencRevisionTecnica: pickOp("vencRevisionTecnica", [
+      "vencimiento_revision_tecnica",
+      "vrt",
+      "glo3d.vencimiento_revision_tecnica",
+      "glo3d.vrt",
+    ]),
+    vencPermisoCirculacion: pickOp("vencPermisoCirculacion", [
+      "vencimiento_permiso_circulacion",
+      "vpc",
+      "glo3d.vencimiento_permiso_circulacion",
+      "glo3d.vpc",
+    ]),
+    vencSeguroObligatorio: pickOp("vencSeguroObligatorio", [
+      "vencimiento_seguro_obligatorio",
+      "vso",
+      "glo3d.vencimiento_seguro_obligatorio",
+      "glo3d.vso",
+    ]),
+    pruebaMotor: pickOp("pruebaMotor", ["prueba_motor", "pdm", "glo3d.prueba_motor", "glo3d.pdm"]),
+    pruebaDesplazamiento: pickOp("pruebaDesplazamiento", [
+      "prueba_desplazamiento",
+      "pdd",
+      "glo3d.prueba_desplazamiento",
+      "glo3d.pdd",
+    ]),
+    estadoAirbags: pickOp("estadoAirbags", ["estado_airbags", "eda", "glo3d.estado_airbags", "glo3d.eda"]),
+    nombrePropietarioAnterior: pickOp("nombrePropietarioAnterior", [
+      "nombre_propietario_anterior",
+      "npa",
+      "glo3d.nombre_propietario_anterior",
+      "glo3d.npa",
+    ]),
+    rutPropietarioAnterior: pickOp("rutPropietarioAnterior", [
+      "rut_propietario_anterior",
+      "rpa",
+      "glo3d.rut_propietario_anterior",
+      "glo3d.rpa",
+    ]),
     rutVerificador:
       override?.rutVerificador ??
       String(getLookupValue(lookup, ["rut_verificador", "verifier_rut", "glo3d.rut_verificador"]) ?? ""),
-    thumbnail: override?.thumbnail ?? (item.thumbnail ?? ""),
+    thumbnail:
+      (override?.thumbnail?.trim() && !isPlaceholderCatalogThumbnail(override.thumbnail)
+        ? override.thumbnail.trim()
+        : undefined) ??
+      resolveCatalogItemThumbnail(item) ??
+      item.thumbnail ??
+      "",
     view3dUrl: override?.view3dUrl ?? (item.view3dUrl ?? ""),
     imagesCsv: override?.imagesCsv ?? baseImages,
     originalPrice: override?.originalPrice ?? rawPromoMeta.originalPriceLabel ?? "",
@@ -2011,8 +2057,22 @@ function sanitizeDetails(details: EditorVehicleDetails): EditorVehicleDetails | 
 }
 
 function applyDetailsOverride(item: CatalogItem, override?: EditorVehicleDetails): CatalogItem {
-  if (!override) return item;
+  if (!override) {
+    const resolvedThumbnail = resolveCatalogItemThumbnail(item);
+    if (!resolvedThumbnail || !isPlaceholderCatalogThumbnail(item.thumbnail)) return item;
+    return {
+      ...item,
+      thumbnail: resolvedThumbnail,
+      images: item.images.length > 0 ? item.images : [resolvedThumbnail],
+    };
+  }
   const images = parseImagesCsv(override.imagesCsv);
+  const resolvedThumbnail = resolveCatalogItemThumbnail(item);
+  const overrideThumbnail = override.thumbnail?.trim();
+  const thumbnail =
+    overrideThumbnail && !isPlaceholderCatalogThumbnail(overrideThumbnail)
+      ? overrideThumbnail
+      : resolvedThumbnail ?? item.thumbnail;
   return {
     ...item,
     title: override.title ?? item.title,
@@ -2021,7 +2081,7 @@ function applyDetailsOverride(item: CatalogItem, override?: EditorVehicleDetails
     location: override.location ?? item.location,
     lot: override.lot ?? item.lot,
     auctionDate: override.auctionDate ?? item.auctionDate,
-    thumbnail: override.thumbnail?.trim() || item.thumbnail,
+    thumbnail,
     view3dUrl: override.view3dUrl?.trim() || item.view3dUrl,
     images: images.length > 0 ? images : item.images,
     raw: {
@@ -6894,21 +6954,47 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
           });
           const glo3dPayload = (await glo3dResponse.json().catch(() => ({}))) as {
             ok?: boolean;
-            byPatent?: Record<string, { view3dUrl?: string; raw?: Record<string, unknown> }>;
+            byPatent?: Record<
+              string,
+              {
+                view3dUrl?: string;
+                technicalFields?: Record<string, unknown>;
+                raw?: Record<string, unknown>;
+              }
+            >;
           };
           const entry = glo3dPayload.byPatent?.[patente];
-          if (!glo3dResponse.ok || !glo3dPayload.ok || !entry?.view3dUrl?.trim()) return;
+          if (!glo3dResponse.ok || !glo3dPayload.ok || !entry) return;
 
-          setManualDraft((prev) => ({
-            ...prev,
-            view3dUrl: entry.view3dUrl?.trim() ?? prev.view3dUrl,
-            thumbnail:
-              prev.thumbnail?.trim() && prev.thumbnail !== "/placeholder-car.svg"
-                ? prev.thumbnail
-                : typeof entry.raw?.thumb_url === "string"
-                  ? entry.raw.thumb_url
-                  : prev.thumbnail,
-          }));
+          const syntheticItem: CatalogItem = {
+            id: patente,
+            title: patente,
+            images: [],
+            view3dUrl: entry.view3dUrl,
+            raw: {
+              patente,
+              PPU: patente,
+              ...(entry.technicalFields ?? {}),
+              glo3d: entry.raw ?? {},
+            },
+          };
+          const glo3dOps = extractGlo3dOperationDetails(syntheticItem);
+          const resolvedThumb = entry.raw ? resolveGlo3dThumbnailFromRecord(entry.raw) : undefined;
+
+          setManualDraft((prev) =>
+            mergeGlo3dOperationIntoDraft(
+              {
+                ...prev,
+                view3dUrl: entry.view3dUrl?.trim() ?? prev.view3dUrl,
+                thumbnail:
+                  prev.thumbnail?.trim() && !isPlaceholderCatalogThumbnail(prev.thumbnail)
+                    ? prev.thumbnail
+                    : resolvedThumb ?? prev.thumbnail,
+              },
+              glo3dOps,
+              true,
+            ),
+          );
         } catch {
           // Ignorar errores de red al buscar GLO3D bajo demanda.
         }

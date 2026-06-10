@@ -6,6 +6,7 @@
   type MouseEvent as ReactMouseEvent,
 } from "react";
 import type { CatalogItem } from "@/types/catalog";
+import { resolveCatalogItemThumbnail } from "@/lib/catalog";
 import { WHATSAPP_API_BASE } from "@/lib/contact";
 
 const WHATSAPP_BASE_URL = WHATSAPP_API_BASE;
@@ -51,7 +52,9 @@ function isLikelyImageUrl(url?: string): boolean {
   const normalized = url.toLowerCase();
   if (normalized.includes("glo3d.net/iframe") || normalized.includes("<iframe")) return false;
   if (/\.(jpg|jpeg|png|webp|gif|bmp|avif)(\?|$)/i.test(normalized)) return true;
-  return /cdn\.|cloudfront|amazonaws|supabase|img|image|media/.test(normalized);
+  return /cdn\.|cloudfront|amazonaws|supabase|cloudinary|glo3d|thumb|image|photo|media|foto/.test(
+    normalized,
+  );
 }
 
 function getPatent(item: CatalogItem): string {
@@ -423,7 +426,7 @@ export function CatalogCard({
   onInlineSave,
 }: CatalogCardProps) {
   const raw = item.raw as Record<string, unknown>;
-  const coverCandidate = item.thumbnail ?? item.images[0];
+  const coverCandidate = resolveCatalogItemThumbnail(item) ?? item.thumbnail ?? item.images[0];
   const cover = isLikelyImageUrl(coverCandidate) ? (coverCandidate as string) : "/placeholder-car.svg";
   const [coverSrc, setCoverSrc] = useState(cover);
   const formattedDate = formatDate(item.auctionDate);

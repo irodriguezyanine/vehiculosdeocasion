@@ -44,6 +44,7 @@ import { COMMERCIAL_EMAIL } from "@/lib/site-content";
 import {
   getHomeEditorChannelLabels,
   isVehicleAssignedToHomeEditorChannels,
+  isVehicleInAssignmentList,
 } from "@/lib/catalog-visibility";
 import {
   applyAutoredLookupToDraft,
@@ -173,6 +174,81 @@ type SystemNotice = {
   title: string;
   message: string;
 };
+
+function EditorAddVehicleMenu({
+  onAddNew,
+  onAddFromStock,
+  compact = false,
+  className = "",
+  menuLabel = "Agregar unidad",
+}: {
+  onAddNew: () => void;
+  onAddFromStock: () => void;
+  compact?: boolean;
+  className?: string;
+  menuLabel?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handlePointerDown = (event: Event) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [open]);
+
+  return (
+    <div ref={rootRef} className={`relative ${className}`}>
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className={
+          compact
+            ? "ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-emerald-300 bg-emerald-50 text-lg font-bold leading-none text-emerald-700 transition hover:bg-emerald-100"
+            : "ui-focus inline-flex h-full min-h-10 items-center justify-center rounded-md border border-amber-300 bg-amber-700 px-3 text-white transition hover:bg-amber-600"
+        }
+        aria-label={menuLabel}
+        aria-expanded={open}
+        title={menuLabel}
+      >
+        {compact ? (
+          "+"
+        ) : (
+          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white/15 text-sm font-bold">
+            +
+          </span>
+        )}
+      </button>
+      {open ? (
+        <div className="absolute right-0 top-[calc(100%+0.35rem)] z-[80] min-w-[15rem] overflow-hidden rounded-lg border border-amber-200 bg-white py-1 shadow-xl">
+          <button
+            type="button"
+            className="ui-focus block w-full px-3 py-2 text-left text-sm text-slate-800 transition hover:bg-amber-50"
+            onClick={() => {
+              setOpen(false);
+              onAddNew();
+            }}
+          >
+            Agregar auto nuevo
+          </button>
+          <button
+            type="button"
+            className="ui-focus block w-full px-3 py-2 text-left text-sm text-slate-800 transition hover:bg-amber-50"
+            onClick={() => {
+              setOpen(false);
+              onAddFromStock();
+            }}
+          >
+            Agregar auto desde stock
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 type AnalyticsEventPayload = Record<string, unknown> & {
   event?: string;
@@ -482,13 +558,10 @@ function isVehicleAssignedToSection(
   vehicleKey: string,
   itemsByKey: Map<string, CatalogItem>,
 ): boolean {
-  const normalizedTarget = normalizePatentToken(vehicleKey);
-  return sectionIds.some((assignedId) => {
-    const resolved = resolveInventoryItemKey(assignedId, itemsByKey);
-    if (resolved === vehicleKey) return true;
-    if (normalizedTarget && normalizePatentToken(assignedId) === normalizedTarget) return true;
-    return assignedId === vehicleKey;
-  });
+  if (isVehicleInAssignmentList(sectionIds, vehicleKey)) return true;
+  const resolved = resolveInventoryItemKey(vehicleKey, itemsByKey);
+  if (resolved && isVehicleInAssignmentList(sectionIds, resolved)) return true;
+  return sectionIds.some((assignedId) => resolveInventoryItemKey(assignedId, itemsByKey) === vehicleKey);
 }
 
 function normalizeLookupKey(value: string): string {
@@ -1810,7 +1883,7 @@ function buildPublicationDraftFromItem(
 ): ManualPublicationDraft {
   const details = buildDetailsDraft(item, config.vehicleDetails[vehicleKey]);
   const sectionIds = PUBLICATION_SECTION_IDS.filter((sectionId) =>
-    (config.sectionVehicleIds[sectionId] ?? []).includes(vehicleKey),
+    isVehicleInAssignmentList(config.sectionVehicleIds[sectionId] ?? [], vehicleKey),
   );
   const visible = !config.hiddenVehicleIds.includes(vehicleKey);
   const configuredPrice = config.vehiclePrices[vehicleKey] ?? "";
@@ -2744,6 +2817,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   const [finalizeAuctionSearchTerm, setFinalizeAuctionSearchTerm] = useState("");
   const [finalizeSoldVehicleKeys, setFinalizeSoldVehicleKeys] = useState<string[]>([]);
   const [batchAssignTarget, setBatchAssignTarget] = useState<BatchAssignTarget | null>(null);
+  const pendingAddStockTargetRef = useRef<BatchAssignTarget | null>(null);
   const [batchAssignSearchTerm, setBatchAssignSearchTerm] = useState("");
   const [batchAssignSelectedKeys, setBatchAssignSelectedKeys] = useState<string[]>([]);
   const [manualDraft, setManualDraft] = useState<ManualPublicationDraft>(
@@ -3745,7 +3819,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
             if (topSectionFilter === "proximos-remates") {
               return Boolean(config.vehicleUpcomingAuctionIds[key]);
             }
-            return (config.sectionVehicleIds[topSectionFilter] ?? []).includes(key);
+            return isVehicleInAssignmentList(config.sectionVehicleIds[topSectionFilter] ?? [], key);
           });
     if (quickFilters.length === 0) return byTopSection;
     return byTopSection.filter((item) => {
@@ -3835,19 +3909,19 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   );
 
   const getAssignedSectionItems = useCallback(
-    (sectionId: SectionId, options?: { visibleOnHomeOnly?: boolean }): CatalogItem[] => {
+    (sectionId: SectionId, options?: { visibleOnly?: boolean }): CatalogItem[] => {
       const selected = config.sectionVehicleIds[sectionId] ?? [];
       const resolved = selected
         .map((id) => resolveInventoryItem(id, itemsByKey))
         .filter((item): item is CatalogItem => !!item);
-      if (!options?.visibleOnHomeOnly) return resolved;
-      return resolved.filter((item) => homeVisibleKeys.has(getVehicleKey(item)));
+      if (!options?.visibleOnly) return resolved;
+      return resolved.filter((item) => !mergedHiddenVehicleIds.has(getVehicleKey(item)));
     },
-    [config.sectionVehicleIds, homeVisibleKeys, itemsByKey],
+    [config.sectionVehicleIds, itemsByKey, mergedHiddenVehicleIds],
   );
 
   const getSectionItems = (sectionId: SectionId): CatalogItem[] =>
-    getAssignedSectionItems(sectionId, { visibleOnHomeOnly: true });
+    getAssignedSectionItems(sectionId, { visibleOnly: true });
 
   const upcomingAuctionByVehicleKey = useMemo(() => {
     const labels: Record<string, string> = {};
@@ -3879,7 +3953,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
           const key = getVehicleKey(item);
           return (
             (config.vehicleUpcomingAuctionIds[key] ?? "") === auction.id &&
-            (config.sectionVehicleIds["proximos-remates"] ?? []).includes(key)
+            isVehicleInAssignmentList(config.sectionVehicleIds["proximos-remates"] ?? [], key)
           );
         }),
       })),
@@ -5771,14 +5845,21 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                   (category) => category.id === managedCategoryId,
                 );
                 if (!managedCategory) return false;
-                return (managedCategory.vehicleIds ?? []).includes(getVehicleKey(item));
+                return isVehicleInAssignmentList(
+                  managedCategory.vehicleIds ?? [],
+                  getVehicleKey(item),
+                );
               })
           : source.filter((item) => {
               const sectionGroup = editorGroupFilter as Exclude<
                 EditorGroupFilter,
                 "all" | "home" | "unassigned" | `managed:${string}`
               >;
-              return (config.sectionVehicleIds[sectionGroup] ?? []).includes(getVehicleKey(item));
+              return isVehicleAssignedToSection(
+                config.sectionVehicleIds[sectionGroup] ?? [],
+                getVehicleKey(item),
+                itemsByKey,
+              );
             });
     const byVisibility =
       editorVisibilityFilter === "all"
@@ -5810,6 +5891,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     config.vehicleUpcomingAuctionIds,
     config.sectionVehicleIds,
     config.managedCategories,
+    itemsByKey,
   ]);
 
   const totalEditorPages = Math.max(1, Math.ceil(filteredEditorItems.length / EDITOR_PAGE_SIZE));
@@ -5882,10 +5964,10 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   const sectionVehicleCounts = useMemo(
     () =>
       ({
-        "proximos-remates": getAssignedSectionItems("proximos-remates").length,
-        "ventas-directas": getAssignedSectionItems("ventas-directas").length,
-        novedades: getAssignedSectionItems("novedades").length,
-        catalogo: getAssignedSectionItems("catalogo").length,
+        "proximos-remates": getAssignedSectionItems("proximos-remates", { visibleOnly: true }).length,
+        "ventas-directas": getAssignedSectionItems("ventas-directas", { visibleOnly: true }).length,
+        novedades: getAssignedSectionItems("novedades", { visibleOnly: true }).length,
+        catalogo: getAssignedSectionItems("catalogo", { visibleOnly: true }).length,
       }) satisfies Record<SectionId, number>,
     [getAssignedSectionItems],
   );
@@ -5965,18 +6047,18 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
         return "Remate";
       }
 
-      if ((currentConfig.sectionVehicleIds["ventas-directas"] ?? []).includes(vehicleKey)) {
+      if (isVehicleInAssignmentList(currentConfig.sectionVehicleIds["ventas-directas"] ?? [], vehicleKey)) {
         return "Venta directa";
       }
-      if ((currentConfig.sectionVehicleIds.novedades ?? []).includes(vehicleKey)) {
+      if (isVehicleInAssignmentList(currentConfig.sectionVehicleIds.novedades ?? [], vehicleKey)) {
         return "Novedades";
       }
-      if ((currentConfig.sectionVehicleIds.catalogo ?? []).includes(vehicleKey)) {
+      if (isVehicleInAssignmentList(currentConfig.sectionVehicleIds.catalogo ?? [], vehicleKey)) {
         return "Catalogo";
       }
 
       const managedCategory = (currentConfig.managedCategories ?? []).find((category) =>
-        (category.vehicleIds ?? []).includes(vehicleKey),
+        isVehicleInAssignmentList(category.vehicleIds ?? [], vehicleKey),
       );
       if (managedCategory) {
         return managedCategory.name?.trim()
@@ -6397,6 +6479,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   };
 
   const openBatchAssignModal = (target: BatchAssignTarget) => {
+    pendingAddStockTargetRef.current = target;
     setBatchAssignTarget(target);
     setBatchAssignSearchTerm("");
     setBatchAssignSelectedKeys([]);
@@ -6406,6 +6489,61 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     setBatchAssignTarget(null);
     setBatchAssignSearchTerm("");
     setBatchAssignSelectedKeys([]);
+    pendingAddStockTargetRef.current = null;
+  };
+
+  const resolveBatchAssignTargetFromEditor = (): BatchAssignTarget | null => {
+    if (
+      editorGroupFilter === "ventas-directas" ||
+      editorGroupFilter === "novedades" ||
+      editorGroupFilter === "catalogo"
+    ) {
+      return { type: "section", sectionId: editorGroupFilter };
+    }
+    if (editorGroupFilter === "proximos-remates" && auctionFilterId) {
+      return { type: "auction", auctionId: auctionFilterId };
+    }
+    return pendingAddStockTargetRef.current;
+  };
+
+  const openAddVehicleFromStock = (explicitTarget?: BatchAssignTarget) => {
+    const target = explicitTarget ?? resolveBatchAssignTargetFromEditor();
+    if (!target) {
+      if (editorGroupFilter === "proximos-remates") {
+        showSystemNotice(
+          "info",
+          "Selecciona un remate",
+          "Para agregar desde inventario, elige un remate especifico en el filtro.",
+        );
+        return;
+      }
+      showSystemNotice(
+        "info",
+        "Elige una categoria",
+        "Selecciona Ventas directas, Novedades o Catalogo en el filtro, o usa el boton + en la pestana Categorias.",
+      );
+      return;
+    }
+    openBatchAssignModal(target);
+  };
+
+  const openAddVehicleNew = (sectionIds?: SectionId[]) => {
+    if (adminTab !== "vehiculos") {
+      setAdminTab("vehiculos");
+    }
+    if (sectionIds && sectionIds.length > 0) {
+      setPublicationModalMode("create");
+      setEditingPublicationKey(null);
+      setPublicationInitialTab("general");
+      setManualDraft({
+        ...EMPTY_MANUAL_PUBLICATION_DRAFT,
+        sectionIds,
+      });
+      setManualUploadedImages([]);
+      setShowManualCreateModal(true);
+      return;
+    }
+    openCreateManualModal();
   };
 
   const addBatchVehiclesToTarget = () => {
@@ -8413,9 +8551,8 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                       </div>
                     ) : null}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
+                  <EditorAddVehicleMenu
+                    onAddNew={() => {
                       if (adminTab !== "vehiculos") {
                         showSystemNotice(
                           "info",
@@ -8424,44 +8561,11 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                         );
                         return;
                       }
-                      openCreateManualModal();
+                      openAddVehicleNew();
                     }}
-                    className="ui-focus inline-flex h-full min-h-10 items-center justify-center rounded-md border border-amber-300 bg-amber-700 px-3 text-white transition hover:bg-amber-600"
-                    aria-label="Crear nueva publicacion manual"
-                    title="Crear nueva publicacion"
-                  >
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white/15 text-sm font-bold">
-                      +
-                    </span>
-                  </button>
-                  {adminTab === "vehiculos" &&
-                  (editorGroupFilter === "ventas-directas" ||
-                    editorGroupFilter === "novedades" ||
-                    editorGroupFilter === "catalogo" ||
-                    editorGroupFilter === "proximos-remates") ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (editorGroupFilter === "proximos-remates") {
-                          if (!auctionFilterId) {
-                            showSystemNotice(
-                              "info",
-                              "Selecciona un remate",
-                              "Para agregar desde inventario maestro, elige un remate especifico primero.",
-                            );
-                            return;
-                          }
-                          openBatchAssignModal({ type: "auction", auctionId: auctionFilterId });
-                          return;
-                        }
-                        openBatchAssignModal({ type: "section", sectionId: editorGroupFilter });
-                      }}
-                      className="ui-focus inline-flex h-full min-h-10 items-center justify-center rounded-md border border-amber-300 bg-stone-100 px-3 text-xs font-semibold text-amber-900 transition hover:bg-stone-200"
-                      title="Agregar unidades desde inventario maestro"
-                    >
-                      Maestro
-                    </button>
-                  ) : null}
+                    onAddFromStock={() => openAddVehicleFromStock()}
+                    menuLabel="Agregar unidad al inventario"
+                  />
                 </div>
                 <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-2">
                   {paginatedEditorItems.map((item) => {
@@ -9037,17 +9141,19 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                             </svg>
                           </button>
                           {sectionId !== "proximos-remates" ? (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                openBatchAssignModal({ type: "section", sectionId: sectionId as "ventas-directas" | "novedades" | "catalogo" })
+                            <EditorAddVehicleMenu
+                              compact
+                              menuLabel={`Agregar unidades a ${SECTION_LABELS[sectionId]}`}
+                              onAddNew={() =>
+                                openAddVehicleNew([sectionId as "ventas-directas" | "novedades" | "catalogo"])
                               }
-                              className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-emerald-300 bg-emerald-50 text-emerald-700"
-                              aria-label={`Agregar unidades a ${SECTION_LABELS[sectionId]}`}
-                              title="Agregar unidades"
-                            >
-                              +
-                            </button>
+                              onAddFromStock={() =>
+                                openAddVehicleFromStock({
+                                  type: "section",
+                                  sectionId: sectionId as "ventas-directas" | "novedades" | "catalogo",
+                                })
+                              }
+                            />
                           ) : null}
                         </div>
                       </article>

@@ -50,16 +50,27 @@ const HOME_SECTION_LABELS: Record<string, string> = {
   catalogo: "Catalogo",
 };
 
+function assignmentKeysMatch(storedId: string, vehicleKey: string): boolean {
+  if (storedId === vehicleKey) return true;
+  const normalizedStored = storedId.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const normalizedVehicle = vehicleKey.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return normalizedStored.length > 0 && normalizedStored === normalizedVehicle;
+}
+
+export function isVehicleInAssignmentList(ids: string[], vehicleKey: string): boolean {
+  return ids.some((storedId) => assignmentKeysMatch(storedId, vehicleKey));
+}
+
 /** Un vehiculo asignado a alguna seccion o categoria gestionada del home. */
 export function isVehicleAssignedToHomeEditorChannels(
   config: EditorConfig,
   vehicleKey: string,
 ): boolean {
   for (const ids of Object.values(config.sectionVehicleIds)) {
-    if (ids.includes(vehicleKey)) return true;
+    if (isVehicleInAssignmentList(ids, vehicleKey)) return true;
   }
   for (const category of config.managedCategories ?? []) {
-    if ((category.vehicleIds ?? []).includes(vehicleKey)) return true;
+    if (isVehicleInAssignmentList(category.vehicleIds ?? [], vehicleKey)) return true;
   }
   return false;
 }
@@ -67,12 +78,12 @@ export function isVehicleAssignedToHomeEditorChannels(
 export function getHomeEditorChannelLabels(config: EditorConfig, vehicleKey: string): string[] {
   const labels: string[] = [];
   for (const [sectionId, ids] of Object.entries(config.sectionVehicleIds)) {
-    if (ids.includes(vehicleKey)) {
+    if (isVehicleInAssignmentList(ids, vehicleKey)) {
       labels.push(HOME_SECTION_LABELS[sectionId] ?? sectionId);
     }
   }
   for (const category of config.managedCategories ?? []) {
-    if ((category.vehicleIds ?? []).includes(vehicleKey)) {
+    if (isVehicleInAssignmentList(category.vehicleIds ?? [], vehicleKey)) {
       labels.push(category.name);
     }
   }

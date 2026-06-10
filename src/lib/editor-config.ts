@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { cache } from "react";
 import { DEFAULT_EDITOR_CONFIG, type EditorConfig } from "@/types/editor";
 
 const EDITOR_TABLE = process.env.CATALOG_EDITOR_TABLE ?? "catalogo_editor_config";
@@ -194,7 +195,7 @@ export type EditorConfigLoadResult = {
   scopeId: string;
 };
 
-export async function getEditorConfig(): Promise<EditorConfigLoadResult> {
+export const getEditorConfig = cache(async function getEditorConfig(): Promise<EditorConfigLoadResult> {
   const scopeId = getEditorScopeId();
   const supabase = getServerSupabase();
   if (!supabase) return { config: DEFAULT_EDITOR_CONFIG, persisted: false, scopeId };
@@ -222,7 +223,7 @@ export async function getEditorConfig(): Promise<EditorConfigLoadResult> {
   }
 
   return { config, persisted, scopeId };
-}
+});
 
 export async function checkEditorPersistenceHealth(): Promise<{ ok: boolean; error?: string }> {
   const supabase = getServerSupabase();

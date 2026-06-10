@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, ScanCommand } from "@aws-sdk/lib-dynamodb";
+import { cache } from "react";
 import type { CatalogFeed, CatalogItem, CatalogSource } from "@/types/catalog";
 import { fetchAutoredPatentData, mapAutoredToDraftPartial, AutoredLookupError } from "@/lib/autored-lookup";
 
@@ -1132,7 +1133,9 @@ function itemNeedsTechnicalFallback(item: CatalogItem): boolean {
 async function enrichWithAutoredFallback(
   items: CatalogItem[],
 ): Promise<CatalogItem[]> {
-  if (!AUTORED_CONFIGURED || items.length === 0) return items;
+  if (!AUTORED_CONFIGURED || items.length === 0 || AUTORED_MAX_LOOKUPS <= 0) {
+    return items;
+  }
 
   const candidates = items
     .map((item) => ({ item, stock: getItemStock(item) }))
@@ -1140,8 +1143,7 @@ async function enrichWithAutoredFallback(
       (entry): entry is { item: CatalogItem; stock: string } =>
         !!entry.stock && itemNeedsTechnicalFallback(entry.item),
     );
-  const limitedCandidates =
-    AUTORED_MAX_LOOKUPS > 0 ? candidates.slice(0, AUTORED_MAX_LOOKUPS) : candidates;
+  const limitedCandidates = candidates.slice(0, AUTORED_MAX_LOOKUPS);
 
   if (limitedCandidates.length === 0) return items;
 
@@ -1223,7 +1225,7 @@ function filterEnBodega(items: CatalogItem[]): CatalogItem[] {
   return items.filter((item) => item.enBodega !== false);
 }
 
-export async function getCatalogFeed(): Promise<CatalogFeed> {
+export const getCatalogFeed = cache(async function getCatalogFeed(): Promise<CatalogFeed> {
   let resolvedSource: CatalogSource = "empty";
 
   try {
@@ -1272,7 +1274,7 @@ export async function getCatalogFeed(): Promise<CatalogFeed> {
           : "No fue posible cargar inventario.",
     };
   }
-}
+});
 
 export function sourceLabel(source: CatalogSource): string {
   if (source === "tasaciones-api") return "Tasaciones API";

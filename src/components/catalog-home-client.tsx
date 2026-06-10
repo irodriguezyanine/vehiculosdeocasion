@@ -45,6 +45,13 @@ import {
   getHomeEditorChannelLabels,
   isVehicleAssignedToHomeEditorChannels,
 } from "@/lib/catalog-visibility";
+import {
+  applyAutoredLookupToDraft,
+  extractAutoredMechanicalDetails,
+  extractGlo3dOperationDetails,
+  mergeAutoredMechanicalIntoDraft,
+  mergeGlo3dOperationIntoDraft,
+} from "@/lib/vehicle-draft-sources";
 import { SITE_EDITOR_SCOPE } from "@/lib/editor-config";
 import type { CatalogFeed, CatalogItem } from "@/types/catalog";
 import type { OfferRecord } from "@/types/offers";
@@ -1598,29 +1605,99 @@ function buildDetailsDraft(item: CatalogItem, override?: EditorVehicleDetails): 
     model: override?.model ?? String(getLookupValue(lookup, ["modelo", "model", "model2", "glo3d.model2"]) ?? raw.modelo ?? raw.model ?? ""),
     year: override?.year ?? String(getLookupValue(lookup, ["ano", "anio", "year", "glo3d.year"]) ?? raw.ano ?? raw.anio ?? raw.year ?? ""),
     category: override?.category ?? String(raw.categoria ?? ""),
-    kilometraje: override?.kilometraje ?? String(raw.kilometraje ?? cav.kilometraje ?? cav.km ?? ""),
-    color: override?.color ?? String(raw.color ?? cav.color ?? ""),
-    combustible: override?.combustible ?? String(raw.combustible ?? cav.combustible ?? ""),
-    transmision: override?.transmision ?? String(raw.transmision ?? cav.transmision ?? cav.caja ?? ""),
-    traccion: override?.traccion ?? String(raw.traccion ?? cav.traccion ?? ""),
-    aro: override?.aro ?? String(raw.aro ?? cav.aro ?? ""),
-    cilindrada: override?.cilindrada ?? String(raw.cilindrada ?? cav.cilindrada ?? ""),
+    kilometraje:
+      override?.kilometraje ??
+      String(
+        getLookupValue(lookup, [
+          "autored.kilometraje",
+          "autored.km",
+          "autored.mileage",
+          "kilometraje",
+          "km",
+          "mileage",
+        ]) ?? cav.kilometraje ?? cav.km ?? "",
+      ),
+    color:
+      override?.color ??
+      String(
+        getLookupValue(lookup, [
+          "autored.color",
+          "autored.color_exterior",
+          "autored.exterior_color",
+          "color",
+        ]) ?? cav.color ?? "",
+      ),
+    combustible:
+      override?.combustible ??
+      String(
+        getLookupValue(lookup, [
+          "autored.combustible",
+          "autored.tipo_combustible",
+          "autored.fuel",
+          "autored.fuel_type",
+          "combustible",
+        ]) ?? cav.combustible ?? "",
+      ),
+    transmision:
+      override?.transmision ??
+      String(
+        getLookupValue(lookup, [
+          "autored.transmision",
+          "autored.transmission",
+          "autored.caja",
+          "autored.tipo_caja",
+          "transmision",
+          "caja",
+        ]) ?? cav.transmision ?? cav.caja ?? "",
+      ),
+    traccion:
+      override?.traccion ??
+      String(
+        getLookupValue(lookup, [
+          "autored.traccion",
+          "autored.drive_type",
+          "autored.tipo_traccion",
+          "traccion",
+        ]) ?? cav.traccion ?? "",
+      ),
+    aro:
+      override?.aro ??
+      String(
+        getLookupValue(lookup, [
+          "autored.aro",
+          "autored.rin",
+          "autored.rines",
+          "autored.wheel_size",
+          "aro",
+        ]) ?? cav.aro ?? "",
+      ),
+    cilindrada:
+      override?.cilindrada ??
+      String(
+        getLookupValue(lookup, [
+          "autored.cilindrada",
+          "autored.cc",
+          "autored.motor_cc",
+          "autored.engine_cc",
+          "cilindrada",
+        ]) ?? cav.cilindrada ?? "",
+      ),
     llaves:
       override?.llaves ??
-      String(getLookupValue(lookup, ["llaves", "keys", "has_keys", "tiene_llaves", "glo3d.llaves"]) ?? ""),
+      String(getLookupValue(lookup, ["llaves", "lla", "keys", "has_keys", "tiene_llaves", "glo3d.llaves"]) ?? ""),
     aireAcondicionado:
       override?.aireAcondicionado ??
       String(getLookupValue(lookup, ["aire_acondicionado", "air_conditioning", "has_ac", "ac", "glo3d.aire_acondicionado"]) ?? ""),
     unicoPropietario:
       override?.unicoPropietario ??
-      String(getLookupValue(lookup, ["unico_propietario", "single_owner", "one_owner", "glo3d.unico_propietario"]) ?? ""),
+      String(getLookupValue(lookup, ["unico_propietario", "dun", "DUN", "single_owner", "one_owner", "glo3d.unico_propietario"]) ?? ""),
     condicionado:
       override?.condicionado ??
       String(getLookupValue(lookup, ["condicionado", "conditioned", "acondicionado", "glo3d.condicionado"]) ?? ""),
     multas:
       override?.multas ??
-      String(getLookupValue(lookup, ["multas", "mul", "glo3d.multas"]) ?? ""),
-    tag: override?.tag ?? String(getLookupValue(lookup, ["tag", "glo3d.tag"]) ?? ""),
+      String(getLookupValue(lookup, ["multas", "mul", "Mul", "glo3d.multas"]) ?? ""),
+    tag: override?.tag ?? String(getLookupValue(lookup, ["tag", "TAG", "glo3d.tag"]) ?? ""),
     vencRevisionTecnica:
       override?.vencRevisionTecnica ??
       String(getLookupValue(lookup, ["vencimiento_revision_tecnica", "vrt", "glo3d.vencimiento_revision_tecnica"]) ?? ""),
@@ -1694,7 +1771,7 @@ function buildPublicationDraftFromItem(
   const configuredPrice = config.vehiclePrices[vehicleKey] ?? "";
   const images = item.images.filter((url) => url.startsWith("http"));
 
-  return {
+  let draft: ManualPublicationDraft = {
     ...EMPTY_MANUAL_PUBLICATION_DRAFT,
     ...details,
     status: details.status || item.status || "Disponible",
@@ -1715,6 +1792,11 @@ function buildPublicationDraftFromItem(
     thumbnail: details.thumbnail ?? item.thumbnail ?? images[0] ?? "",
     view3dUrl: details.view3dUrl ?? item.view3dUrl ?? "",
   };
+
+  draft = mergeGlo3dOperationIntoDraft(draft, extractGlo3dOperationDetails(item));
+  draft = mergeAutoredMechanicalIntoDraft(draft, extractAutoredMechanicalDetails(item), true);
+
+  return draft;
 }
 
 function sanitizeDetails(details: EditorVehicleDetails): EditorVehicleDetails | undefined {
@@ -6377,12 +6459,16 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
         return;
       }
       const fields = payload.fields;
-      setManualDraft((prev) => ({
-        ...prev,
-        ...fields,
-        patente: fields.patente ?? normalized,
-        title: prev.title?.trim() || fields.title || prev.title,
-      }));
+      setManualDraft((prev) =>
+        applyAutoredLookupToDraft(
+          {
+            ...prev,
+            patente: fields.patente ?? normalized,
+            title: prev.title?.trim() || fields.title || prev.title,
+          },
+          fields,
+        ),
+      );
     } finally {
       setAutoredLookupLoading(false);
     }
@@ -6412,6 +6498,11 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     setManualDraft(draft);
     setManualUploadedImages(images);
     setShowManualCreateModal(true);
+
+    const patente = draft.patente?.trim();
+    if (patente) {
+      void lookupAutoredPatent(patente);
+    }
   };
 
   const openCreateManualModal = () => {

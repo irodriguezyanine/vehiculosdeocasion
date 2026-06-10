@@ -80,8 +80,21 @@ export function mapAutoredToDraftPartial(
     "tipo",
   ]);
   const categoryRaw = pickString(merged, ["categoria", "category", "tipo_unidad", "vehicle_category"]);
-  const color = pickString(merged, ["color", "color_exterior", "exterior_color", "color_vehiculo"]);
-  const combustible = pickString(merged, ["combustible", "tipo_combustible", "fuel", "fuel_type"]);
+  const color = pickString(merged, [
+    "color",
+    "color_exterior",
+    "exterior_color",
+    "color_vehiculo",
+    "colour",
+    "paint_color",
+  ]);
+  const combustible = pickString(merged, [
+    "combustible",
+    "tipo_combustible",
+    "fuel",
+    "fuel_type",
+    "tipo_de_combustible",
+  ]);
   const transmision = pickString(merged, [
     "transmision",
     "transmisión",
@@ -89,6 +102,7 @@ export function mapAutoredToDraftPartial(
     "tipo_caja",
     "transmission",
     "gearbox",
+    "tipo_transmision",
   ]);
   const traccion = pickString(merged, [
     "traccion",
@@ -97,9 +111,26 @@ export function mapAutoredToDraftPartial(
     "drivetrain",
     "traction",
     "drive_type",
+    "tipo_traccion",
   ]);
-  const aro = pickString(merged, ["aro", "aro_llanta", "rin", "rines", "wheel_size"]);
-  const cilindrada = pickString(merged, ["cilindrada", "cc", "motor_cc", "engine_cc", "engine"]);
+  const aro = pickString(merged, [
+    "aro",
+    "aro_llanta",
+    "rin",
+    "rines",
+    "wheel_size",
+    "tamano_rin",
+    "tamanorin",
+  ]);
+  const cilindrada = pickString(merged, [
+    "cilindrada",
+    "cc",
+    "motor_cc",
+    "engine_cc",
+    "engine",
+    "capacidad_motor",
+    "capacidad_cilindrada",
+  ]);
   const kilometraje = pickString(merged, ["kilometraje", "km", "kms", "odometro", "mileage"]);
 
   if (patente) partial.patente = patente.toUpperCase().replace(/\s+/g, "").replace(/-/g, "");

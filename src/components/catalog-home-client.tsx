@@ -66,7 +66,9 @@ import {
 import { SITE_EDITOR_SCOPE } from "@/lib/editor-config";
 import {
   collectAutoredLookupPatents,
+  collectPublishedPatentsMissingGlo3d,
   enrichPublishedVehiclesConfig,
+  mergeGlo3dResponseIntoCatalogItems,
 } from "@/lib/enrich-published-vehicles";
 import {
   getAutoredClientCooldownMs,
@@ -2019,8 +2021,8 @@ function applyDetailsOverride(item: CatalogItem, override?: EditorVehicleDetails
     location: override.location ?? item.location,
     lot: override.lot ?? item.lot,
     auctionDate: override.auctionDate ?? item.auctionDate,
-    thumbnail: override.thumbnail ?? item.thumbnail,
-    view3dUrl: override.view3dUrl ?? item.view3dUrl,
+    thumbnail: override.thumbnail?.trim() || item.thumbnail,
+    view3dUrl: override.view3dUrl?.trim() || item.view3dUrl,
     images: images.length > 0 ? images : item.images,
     raw: {
       ...item.raw,
@@ -7463,8 +7465,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       });
       if (!catalogResponse.ok) throw new Error("Error al cargar catalogo");
       const freshFeed = (await catalogResponse.json()) as CatalogFeed;
-      const freshItems = freshFeed.items ?? [];
-      setCatalogItems(freshItems);
+      let freshItems = freshFeed.items ?? [];
 
       let workingConfig = config;
       const { config: syncedConfig, mergedPatents } = syncManualPublicationsWithCatalog(
@@ -7472,6 +7473,32 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
         freshItems,
       );
       workingConfig = syncedConfig;
+
+      const missingGlo3dPatents = collectPublishedPatentsMissingGlo3d(workingConfig, freshItems);
+      if (missingGlo3dPatents.length > 0) {
+        setInventoryUpdateProgress(
+          `GLO3D ${missingGlo3dPatents.length} patente(s) sin visor 3D...`,
+        );
+        const glo3dResponse = await fetch("/api/admin/glo3d-lookup", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ patentes: missingGlo3dPatents }),
+        });
+        const glo3dPayload = (await glo3dResponse.json().catch(() => ({}))) as {
+          ok?: boolean;
+          byPatent?: Record<
+            string,
+            { view3dUrl?: string; technicalFields?: Record<string, unknown>; raw?: Record<string, unknown> }
+          >;
+          matched?: number;
+        };
+        if (glo3dResponse.ok && glo3dPayload.ok && glo3dPayload.byPatent) {
+          freshItems = mergeGlo3dResponseIntoCatalogItems(freshItems, glo3dPayload.byPatent);
+        }
+      }
+
+      setCatalogItems(freshItems);
 
       const patentes = collectAutoredLookupPatents(workingConfig, freshItems);
       const autoredByPatent: Record<string, Partial<ManualPublicationDraft>> = {};

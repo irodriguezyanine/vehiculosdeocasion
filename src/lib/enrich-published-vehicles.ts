@@ -238,6 +238,62 @@ export function collectAutoredLookupPatents(
   return Array.from(patentes);
 }
 
+export function collectPublishedPatentsMissingGlo3d(
+  config: EditorConfig,
+  catalogItems: CatalogItem[],
+): string[] {
+  const catalogLookup = buildCatalogLookup(catalogItems);
+  const manualByKey = new Map(
+    (config.manualPublications ?? []).map((manual) => [getManualPublicationKey(manual), manual]),
+  );
+  const patentes = new Set<string>();
+
+  for (const vehicleKey of collectPublishedVehicleKeys(config)) {
+    const item = resolveCatalogItem(vehicleKey, catalogLookup);
+    const manual = manualByKey.get(vehicleKey);
+    const current = config.vehicleDetails[vehicleKey];
+    const patent = resolvePatentForKey(vehicleKey, current, item, manual);
+    if (!patent) continue;
+
+    const hasView3d = Boolean(item?.view3dUrl?.trim() || current?.view3dUrl?.trim());
+    const raw = item?.raw as Record<string, unknown> | undefined;
+    const hasGlo3dRaw = Boolean(raw?.glo3d && typeof raw.glo3d === "object");
+    if (hasView3d && hasGlo3dRaw) continue;
+    patentes.add(patent);
+  }
+
+  return Array.from(patentes);
+}
+
+export function mergeGlo3dResponseIntoCatalogItems(
+  catalogItems: CatalogItem[],
+  byPatent: Record<
+    string,
+    { view3dUrl?: string; technicalFields?: Record<string, unknown>; raw?: Record<string, unknown> }
+  >,
+): CatalogItem[] {
+  if (Object.keys(byPatent).length === 0) return catalogItems;
+
+  return catalogItems.map((item) => {
+    const patent = getCatalogItemPatent(item);
+    if (!patent) return item;
+    const glo3d = byPatent[patent];
+    if (!glo3d) return item;
+
+    const raw = item.raw as Record<string, unknown>;
+    const technicalFields = glo3d.technicalFields ?? {};
+    return {
+      ...item,
+      view3dUrl: item.view3dUrl ?? glo3d.view3dUrl,
+      raw: {
+        ...raw,
+        ...technicalFields,
+        glo3d: glo3d.raw ?? raw.glo3d,
+      },
+    };
+  });
+}
+
 export function enrichPublishedVehiclesConfig(
   config: EditorConfig,
   catalogItems: CatalogItem[],

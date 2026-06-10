@@ -18,7 +18,7 @@ const AUTORED_CONFIGURED =
   Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.VITE_SUPABASE_URL);
 const GLO3D_INVENTORY_POST_URL =
   "https://us-central1-glo3d-c338b.cloudfunctions.net/outbound/api/v1/inventory";
-const GLO3D_MAX_PAGES = Number(process.env.GLO3D_MAX_PAGES ?? "8");
+const GLO3D_MAX_PAGES = Number(process.env.GLO3D_MAX_PAGES ?? "40");
 const GLO3D_IFRAME_NOVA_BASE = "https://glo3d.net/iframeNova";
 const GLO3D_IFRAME_PARAMS =
   "gallery=true&featurevideos=true&condition=false&interior=false&footerGallery=false&zoom=false&navigationarrows=false&spinicon=basic&font=Roboto&topbarblinking=false&fullscreen=false&load=false&autorotate=false&themetextcolor=black";
@@ -561,6 +561,82 @@ function buildGlo3dIframeNovaUrl(id: string): string {
   return `${GLO3D_IFRAME_NOVA_BASE}/${id}?&${GLO3D_IFRAME_PARAMS}`;
 }
 
+function resolveGlo3dStockFromItem(item: Record<string, unknown>): string | undefined {
+  const flat = flattenObject(item);
+  const customSpecs = extractCustomSpecFieldMap(item);
+  const merged = { ...flat, ...customSpecs, ...item };
+  const stock = normalizeStock(
+    getStringFromKeys(merged, [
+      "stock_number",
+      "stockNumber",
+      "stock",
+      "sku",
+      "PPU",
+      "ppu",
+      "patente",
+      "plate",
+      "license_plate",
+      "licensePlate",
+      "fields_ppu",
+      "fields_PPU",
+    ]) ?? pickString(merged, ["stock_number", "stocknumber", "ppu", "patente"]),
+  );
+  if (stock) return stock;
+
+  for (const value of Object.values(merged)) {
+    if (typeof value !== "string") continue;
+    const token = extractPatentFromText(value);
+    if (token) return normalizeStock(token);
+  }
+  return undefined;
+}
+
+function resolveGlo3dView3dUrl(item: Record<string, unknown>, embed?: string): string | undefined {
+  const fromEmbedId = extractGlo3dId(embed);
+  if (fromEmbedId) return buildGlo3dIframeNovaUrl(fromEmbedId);
+
+  const flat = flattenObject(item);
+  const merged = { ...flat, ...item };
+  for (const key of [
+    "src_with_params",
+    "iframe_with_params",
+    "src",
+    "iframe",
+    "url_3d",
+    "glo3d_url",
+    "embed_url",
+    "share_url",
+    "public_url",
+    "permalink",
+    "video_tour",
+  ]) {
+    const rawValue = getStringFromKeys(merged, [key]);
+    if (!rawValue) continue;
+    const url = extractEmbedUrl(rawValue) ?? (rawValue.startsWith("http") ? rawValue : undefined);
+    if (!url) continue;
+    const id = extractGlo3dId(url);
+    if (id) return buildGlo3dIframeNovaUrl(id);
+    if (/(?:iframe|iframeNova)\//i.test(url)) return normalizeGlo3dUrl(url);
+  }
+
+  const modelId = pickString(merged, [
+    "short_id",
+    "shortId",
+    "model_id",
+    "modelId",
+    "glo_id",
+    "gloId",
+    "permalink_id",
+    "vehicle_model_id",
+    "inventory_id",
+  ]);
+  if (modelId && /^[A-Za-z0-9_-]{4,64}$/.test(modelId) && !/^[A-Z]{4}\d{2}$/.test(modelId)) {
+    return buildGlo3dIframeNovaUrl(modelId);
+  }
+
+  return undefined;
+}
+
 function normalizeGlo3dUrl(value: string): string {
   if (value.startsWith("//")) return `https:${value}`;
   if (value.startsWith("/")) return `https://glo3d.net${value}`;
@@ -881,16 +957,7 @@ async function fetchGlo3dByStocks(stocks: string[]): Promise<Map<string, Glo3dIn
     const data = payload.data ?? [];
     for (const item of data) {
       const technicalFields = normalizeGlo3dTechnicalFields(item);
-      const stock = normalizeStock(
-        getStringFromKeys(item, [
-          "stock_number",
-          "stock",
-          "PPU",
-          "ppu",
-          "patente",
-          "plate",
-        ]) ?? pickString(technicalFields, ["patente", "ppu", "stock_number"]),
-      );
+      const stock = resolveGlo3dStockFromItem(item);
       if (!stock || !pending.has(stock)) continue;
 
       const embed =
@@ -899,19 +966,8 @@ async function fetchGlo3dByStocks(stocks: string[]): Promise<Map<string, Glo3dIn
         extractEmbedUrl(item.iframe_with_params) ??
         extractEmbedUrl(item.iframe);
 
-      const glo3dId = extractGlo3dId(embed);
-      const fallbackView3d = pickString(item, [
-        "url_3d",
-        "glo3d_url",
-        "iframe",
-        "iframe_with_params",
-        "src",
-        "src_with_params",
-      ]);
-      const view3dUrlFromRaw = extractEmbedUrl(fallbackView3d);
-
-      if (glo3dId) {
-        const view3dUrl = buildGlo3dIframeNovaUrl(glo3dId);
+      const view3dUrl = resolveGlo3dView3dUrl(item, embed);
+      if (view3dUrl) {
         resolved.set(stock, {
           view3dUrl,
           technicalFields: {
@@ -924,26 +980,9 @@ async function fetchGlo3dByStocks(stocks: string[]): Promise<Map<string, Glo3dIn
         continue;
       }
 
-      if (embed && /(?:iframe|iframeNova)\//i.test(embed)) {
-        const view3dUrl = normalizeGlo3dUrl(embed);
+      if (Object.keys(technicalFields).length > 0) {
         resolved.set(stock, {
-          view3dUrl,
-          technicalFields: {
-            ...technicalFields,
-            foto3d: view3dUrl,
-          },
-          raw: item,
-        });
-        pending.delete(stock);
-        continue;
-      }
-
-      if (Object.keys(technicalFields).length > 0 || view3dUrlFromRaw) {
-        resolved.set(stock, {
-          view3dUrl: view3dUrlFromRaw,
-          technicalFields: view3dUrlFromRaw
-            ? { ...technicalFields, foto3d: view3dUrlFromRaw }
-            : technicalFields,
+          technicalFields,
           raw: item,
         });
         pending.delete(stock);
@@ -957,6 +996,52 @@ async function fetchGlo3dByStocks(stocks: string[]): Promise<Map<string, Glo3dIn
   return resolved;
 }
 
+export type Glo3dInventoryLookup = Glo3dInventoryEntry;
+
+export function isGlo3dConfigured(): boolean {
+  return Boolean(
+    (process.env.GLO3D_API_USERNAME && process.env.GLO3D_API_PASSWORD) ||
+      (process.env.VITE_GLO3D_API_USERNAME && process.env.VITE_GLO3D_API_PASSWORD),
+  );
+}
+
+export async function lookupGlo3dByStocks(stocks: string[]): Promise<Map<string, Glo3dInventoryLookup>> {
+  return fetchGlo3dByStocks(stocks);
+}
+
+function applyGlo3dEntryToItem(item: CatalogItem, glo3d: Glo3dInventoryEntry): CatalogItem {
+  const raw = item.raw as Record<string, unknown>;
+  const glo3dImages = normalizeImageList(
+    getStringFromKeys(glo3d.raw, ["thumb_url", "thumbnail", "thumb", "image", "main_image", "cover"]) ??
+      pickString(glo3d.raw, ["thumb_url", "thumbnail"]),
+  );
+  const mergedImages = item.images.length > 0 ? item.images : glo3dImages;
+  return {
+    ...item,
+    view3dUrl: item.view3dUrl ?? glo3d.view3dUrl,
+    thumbnail: item.thumbnail ?? mergedImages[0],
+    images: mergedImages,
+    raw: {
+      ...mergeRawPreferPrimary(raw, glo3d.technicalFields),
+      glo3d: glo3d.raw,
+    },
+  };
+}
+
+export function mergeGlo3dLookupIntoCatalogItems(
+  items: CatalogItem[],
+  glo3dMap: Map<string, Glo3dInventoryLookup>,
+): CatalogItem[] {
+  if (glo3dMap.size === 0) return items;
+  return items.map((item) => {
+    const stock = getItemStock(item);
+    if (!stock) return item;
+    const glo3d = glo3dMap.get(stock);
+    if (!glo3d) return item;
+    return applyGlo3dEntryToItem(item, glo3d);
+  });
+}
+
 async function enrichWithGlo3dInventory(items: CatalogItem[]): Promise<CatalogItem[]> {
   if (items.length === 0) return items;
   const stocks = Array.from(
@@ -965,23 +1050,7 @@ async function enrichWithGlo3dInventory(items: CatalogItem[]): Promise<CatalogIt
   if (stocks.length === 0) return items;
 
   const glo3dMap = await fetchGlo3dByStocks(stocks);
-  if (glo3dMap.size === 0) return items;
-
-  return items.map((item) => {
-    const stock = getItemStock(item);
-    if (!stock) return item;
-    const glo3d = glo3dMap.get(stock);
-    if (!glo3d) return item;
-    const raw = item.raw as Record<string, unknown>;
-    return {
-      ...item,
-      view3dUrl: item.view3dUrl ?? glo3d.view3dUrl,
-      raw: {
-        ...mergeRawPreferPrimary(raw, glo3d.technicalFields),
-        glo3d: glo3d.raw,
-      },
-    };
-  });
+  return mergeGlo3dLookupIntoCatalogItems(items, glo3dMap);
 }
 
 function getItemStock(item: CatalogItem): string | undefined {

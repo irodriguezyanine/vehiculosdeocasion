@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     return Response.json({ ok: false, error: "Indica al menos una patente." }, { status: 400 });
   }
 
-  const glo3dMap = await lookupGlo3dByStocks(patentes);
+  const glo3dMap = await lookupGlo3dByStocks(patentes, { exhaustive: true });
   const byPatent: Record<
     string,
     { view3dUrl?: string; technicalFields: Record<string, unknown>; raw: Record<string, unknown> }

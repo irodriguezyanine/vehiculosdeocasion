@@ -6881,6 +6881,39 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     setManualDraft(draft);
     setManualUploadedImages(images);
     setShowManualCreateModal(true);
+
+    const patente = normalizePatentToken(draft.patente || getPatent(item));
+    if (!draft.view3dUrl?.trim() && patente) {
+      void (async () => {
+        try {
+          const glo3dResponse = await fetch("/api/admin/glo3d-lookup", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ patentes: [patente] }),
+          });
+          const glo3dPayload = (await glo3dResponse.json().catch(() => ({}))) as {
+            ok?: boolean;
+            byPatent?: Record<string, { view3dUrl?: string; raw?: Record<string, unknown> }>;
+          };
+          const entry = glo3dPayload.byPatent?.[patente];
+          if (!glo3dResponse.ok || !glo3dPayload.ok || !entry?.view3dUrl?.trim()) return;
+
+          setManualDraft((prev) => ({
+            ...prev,
+            view3dUrl: entry.view3dUrl?.trim() ?? prev.view3dUrl,
+            thumbnail:
+              prev.thumbnail?.trim() && prev.thumbnail !== "/placeholder-car.svg"
+                ? prev.thumbnail
+                : typeof entry.raw?.thumb_url === "string"
+                  ? entry.raw.thumb_url
+                  : prev.thumbnail,
+          }));
+        } catch {
+          // Ignorar errores de red al buscar GLO3D bajo demanda.
+        }
+      })();
+    }
   };
 
   const openCreateManualModal = () => {
@@ -7474,6 +7507,10 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       );
       workingConfig = syncedConfig;
 
+      let glo3dByPatent: Record<
+        string,
+        { view3dUrl?: string; technicalFields?: Record<string, unknown>; raw?: Record<string, unknown> }
+      > = {};
       const missingGlo3dPatents = collectPublishedPatentsMissingGlo3d(workingConfig, freshItems);
       if (missingGlo3dPatents.length > 0) {
         setInventoryUpdateProgress(
@@ -7492,9 +7529,19 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
             { view3dUrl?: string; technicalFields?: Record<string, unknown>; raw?: Record<string, unknown> }
           >;
           matched?: number;
+          missing?: string[];
+          error?: string;
+          code?: string;
         };
         if (glo3dResponse.ok && glo3dPayload.ok && glo3dPayload.byPatent) {
-          freshItems = mergeGlo3dResponseIntoCatalogItems(freshItems, glo3dPayload.byPatent);
+          glo3dByPatent = glo3dPayload.byPatent;
+          freshItems = mergeGlo3dResponseIntoCatalogItems(freshItems, glo3dByPatent);
+        } else if (glo3dPayload.code === "GLO3D_NOT_CONFIGURED") {
+          showSystemNotice(
+            "error",
+            "GLO3D no configurado",
+            "Agrega GLO3D_API_USERNAME y GLO3D_API_PASSWORD en Vercel para sincronizar visores 3D.",
+          );
         }
       }
 
@@ -7519,6 +7566,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
         workingConfig,
         freshItems,
         autoredByPatent,
+        glo3dByPatent,
       );
       setConfig(enrichedConfig);
       await persistEditorConfig(enrichedConfig);

@@ -19,6 +19,8 @@ const AUTORED_CONFIGURED =
 const GLO3D_INVENTORY_POST_URL =
   "https://us-central1-glo3d-c338b.cloudfunctions.net/outbound/api/v1/inventory";
 const GLO3D_MAX_PAGES = Number(process.env.GLO3D_MAX_PAGES ?? "40");
+const GLO3D_EXHAUSTIVE_MAX_PAGES = Number(process.env.GLO3D_EXHAUSTIVE_MAX_PAGES ?? "150");
+const GLO3D_TARGETED_LOOKUP_THRESHOLD = Number(process.env.GLO3D_TARGETED_LOOKUP_THRESHOLD ?? "50");
 const GLO3D_IFRAME_NOVA_BASE = "https://glo3d.net/iframeNova";
 const GLO3D_IFRAME_PARAMS =
   "gallery=true&featurevideos=true&condition=false&interior=false&footerGallery=false&zoom=false&navigationarrows=false&spinicon=basic&font=Roboto&topbarblinking=false&fullscreen=false&load=false&autorotate=false&themetextcolor=black";
@@ -562,33 +564,43 @@ function buildGlo3dIframeNovaUrl(id: string): string {
 }
 
 function resolveGlo3dStockFromItem(item: Record<string, unknown>): string | undefined {
+  const stocks = resolveAllGlo3dStocksFromItem(item);
+  return stocks[0];
+}
+
+function resolveAllGlo3dStocksFromItem(item: Record<string, unknown>): string[] {
   const flat = flattenObject(item);
   const customSpecs = extractCustomSpecFieldMap(item);
   const merged = { ...flat, ...customSpecs, ...item };
-  const stock = normalizeStock(
-    getStringFromKeys(merged, [
-      "stock_number",
-      "stockNumber",
-      "stock",
-      "sku",
-      "PPU",
-      "ppu",
-      "patente",
-      "plate",
-      "license_plate",
-      "licensePlate",
-      "fields_ppu",
-      "fields_PPU",
-    ]) ?? pickString(merged, ["stock_number", "stocknumber", "ppu", "patente"]),
-  );
-  if (stock) return stock;
+  const stocks = new Set<string>();
+
+  for (const key of [
+    "stock_number",
+    "stockNumber",
+    "stock",
+    "sku",
+    "PPU",
+    "ppu",
+    "patente",
+    "plate",
+    "license_plate",
+    "licensePlate",
+    "fields_ppu",
+    "fields_PPU",
+  ]) {
+    const value = normalizeStock(
+      getStringFromKeys(merged, [key]) ?? pickString(merged, [key.toLowerCase(), key]),
+    );
+    if (value) stocks.add(value);
+  }
 
   for (const value of Object.values(merged)) {
     if (typeof value !== "string") continue;
     const token = extractPatentFromText(value);
-    if (token) return normalizeStock(token);
+    if (token) stocks.add(normalizeStock(token));
   }
-  return undefined;
+
+  return Array.from(stocks);
 }
 
 function resolveGlo3dView3dUrl(item: Record<string, unknown>, embed?: string): string | undefined {
@@ -600,15 +612,24 @@ function resolveGlo3dView3dUrl(item: Record<string, unknown>, embed?: string): s
   for (const key of [
     "src_with_params",
     "iframe_with_params",
+    "iframe_nova",
+    "iframeNova",
     "src",
     "iframe",
     "url_3d",
     "glo3d_url",
+    "nova_url",
     "embed_url",
     "share_url",
     "public_url",
     "permalink",
+    "share_link",
+    "public_link",
+    "viewer_url",
+    "viewerUrl",
     "video_tour",
+    "videoTour",
+    "video_tour_url",
   ]) {
     const rawValue = getStringFromKeys(merged, [key]);
     if (!rawValue) continue;
@@ -925,7 +946,115 @@ function normalizeGlo3dTechnicalFields(
   return result;
 }
 
-async function fetchGlo3dByStocks(stocks: string[]): Promise<Map<string, Glo3dInventoryEntry>> {
+function buildGlo3dInventoryEntryFromRawItem(item: Record<string, unknown>): Glo3dInventoryEntry {
+  const technicalFields = normalizeGlo3dTechnicalFields(item);
+  const embed =
+    extractEmbedUrl(item.src_with_params) ??
+    extractEmbedUrl(item.src) ??
+    extractEmbedUrl(item.iframe_with_params) ??
+    extractEmbedUrl(item.iframe) ??
+    extractEmbedUrl(item.iframe_nova) ??
+    extractEmbedUrl(item.iframeNova);
+
+  const view3dUrl = resolveGlo3dView3dUrl(item, embed);
+  if (view3dUrl) {
+    return {
+      view3dUrl,
+      technicalFields: {
+        ...technicalFields,
+        foto3d: view3dUrl,
+      },
+      raw: item,
+    };
+  }
+
+  return {
+    technicalFields,
+    raw: item,
+  };
+}
+
+function registerGlo3dInventoryMatches(
+  item: Record<string, unknown>,
+  pending: Set<string>,
+  resolved: Map<string, Glo3dInventoryEntry>,
+): void {
+  const entry = buildGlo3dInventoryEntryFromRawItem(item);
+  const hasUsefulData = Boolean(entry.view3dUrl) || Object.keys(entry.technicalFields).length > 0;
+  if (!hasUsefulData) return;
+
+  for (const stock of resolveAllGlo3dStocksFromItem(item)) {
+    if (!pending.has(stock)) continue;
+    resolved.set(stock, entry);
+    pending.delete(stock);
+  }
+}
+
+async function fetchGlo3dInventoryPayload(
+  authHeader: string,
+  body: Record<string, unknown>,
+): Promise<{ data: Array<Record<string, unknown>>; remaining: number } | null> {
+  const response = await fetch(GLO3D_INVENTORY_POST_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      Authorization: authHeader,
+    },
+    body: JSON.stringify(body),
+    cache: "no-store",
+  });
+  if (!response.ok) return null;
+
+  const payload = (await response.json()) as {
+    data?: Array<Record<string, unknown>>;
+    remaining?: number;
+  };
+
+  return {
+    data: payload.data ?? [],
+    remaining: payload.remaining ?? 0,
+  };
+}
+
+async function fetchGlo3dEntryByDirectSearch(
+  stock: string,
+  authHeader: string,
+): Promise<Glo3dInventoryEntry | undefined> {
+  const searchBodies: Array<Record<string, unknown>> = [
+    { pageSize: 50, search: stock },
+    { pageSize: 50, stock_number: stock },
+    { pageSize: 50, stockNumber: stock },
+    { pageSize: 50, query: stock },
+    { pageSize: 50, filter: stock },
+    { pageSize: 50, filters: { search: stock } },
+    { pageSize: 50, filters: { stock_number: stock } },
+    { pageSize: 50, filters: { PPU: stock } },
+  ];
+
+  for (const body of searchBodies) {
+    const payload = await fetchGlo3dInventoryPayload(authHeader, body);
+    if (!payload || payload.data.length === 0) continue;
+
+    for (const item of payload.data) {
+      const stocks = resolveAllGlo3dStocksFromItem(item);
+      if (stocks.includes(stock) || payload.data.length === 1) {
+        return buildGlo3dInventoryEntryFromRawItem(item);
+      }
+    }
+  }
+
+  return undefined;
+}
+
+export type Glo3dLookupOptions = {
+  exhaustive?: boolean;
+};
+
+async function fetchGlo3dByStocks(
+  stocks: string[],
+  options: Glo3dLookupOptions = {},
+): Promise<Map<string, Glo3dInventoryEntry>> {
   const username = process.env.GLO3D_API_USERNAME ?? process.env.VITE_GLO3D_API_USERNAME;
   const password = process.env.GLO3D_API_PASSWORD ?? process.env.VITE_GLO3D_API_PASSWORD;
   if (!username || !password || stocks.length === 0) return new Map();
@@ -933,64 +1062,32 @@ async function fetchGlo3dByStocks(stocks: string[]): Promise<Map<string, Glo3dIn
   const pending = new Set(stocks.map(normalizeStock).filter(Boolean));
   const resolved = new Map<string, Glo3dInventoryEntry>();
   const authHeader = `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`;
+  const targetedLookup = options.exhaustive || stocks.length <= GLO3D_TARGETED_LOOKUP_THRESHOLD;
+  const maxPages = targetedLookup ? GLO3D_EXHAUSTIVE_MAX_PAGES : GLO3D_MAX_PAGES;
 
   let page = 0;
-  while (page < GLO3D_MAX_PAGES && pending.size > 0) {
-    const body = page === 0 ? JSON.stringify({ pageSize: 200 }) : JSON.stringify({ page, pageSize: 200 });
-    const response = await fetch(GLO3D_INVENTORY_POST_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        Authorization: authHeader,
-      },
-      body,
-      cache: "no-store",
-    });
-    if (!response.ok) break;
+  while (page < maxPages && pending.size > 0) {
+    const payload = await fetchGlo3dInventoryPayload(
+      authHeader,
+      page === 0 ? { pageSize: 200 } : { page, pageSize: 200 },
+    );
+    if (!payload) break;
 
-    const payload = (await response.json()) as {
-      data?: Array<Record<string, unknown>>;
-      remaining?: number;
-    };
-
-    const data = payload.data ?? [];
-    for (const item of data) {
-      const technicalFields = normalizeGlo3dTechnicalFields(item);
-      const stock = resolveGlo3dStockFromItem(item);
-      if (!stock || !pending.has(stock)) continue;
-
-      const embed =
-        extractEmbedUrl(item.src_with_params) ??
-        extractEmbedUrl(item.src) ??
-        extractEmbedUrl(item.iframe_with_params) ??
-        extractEmbedUrl(item.iframe);
-
-      const view3dUrl = resolveGlo3dView3dUrl(item, embed);
-      if (view3dUrl) {
-        resolved.set(stock, {
-          view3dUrl,
-          technicalFields: {
-            ...technicalFields,
-            foto3d: view3dUrl,
-          },
-          raw: item,
-        });
-        pending.delete(stock);
-        continue;
-      }
-
-      if (Object.keys(technicalFields).length > 0) {
-        resolved.set(stock, {
-          technicalFields,
-          raw: item,
-        });
-        pending.delete(stock);
-      }
+    for (const item of payload.data) {
+      registerGlo3dInventoryMatches(item, pending, resolved);
     }
 
-    if ((payload.remaining ?? 0) <= 0 || data.length === 0) break;
+    if (payload.remaining <= 0 || payload.data.length === 0) break;
     page += 1;
+  }
+
+  if (pending.size > 0 && targetedLookup) {
+    for (const stock of [...pending]) {
+      const entry = await fetchGlo3dEntryByDirectSearch(stock, authHeader);
+      if (!entry) continue;
+      resolved.set(stock, entry);
+      pending.delete(stock);
+    }
   }
 
   return resolved;
@@ -1005,8 +1102,11 @@ export function isGlo3dConfigured(): boolean {
   );
 }
 
-export async function lookupGlo3dByStocks(stocks: string[]): Promise<Map<string, Glo3dInventoryLookup>> {
-  return fetchGlo3dByStocks(stocks);
+export async function lookupGlo3dByStocks(
+  stocks: string[],
+  options?: Glo3dLookupOptions,
+): Promise<Map<string, Glo3dInventoryLookup>> {
+  return fetchGlo3dByStocks(stocks, options);
 }
 
 function applyGlo3dEntryToItem(item: CatalogItem, glo3d: Glo3dInventoryEntry): CatalogItem {

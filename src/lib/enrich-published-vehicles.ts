@@ -265,12 +265,14 @@ export function collectPublishedPatentsMissingGlo3d(
   return Array.from(patentes);
 }
 
+export type Glo3dByPatentMap = Record<
+  string,
+  { view3dUrl?: string; technicalFields?: Record<string, unknown>; raw?: Record<string, unknown> }
+>;
+
 export function mergeGlo3dResponseIntoCatalogItems(
   catalogItems: CatalogItem[],
-  byPatent: Record<
-    string,
-    { view3dUrl?: string; technicalFields?: Record<string, unknown>; raw?: Record<string, unknown> }
-  >,
+  byPatent: Glo3dByPatentMap,
 ): CatalogItem[] {
   if (Object.keys(byPatent).length === 0) return catalogItems;
 
@@ -282,9 +284,11 @@ export function mergeGlo3dResponseIntoCatalogItems(
 
     const raw = item.raw as Record<string, unknown>;
     const technicalFields = glo3d.technicalFields ?? {};
+    const glo3dImages = typeof glo3d.raw?.thumb_url === "string" ? [glo3d.raw.thumb_url] : [];
     return {
       ...item,
       view3dUrl: item.view3dUrl ?? glo3d.view3dUrl,
+      thumbnail: item.thumbnail ?? glo3dImages[0],
       raw: {
         ...raw,
         ...technicalFields,
@@ -294,10 +298,58 @@ export function mergeGlo3dResponseIntoCatalogItems(
   });
 }
 
+function buildSyntheticCatalogItemFromGlo3d(
+  patent: string,
+  glo3d: Glo3dByPatentMap[string],
+): CatalogItem {
+  const technicalFields = glo3d.technicalFields ?? {};
+  const raw = glo3d.raw ?? {};
+  const thumb =
+    typeof raw.thumb_url === "string"
+      ? raw.thumb_url
+      : typeof raw.thumbnail === "string"
+        ? raw.thumbnail
+        : typeof raw.thumb === "string"
+          ? raw.thumb
+          : undefined;
+
+  return {
+    id: patent,
+    title: patent,
+    thumbnail: thumb,
+    images: thumb ? [thumb] : [],
+    view3dUrl: glo3d.view3dUrl,
+    raw: {
+      patente: patent,
+      PPU: patent,
+      ...technicalFields,
+      glo3d: raw,
+    },
+  };
+}
+
+function resolveEnrichmentCatalogItem(
+  item: CatalogItem | undefined,
+  patent: string | null,
+  glo3dByPatent: Glo3dByPatentMap,
+): CatalogItem | undefined {
+  if (!patent) return item;
+  const glo3d = glo3dByPatent[patent];
+  if (!glo3d) return item;
+
+  if (!item) {
+    return buildSyntheticCatalogItemFromGlo3d(patent, glo3d);
+  }
+
+  const merged = mergeGlo3dResponseIntoCatalogItems([item], { [patent]: glo3d });
+  return merged[0];
+}
+
 export function enrichPublishedVehiclesConfig(
   config: EditorConfig,
   catalogItems: CatalogItem[],
   autoredByPatent: Record<string, Partial<ManualPublicationDraft>> = {},
+  glo3dByPatent: Glo3dByPatentMap = {},
 ): { config: EditorConfig; stats: EnrichPublishedStats } {
   const catalogLookup = buildCatalogLookup(catalogItems);
   const publishedKeys = collectPublishedVehicleKeys(config);
@@ -314,11 +366,15 @@ export function enrichPublishedVehiclesConfig(
 
   for (const vehicleKey of publishedKeys) {
     const item = resolveCatalogItem(vehicleKey, catalogLookup);
+    const manual = manualByKey.get(vehicleKey);
     const current = nextDetails[vehicleKey];
     let working = current;
 
-    if (item) {
-      const gloResult = enrichDetailsFromCatalogItem(working, item);
+    const patent = resolvePatentForKey(vehicleKey, working, item, manual);
+    const enrichmentItem = resolveEnrichmentCatalogItem(item, patent, glo3dByPatent);
+
+    if (enrichmentItem) {
+      const gloResult = enrichDetailsFromCatalogItem(working, enrichmentItem);
       if (gloResult.filled > 0) {
         gloEnriched += 1;
         fieldsFilled += gloResult.filled;
@@ -326,8 +382,6 @@ export function enrichPublishedVehiclesConfig(
       working = gloResult.details;
     }
 
-    const manual = manualByKey.get(vehicleKey);
-    const patent = resolvePatentForKey(vehicleKey, working, item, manual);
     const autored = patent ? autoredByPatent[patent] : undefined;
     if (autored) {
       const autoredResult = enrichDetailsFromAutored(working, autored);
@@ -345,7 +399,11 @@ export function enrichPublishedVehiclesConfig(
     if (manual) {
       const manualIndex = nextManuals.findIndex((entry) => entry.id === manual.id);
       if (manualIndex >= 0) {
-        const enrichedManual = enrichManualPublicationFromSources(manual, item, autored);
+        const enrichedManual = enrichManualPublicationFromSources(
+          manual,
+          enrichmentItem ?? item,
+          autored,
+        );
         nextManuals[manualIndex] = enrichedManual.manual;
         if (enrichedManual.mediaUpdated) manualMediaUpdated += 1;
       }

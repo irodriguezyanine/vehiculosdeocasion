@@ -717,6 +717,18 @@ function getModel(item: CatalogItem): string {
   return model?.trim() ?? item.title;
 }
 
+function getVehicleDisplayTitle(item: CatalogItem): string {
+  const raw = item.raw as Record<string, unknown>;
+  const fromParts = buildVehicleTitleFromParts({
+    brand: String(raw.marca ?? raw.brand ?? "").trim() || undefined,
+    model: String(raw.modelo ?? raw.model ?? "").trim() || undefined,
+    year: String(raw.ano ?? raw.anio ?? raw.year ?? "").trim() || undefined,
+    version: String(raw.version ?? raw.ver ?? raw.trim ?? "").trim() || undefined,
+  });
+  if (fromParts) return fromParts;
+  return item.title?.trim() || getModel(item) || "Vehiculo sin titulo";
+}
+
 function normalizePdfImageUrl(value?: string | null): string | null {
   if (!value || typeof value !== "string") return null;
   let url = value.trim();
@@ -3818,10 +3830,21 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   const homeFilteredItems = useMemo(() => {
     const query = normalizeText(homeSearchTerm);
     if (!query) return visibleItems;
+    const patentTokens = extractPatentTokens(homeSearchTerm);
+    if (patentTokens.length > 0) {
+      return visibleItems.filter((item) => {
+        const itemPatent = normalizePatentToken(getPatent(item));
+        if (itemPatent !== "-") {
+          return patentTokens.includes(itemPatent);
+        }
+        return patentTokens.includes(normalizePatentToken(getVehicleKey(item)));
+      });
+    }
     return visibleItems.filter((item) => {
       const raw = item.raw as Record<string, unknown>;
       const source = [
         item.title,
+        getVehicleDisplayTitle(item),
         item.subtitle,
         item.status,
         item.location,
@@ -3834,6 +3857,10 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
         raw.brand,
         raw.modelo,
         raw.model,
+        raw.ano,
+        raw.anio,
+        raw.year,
+        raw.version,
         raw.categoria,
         raw.tipo_vehiculo,
         inferVehicleType(item),
@@ -4005,17 +4032,24 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     sortedUpcomingAuctions.length > 0 &&
     visibleUpcomingAuctionGroups.some((group) => group.items.length > 0);
 
-  const proximosRemates = getSectionItems("proximos-remates");
-  const ventasDirectas = getSectionItems("ventas-directas");
-  const novedades = getSectionItems("novedades");
-  const catalogoItems = getSectionItems("catalogo");
+  const proximosRematesAll = getSectionItems("proximos-remates");
+  const ventasDirectasAll = getSectionItems("ventas-directas");
+  const novedadesAll = getSectionItems("novedades");
+  const catalogoItemsAll = getSectionItems("catalogo");
   const hasHomePreFilter =
     homeSearchTerm.trim().length > 0 ||
     quickFilters.length > 0 ||
     topSectionFilter !== "all";
+  const filterSectionByHomeVisibility = (sectionItems: CatalogItem[]) =>
+    hasHomePreFilter
+      ? sectionItems.filter((item) => homeVisibleKeys.has(getVehicleKey(item)))
+      : sectionItems;
+  const proximosRemates = filterSectionByHomeVisibility(proximosRematesAll);
+  const ventasDirectas = filterSectionByHomeVisibility(ventasDirectasAll);
+  const novedades = filterSectionByHomeVisibility(novedadesAll);
   const filteredCatalogItems = hasHomePreFilter
-    ? catalogoItems
-    : catalogoItems.filter((item) => inferVehicleType(item) === activeTypeTab);
+    ? filterSectionByHomeVisibility(catalogoItemsAll)
+    : catalogoItemsAll.filter((item) => inferVehicleType(item) === activeTypeTab);
   const managedCategorySections = useMemo(
     () =>
       (config.managedCategories ?? [])
@@ -4063,7 +4097,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
         proximosRemates.length +
         ventasDirectas.length +
         novedades.length +
-        catalogoItems.length +
+        catalogoItemsAll.length +
         managedVisibleCount,
       unassignedVisible: unassignedVisibleItems.length,
       hiddenCount: activeInventoryItems.filter((item) =>
@@ -4072,7 +4106,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       bySection: {
         ventasDirectas: ventasDirectas.length,
         novedades: novedades.length,
-        catalogo: catalogoItems.length,
+        catalogo: catalogoItemsAll.length,
         proximosRemates: proximosRemates.length,
         managed: managedVisibleCount,
       },
@@ -4085,7 +4119,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     proximosRemates.length,
     ventasDirectas.length,
     novedades.length,
-    catalogoItems.length,
+    catalogoItemsAll.length,
     unassignedVisibleItems.length,
   ]);
   const managedCategoryOrderEntries = useMemo(
@@ -5772,34 +5806,6 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     showSystemNotice,
   ]);
 
-  const shareSelectedVehicle = useCallback(async () => {
-    if (!selectedVehicle) return;
-    const shareUrl = selectedVehicleShareUrl;
-    if (!shareUrl) return;
-    const title = `${getPatent(selectedVehicle)}  ·  ${getModel(selectedVehicle)}`;
-    const text = `Revisa este vehiculo en Vehiculos de Ocasion: ${title}`;
-    const canUseNativeShare = typeof navigator.share === "function";
-    try {
-      if (canUseNativeShare) {
-        await navigator.share({ title, text, url: shareUrl });
-      } else if (navigator.clipboard) {
-        await navigator.clipboard.writeText(shareUrl);
-      } else {
-        window.open(shareUrl, "_blank", "noreferrer");
-      }
-      trackEvent("vehicle_share", { itemKey: getVehicleKey(selectedVehicle) });
-      showSystemNotice(
-        "success",
-        "Enlace listo",
-        canUseNativeShare
-          ? "Se compartio el vehiculo correctamente."
-          : "Copiamos el enlace del vehiculo para compartir.",
-      );
-    } catch {
-      showSystemNotice("error", "No se pudo compartir", "Intenta nuevamente en unos segundos.");
-    }
-  }, [selectedVehicle, selectedVehicleShareUrl, showSystemNotice]);
-
   const organizationSchema = useMemo(
     () => ({
       "@context": "https://schema.org",
@@ -5846,7 +5852,9 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
             }
             return patentTokens.includes(normalizePatentToken(getVehicleKey(item)));
           }
-          return normalizeText(`${item.title} ${item.subtitle ?? ""}`).includes(query);
+          return normalizeText(
+            `${getPatent(item)} ${getVehicleDisplayTitle(item)} ${getModel(item)} ${item.title} ${item.subtitle ?? ""}`,
+          ).includes(query);
         })
       : activeInventoryItems;
     const byGroup =
@@ -6519,6 +6527,23 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     setBatchAssignSelectedKeys([]);
   };
 
+  const changeBatchAssignTarget = (value: string) => {
+    const target: BatchAssignTarget = value.startsWith("auction:")
+      ? { type: "auction", auctionId: value.slice("auction:".length) }
+      : {
+          type: "section",
+          sectionId: value.slice("section:".length) as "ventas-directas" | "novedades" | "catalogo",
+        };
+    pendingAddStockTargetRef.current = target;
+    setBatchAssignTarget(target);
+  };
+
+  const batchAssignTargetSelectValue = batchAssignTarget
+    ? batchAssignTarget.type === "auction"
+      ? `auction:${batchAssignTarget.auctionId}`
+      : `section:${batchAssignTarget.sectionId}`
+    : "section:catalogo";
+
   const closeBatchAssignModal = () => {
     setBatchAssignTarget(null);
     setBatchAssignSearchTerm("");
@@ -6541,23 +6566,12 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   };
 
   const openAddVehicleFromStock = (explicitTarget?: BatchAssignTarget) => {
-    const target = explicitTarget ?? resolveBatchAssignTargetFromEditor();
-    if (!target) {
-      if (editorGroupFilter === "proximos-remates") {
-        showSystemNotice(
-          "info",
-          "Selecciona un remate",
-          "Para agregar desde inventario, elige un remate especifico en el filtro.",
-        );
-        return;
-      }
-      showSystemNotice(
-        "info",
-        "Elige una categoria",
-        "Selecciona Ventas directas, Novedades o Catalogo en el filtro, o usa el boton + en la pestana Categorias.",
-      );
-      return;
-    }
+    const target =
+      explicitTarget ??
+      resolveBatchAssignTargetFromEditor() ?? {
+        type: "section",
+        sectionId: "catalogo",
+      };
     openBatchAssignModal(target);
   };
 
@@ -8724,7 +8738,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                             </span>
                           </p>
                           <p className="line-clamp-1 text-sm font-semibold leading-tight text-slate-900">
-                            {getModel(item)}
+                            {getVehicleDisplayTitle(item)}
                           </p>
                           <p className="mt-0.5 line-clamp-1 text-[11px] text-slate-500">
                             {channelLabels.length > 0
@@ -11202,19 +11216,6 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                   </button>
                   <button
                     type="button"
-                    onClick={() => toggleFavorite(selectedVehicleKey)}
-                    className={`ui-focus inline-flex h-9 w-9 items-center justify-center rounded-full border text-base transition ${
-                      favoriteKeys.includes(selectedVehicleKey)
-                        ? "border-amber-300 bg-amber-50 text-amber-700"
-                        : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                    }`}
-                    aria-label={favoriteKeys.includes(selectedVehicleKey) ? "Quitar de guardados" : "Guardar"}
-                    title={favoriteKeys.includes(selectedVehicleKey) ? "Quitar de guardados" : "Guardar"}
-                  >
-                    <span aria-hidden="true">{favoriteKeys.includes(selectedVehicleKey) ? "*" : "o"}</span>
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => toggleCompare(selectedVehicleKey)}
                     className={`ui-focus inline-flex h-9 w-9 items-center justify-center rounded-full border text-base font-semibold transition ${
                       compareKeys.includes(selectedVehicleKey)
@@ -11225,21 +11226,6 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                     title={compareKeys.includes(selectedVehicleKey) ? "Quitar de comparar" : "Comparar"}
                   >
                     <span aria-hidden="true">+</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void shareSelectedVehicle();
-                    }}
-                    className="ui-focus inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-50"
-                    aria-label="Compartir"
-                    title="Compartir"
-                  >
-                    <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
-                      <path d="M11.5 2.75H17.25V8.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                      <path d="M10.5 9.5L17 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                      <path d="M8 4.75H6.5A2.75 2.75 0 0 0 3.75 7.5v6A2.75 2.75 0 0 0 6.5 16.25h6A2.75 2.75 0 0 0 15.25 13.5V12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
                   </button>
                   <a
                     href={selectedVehicleWhatsappUrl}
@@ -11868,15 +11854,6 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
             </a>
             <button
               type="button"
-              onClick={() => {
-                void shareSelectedVehicle();
-              }}
-              className="ui-focus inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-700"
-            >
-              Compartir
-            </button>
-            <button
-              type="button"
               onClick={openOfferModal}
               disabled={selectedVehicleReferencePriceAmount <= 0}
               className="ui-focus inline-flex min-h-11 items-center justify-center rounded-lg border border-amber-300 bg-amber-50 px-3 text-xs font-semibold text-amber-800 disabled:opacity-50"
@@ -12363,12 +12340,29 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-4 flex items-start justify-between gap-3">
-              <div>
+              <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">
                   Agregar desde inventario
                 </p>
-                <h3 className="text-lg font-bold text-slate-900">{batchAssignTargetLabel}</h3>
-                <p className="text-xs text-slate-500">
+                <label className="mt-2 block text-xs font-semibold text-slate-600" htmlFor="batch-assign-target">
+                  Categoria destino
+                </label>
+                <select
+                  id="batch-assign-target"
+                  value={batchAssignTargetSelectValue}
+                  onChange={(event) => changeBatchAssignTarget(event.target.value)}
+                  className="ui-focus mt-1 w-full max-w-md rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900"
+                >
+                  <option value="section:ventas-directas">Ventas directas</option>
+                  <option value="section:novedades">Novedades</option>
+                  <option value="section:catalogo">Catalogo</option>
+                  {sortedUpcomingAuctions.map((auction) => (
+                    <option key={`batch-target-${auction.id}`} value={`auction:${auction.id}`}>
+                      {auction.name} ({formatAuctionDateLabel(auction.date)})
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-2 text-xs text-slate-500">
                   Busca por patente, puedes ingresar varias separadas por espacio: LRBR11 SWBC56 THXX63
                 </p>
               </div>

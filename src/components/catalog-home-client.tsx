@@ -16,6 +16,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CatalogCard } from "@/components/catalog-card";
 import { InstagramSection } from "@/components/instagram-section";
+import { BulkManualPublicationsModal } from "@/components/bulk-manual-publications-modal";
 import { ManualPublicationModal } from "@/components/manual-publication-modal";
 import { SiteHeader } from "@/components/site-header";
 import {
@@ -53,6 +54,14 @@ import {
   mergeAutoredMechanicalIntoDraft,
   mergeGlo3dOperationIntoDraft,
 } from "@/lib/vehicle-draft-sources";
+import {
+  applyManualPublicationBundlesToConfig,
+  buildManualPublicationFromDraft,
+} from "@/lib/create-manual-publication";
+import {
+  extractPatentTokens,
+  normalizePatentToken,
+} from "@/lib/patent-input";
 import { SITE_EDITOR_SCOPE } from "@/lib/editor-config";
 import type { CatalogFeed, CatalogItem } from "@/types/catalog";
 import type { OfferRecord } from "@/types/offers";
@@ -178,12 +187,14 @@ type SystemNotice = {
 function EditorAddVehicleMenu({
   onAddNew,
   onAddFromStock,
+  onAddBulk,
   compact = false,
   className = "",
   menuLabel = "Agregar unidad",
 }: {
   onAddNew: () => void;
   onAddFromStock: () => void;
+  onAddBulk?: () => void;
   compact?: boolean;
   className?: string;
   menuLabel?: string;
@@ -244,6 +255,18 @@ function EditorAddVehicleMenu({
           >
             Agregar auto desde stock
           </button>
+          {onAddBulk ? (
+            <button
+              type="button"
+              className="ui-focus block w-full px-3 py-2 text-left text-sm text-slate-800 transition hover:bg-amber-50"
+              onClick={() => {
+                setOpen(false);
+                onAddBulk();
+              }}
+            >
+              Alta masiva por patente (nuevos)
+            </button>
+          ) : null}
         </div>
       ) : null}
     </div>
@@ -511,24 +534,6 @@ function fuzzyMatches(source: string, query: string): boolean {
         isSubsequenceMatch(sourceToken, token),
     ),
   );
-}
-
-function normalizePatentToken(value: string): string {
-  return value.toUpperCase().replace(/[^A-Z0-9]/g, "");
-}
-
-function extractPatentTokens(value: string): string[] {
-  const raw = value.toUpperCase();
-  const regexMatches =
-    raw.match(/[A-Z]{4}\s*-?\s*\d{2}|[A-Z]{2}\s*-?\s*\d{4}/g) ?? [];
-  const fromRegex = regexMatches
-    .map((token) => normalizePatentToken(token))
-    .filter((token) => /^[A-Z]{4}\d{2}$/.test(token) || /^[A-Z]{2}\d{4}$/.test(token));
-  const fromSplit = raw
-    .split(/[\s,;]+/)
-    .map((token) => normalizePatentToken(token))
-    .filter((token) => /^[A-Z]{4}\d{2}$/.test(token) || /^[A-Z]{2}\d{4}$/.test(token));
-  return Array.from(new Set([...fromRegex, ...fromSplit]));
 }
 
 function resolveInventoryItemKey(
@@ -2824,6 +2829,8 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     EMPTY_MANUAL_PUBLICATION_DRAFT,
   );
   const [showManualCreateModal, setShowManualCreateModal] = useState(false);
+  const [showBulkManualModal, setShowBulkManualModal] = useState(false);
+  const [bulkDefaultSectionIds, setBulkDefaultSectionIds] = useState<SectionId[]>(["catalogo"]);
   const [manualUploadedImages, setManualUploadedImages] = useState<string[]>([]);
   const [manualUploading, setManualUploading] = useState(false);
   const [manualDropActive, setManualDropActive] = useState(false);
@@ -3713,6 +3720,19 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     }
     return map;
   }, [items]);
+
+  const existingPatents = useMemo(() => {
+    const set = new Set<string>();
+    for (const item of items) {
+      const patent = normalizePatentToken(getPatent(item));
+      if (patent && patent !== "-") set.add(patent);
+    }
+    for (const manual of config.manualPublications ?? []) {
+      const patent = normalizePatentToken(manual.patente ?? "");
+      if (patent) set.add(patent);
+    }
+    return set;
+  }, [items, config.manualPublications]);
 
   useEffect(() => {
     if (itemsByKey.size === 0) return;
@@ -6546,6 +6566,27 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     openCreateManualModal();
   };
 
+  const resolveDefaultBulkSections = (sectionIds?: SectionId[]): SectionId[] => {
+    if (sectionIds && sectionIds.length > 0) return sectionIds;
+    if (
+      editorGroupFilter === "ventas-directas" ||
+      editorGroupFilter === "novedades" ||
+      editorGroupFilter === "catalogo" ||
+      editorGroupFilter === "proximos-remates"
+    ) {
+      return [editorGroupFilter];
+    }
+    return ["catalogo"];
+  };
+
+  const openAddVehicleBulk = (sectionIds?: SectionId[]) => {
+    if (adminTab !== "vehiculos") {
+      setAdminTab("vehiculos");
+    }
+    setBulkDefaultSectionIds(resolveDefaultBulkSections(sectionIds));
+    setShowBulkManualModal(true);
+  };
+
   const addBatchVehiclesToTarget = () => {
     if (!batchAssignTarget) return;
     if (batchAssignSelectedKeys.length === 0) {
@@ -8564,6 +8605,17 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                       openAddVehicleNew();
                     }}
                     onAddFromStock={() => openAddVehicleFromStock()}
+                    onAddBulk={() => {
+                      if (adminTab !== "vehiculos") {
+                        showSystemNotice(
+                          "info",
+                          "Inventario",
+                          "La alta masiva por patente esta disponible en la pestana Inventario.",
+                        );
+                        return;
+                      }
+                      openAddVehicleBulk();
+                    }}
                     menuLabel="Agregar unidad al inventario"
                   />
                 </div>
@@ -9152,6 +9204,11 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                                   type: "section",
                                   sectionId: sectionId as "ventas-directas" | "novedades" | "catalogo",
                                 })
+                              }
+                              onAddBulk={() =>
+                                openAddVehicleBulk([
+                                  sectionId as "ventas-directas" | "novedades" | "catalogo",
+                                ])
                               }
                             />
                           ) : null}
@@ -12036,6 +12093,17 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
             </div>
           </div>
         </div>
+      ) : null}
+
+      {showBulkManualModal ? (
+        <BulkManualPublicationsModal
+          config={config}
+          existingPatents={existingPatents}
+          defaultSectionIds={bulkDefaultSectionIds}
+          onClose={() => setShowBulkManualModal(false)}
+          onApplyConfig={(nextConfig) => setConfig(nextConfig)}
+          onNotice={showSystemNotice}
+        />
       ) : null}
 
       {showManualCreateModal && publicationModalMode ? (

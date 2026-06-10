@@ -1,4 +1,4 @@
-import { AutoredLookupError } from "@/lib/autored-lookup";
+import { AutoredLookupError } from "@/lib/autored-errors";
 
 const MIN_INTERVAL_MS = Number(process.env.AUTORED_MIN_INTERVAL_MS ?? "3000");
 const COOLDOWN_MS = Number(process.env.AUTORED_COOLDOWN_MS ?? "300000");

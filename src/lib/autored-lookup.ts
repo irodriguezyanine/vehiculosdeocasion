@@ -1,9 +1,12 @@
 import type { ManualPublicationDraft } from "@/lib/manual-publication-draft";
+import { AutoredLookupError, type AutoredLookupErrorCode } from "@/lib/autored-errors";
 import {
   getAutoredCooldownRemainingMs,
   registerAutoredRateLimit,
   runAutoredQueued,
 } from "@/lib/autored-request-queue";
+
+export { AutoredLookupError, type AutoredLookupErrorCode } from "@/lib/autored-errors";
 
 const AUTORED_V2_BASE = "https://app.autored.cl/api/v2";
 
@@ -16,25 +19,6 @@ let autoredTokenCache: AutoredTokenCache | null = null;
 
 const autoredPatentCache = new Map<string, { data: Record<string, unknown>; expiresAt: number }>();
 const AUTORED_PATENT_CACHE_MS = 10 * 60_000;
-
-export type AutoredLookupErrorCode =
-  | "NOT_CONFIGURED"
-  | "INVALID_PATENT"
-  | "AUTH_FAILED"
-  | "RATE_LIMITED"
-  | "NOT_FOUND"
-  | "UPSTREAM_ERROR";
-
-export class AutoredLookupError extends Error {
-  code: AutoredLookupErrorCode;
-  status: number;
-
-  constructor(code: AutoredLookupErrorCode, message: string, status: number) {
-    super(message);
-    this.code = code;
-    this.status = status;
-  }
-}
 
 function pickString(item: Record<string, unknown>, aliases: string[]): string | undefined {
   for (const key of aliases) {

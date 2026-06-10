@@ -24,7 +24,9 @@ Campos principales:
 - `CATALOG_SOURCE_API_LIMIT`: límite solicitado al endpoint público.
 - `CATALOG_SOURCE_API_ESTADO`: estado de inventario solicitado (recomendado `en_bodega`).
 - `CATALOG_SOURCE_API_INCLUIR_HISTORICOS`: envía `incluir_historicos=true|false` al endpoint.
-- `CATALOG_SOURCE_AUTORED_API_URL`: endpoint para enriquecer por patente (fallback técnico).
+- `CATALOG_SOURCE_AUTORED_API_URL`: endpoint legacy para enriquecer por patente (fallback técnico).
+- `AUTORED_EMAIL` y `AUTORED_PASSWORD`: credenciales de [Autored API v2](https://app.autored.cl/api/v2/docs) (`POST /auth/login` + `GET /Vehicles/info?licensePlate=`). Autocompletan color, combustible, transmisión, tracción, cilindrada, etc.
+- Alternativa: si ya tienes la Edge Function `autored-vehicle-info` en Supabase (como TasacionesVedisa), basta con `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` y las credenciales Autored en los secrets de Supabase.
 - `CATALOG_AUTORED_MAX_LOOKUPS`: máximo de patentes a consultar por ciclo para fallback Autored.
 - `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`: fallback a Supabase.
 - `CATALOG_SUPABASE_TABLE`: tabla origen (por defecto `inventario`).

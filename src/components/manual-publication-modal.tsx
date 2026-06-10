@@ -324,7 +324,22 @@ export function ManualPublicationModal({
           {tab === "tecnica" ? (
             <div className="grid gap-4 lg:grid-cols-2">
               <section className="rounded-xl border border-slate-200 bg-white p-4">
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-amber-900">Mecanica</p>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-900">Mecanica</p>
+                  {onPatenteLookup ? (
+                    <button
+                      type="button"
+                      className="rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={autoredLookupLoading || !(draft.patente ?? "").trim()}
+                      onClick={() => onPatenteLookup(draft.patente ?? "")}
+                    >
+                      {autoredLookupLoading ? "Consultando Autored..." : "Completar desde Autored"}
+                    </button>
+                  ) : null}
+                </div>
+                <p className="mb-3 text-xs text-slate-500">
+                  Color, combustible, transmision, traccion, aro y cilindrada se obtienen de Autored al consultar la patente.
+                </p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {(
                     [

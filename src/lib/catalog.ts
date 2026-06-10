@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, ScanCommand } from "@aws-sdk/lib-dynamodb";
 import type { CatalogFeed, CatalogItem, CatalogSource } from "@/types/catalog";
+import { fetchAutoredPatentData, mapAutoredToDraftPartial } from "@/lib/autored-lookup";
 
 const DEFAULT_TABLE = process.env.CATALOG_SUPABASE_TABLE ?? "inventario";
 const DEFAULT_SELECT = process.env.CATALOG_SUPABASE_SELECT ?? "*";
@@ -9,6 +10,11 @@ const DEFAULT_LIMIT = Number(process.env.CATALOG_LIMIT ?? "60");
 const DEFAULT_ORDER_BY = process.env.CATALOG_SUPABASE_ORDER_BY ?? "created_at";
 const AUTORED_API_URL = process.env.CATALOG_SOURCE_AUTORED_API_URL;
 const AUTORED_MAX_LOOKUPS = Number(process.env.CATALOG_AUTORED_MAX_LOOKUPS ?? "1000");
+const AUTORED_CONFIGURED =
+  Boolean(process.env.AUTORED_EMAIL && process.env.AUTORED_PASSWORD) ||
+  Boolean(process.env.VITE_AUTORED_EMAIL && process.env.VITE_AUTORED_PASSWORD) ||
+  Boolean(AUTORED_API_URL) ||
+  Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.VITE_SUPABASE_URL);
 const GLO3D_INVENTORY_POST_URL =
   "https://us-central1-glo3d-c338b.cloudfunctions.net/outbound/api/v1/inventory";
 const GLO3D_MAX_PAGES = Number(process.env.GLO3D_MAX_PAGES ?? "8");
@@ -1013,152 +1019,84 @@ function isMeaningfulValue(value: unknown): boolean {
   return true;
 }
 
+async function fetchAutoredByPatent(
+  patent: string,
+): Promise<Record<string, unknown> | null> {
+  return fetchAutoredPatentData(patent);
+}
+
 function normalizeAutoredTechnicalFields(
   autoredRaw: Record<string, unknown>,
 ): Record<string, unknown> {
-  const flat = flattenObject(autoredRaw);
-  const merged = { ...autoredRaw, ...flat };
+  const mapped = mapAutoredToDraftPartial(autoredRaw);
   const result: Record<string, unknown> = {};
-
-  const patente = pickString(merged, ["patente", "PPU", "ppu", "plate", "placa", "fields_PPU"]);
-  const patenteVerifier = pickString(merged, ["dv", "verificador", "patente_dv", "ppu_dv", "patente_verifier"]);
-  const vin = pickString(merged, ["vin", "numero_chasis", "nro_chasis", "chasis", "vehicle_vin", "n_de_vin"]);
-  const nChasis = pickString(merged, ["n_de_chasis", "numero_chasis", "nro_chasis", "ndc"]);
-  const nMotor = pickString(merged, ["n_de_motor", "numero_motor", "motor_number", "ndm"]);
-  const nSerie = pickString(merged, ["n_de_serie", "numero_serie", "serial_number", "nds", "ser"]);
-  const marca = pickString(merged, ["marca", "brand", "make", "original_brand_name"]);
-  const modelo = pickString(merged, ["modelo", "model", "original_model_name", "showName"]);
-  const ano = pickString(merged, ["ano", "anio", "year", "fields_year"]);
-  const version = pickString(merged, ["version", "ver", "trim", "fields_ver"]);
-  const tipoVehiculo = pickString(merged, [
-    "tipo_de_vehiculo",
-    "tipo_vehiculo",
-    "vehicle_type",
-    "vehicle_type_name",
-    "tipo",
-  ]);
-  const categoria = pickString(merged, ["categoria", "category", "tipo_unidad", "vehicle_category"]);
-  const kilometraje = pickString(merged, [
-    "kilometraje",
-    "km",
-    "kms",
-    "odometro",
-    "odómetro",
-    "mileage",
-    "odometer",
-  ]);
-  const color = pickString(merged, [
-    "color",
-    "color_exterior",
-    "color_vehiculo",
-    "exterior_color",
-  ]);
-  const combustible = pickString(merged, [
-    "combustible",
-    "tipo_combustible",
-    "fuel",
-    "fuel_type",
-  ]);
-  const transmision = pickString(merged, [
-    "transmision",
-    "transmisión",
-    "caja",
-    "tipo_caja",
-    "transmission",
-    "gearbox",
-  ]);
-  const traccion = pickString(merged, [
-    "traccion",
-    "tracción",
-    "tipo_traccion",
-    "drivetrain",
-    "traction",
-    "drive_type",
-  ]);
-  const aro = pickString(merged, [
-    "aro",
-    "aro_llanta",
-    "rin",
-    "rines",
-    "wheel_size",
-  ]);
-  const cilindrada = pickString(merged, [
-    "cilindrada",
-    "cc",
-    "motor_cc",
-    "engine_cc",
-    "engine",
-  ]);
-
-  if (patente) {
-    result.patente = patente;
-    result.PPU = patente;
+  if (mapped.patente) {
+    result.patente = mapped.patente;
+    result.PPU = mapped.patente;
   }
-  if (patenteVerifier) result.patente_verifier = patenteVerifier;
-  if (vin) result.vin = vin;
-  if (nChasis) {
-    result.n_de_chasis = nChasis;
-    result.numero_chasis = nChasis;
+  if (mapped.vin) result.vin = mapped.vin;
+  if (mapped.nChasis) {
+    result.n_de_chasis = mapped.nChasis;
+    result.numero_chasis = mapped.nChasis;
   }
-  if (nMotor) {
-    result.n_de_motor = nMotor;
-    result.numero_motor = nMotor;
+  if (mapped.nMotor) {
+    result.n_de_motor = mapped.nMotor;
+    result.numero_motor = mapped.nMotor;
   }
-  if (nSerie) {
-    result.n_de_serie = nSerie;
-    result.numero_serie = nSerie;
+  if (mapped.nSerie) {
+    result.n_de_serie = mapped.nSerie;
+    result.numero_serie = mapped.nSerie;
   }
-  if (marca) {
-    result.marca = marca;
-    result.brand = marca;
+  if (mapped.brand) {
+    result.marca = mapped.brand;
+    result.brand = mapped.brand;
   }
-  if (modelo) {
-    result.modelo = modelo;
-    result.model = modelo;
+  if (mapped.model) {
+    result.modelo = mapped.model;
+    result.model = mapped.model;
   }
-  if (ano) {
-    result.ano = ano;
-    result.anio = ano;
-    result.year = ano;
+  if (mapped.year) {
+    result.ano = mapped.year;
+    result.anio = mapped.year;
+    result.year = mapped.year;
   }
-  if (version) {
-    result.version = version;
-    result.ver = version;
-    result.trim = version;
+  if (mapped.version) {
+    result.version = mapped.version;
+    result.ver = mapped.version;
+    result.trim = mapped.version;
   }
-  if (tipoVehiculo) {
-    result.tipo_de_vehiculo = tipoVehiculo;
-    result.tipo_vehiculo = tipoVehiculo;
+  if (mapped.tipoVehiculo) {
+    result.tipo_de_vehiculo = mapped.tipoVehiculo;
+    result.tipo_vehiculo = mapped.tipoVehiculo;
   }
-  if (categoria) result.categoria = categoria;
-  if (kilometraje) {
-    result.kilometraje = kilometraje;
-    result.km = kilometraje;
+  if (mapped.category) result.categoria = mapped.category;
+  if (mapped.kilometraje) {
+    result.kilometraje = mapped.kilometraje;
+    result.km = mapped.kilometraje;
   }
-  if (color) result.color = color;
-  if (combustible) {
-    result.combustible = combustible;
-    result.tipo_combustible = combustible;
+  if (mapped.color) result.color = mapped.color;
+  if (mapped.combustible) {
+    result.combustible = mapped.combustible;
+    result.tipo_combustible = mapped.combustible;
   }
-  if (transmision) {
-    result.transmision = transmision;
-    result.caja = transmision;
-    result.tipo_caja = transmision;
+  if (mapped.transmision) {
+    result.transmision = mapped.transmision;
+    result.caja = mapped.transmision;
+    result.tipo_caja = mapped.transmision;
   }
-  if (traccion) {
-    result.traccion = traccion;
-    result.tipo_traccion = traccion;
+  if (mapped.traccion) {
+    result.traccion = mapped.traccion;
+    result.tipo_traccion = mapped.traccion;
   }
-  if (aro) {
-    result.aro = aro;
-    result.rin = aro;
+  if (mapped.aro) {
+    result.aro = mapped.aro;
+    result.rin = mapped.aro;
   }
-  if (cilindrada) {
-    result.cilindrada = cilindrada;
-    result.cc = cilindrada;
-    result.motor_cc = cilindrada;
+  if (mapped.cilindrada) {
+    result.cilindrada = mapped.cilindrada;
+    result.cc = mapped.cilindrada;
+    result.motor_cc = mapped.cilindrada;
   }
-
   return result;
 }
 
@@ -1191,37 +1129,10 @@ function itemNeedsTechnicalFallback(item: CatalogItem): boolean {
   return fieldsToCheck.some((aliases) => !getStringFromKeys(raw, aliases));
 }
 
-async function fetchAutoredByPatent(
-  patent: string,
-): Promise<Record<string, unknown> | null> {
-  if (!AUTORED_API_URL) return null;
-  const token = process.env.CATALOG_SOURCE_API_TOKEN;
-  const url = new URL(AUTORED_API_URL);
-  url.searchParams.set("patente", patent);
-
-  const response = await fetch(url.toString(), {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { "x-api-key": token } : {}),
-    },
-    next: { revalidate: 120 },
-  });
-  if (!response.ok) return null;
-
-  const payload = (await response.json()) as unknown;
-  const rows = extractRowsFromPayload(payload);
-  if (rows.length > 0) return rows[0];
-  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
-    return payload as Record<string, unknown>;
-  }
-  return null;
-}
-
 async function enrichWithAutoredFallback(
   items: CatalogItem[],
 ): Promise<CatalogItem[]> {
-  if (!AUTORED_API_URL || items.length === 0) return items;
+  if (!AUTORED_CONFIGURED || items.length === 0) return items;
 
   const candidates = items
     .map((item) => ({ item, stock: getItemStock(item) }))

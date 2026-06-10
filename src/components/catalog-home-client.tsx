@@ -6447,9 +6447,17 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
         ok?: boolean;
         fields?: Partial<ManualPublicationDraft>;
         error?: string;
+        code?: string;
       };
       if (!response.ok || !payload.ok || !payload.fields) {
-        if (response.status !== 404) {
+        if (response.status === 503 || payload.code === "AUTORED_NOT_CONFIGURED") {
+          showSystemNotice(
+            "error",
+            "Autored no configurado",
+            payload.error ??
+              "Agrega AUTORED_EMAIL y AUTORED_PASSWORD en Vercel o .env.local para autocompletar la ficha tecnica.",
+          );
+        } else if (response.status !== 404) {
           showSystemNotice(
             "error",
             "Autored",
@@ -6459,6 +6467,14 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
         return;
       }
       const fields = payload.fields;
+      const mechanicalFilled = [
+        fields.color,
+        fields.combustible,
+        fields.transmision,
+        fields.traccion,
+        fields.aro,
+        fields.cilindrada,
+      ].filter((value) => value?.trim()).length;
       setManualDraft((prev) =>
         applyAutoredLookupToDraft(
           {
@@ -6469,6 +6485,13 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
           fields,
         ),
       );
+      if (mechanicalFilled > 0) {
+        showSystemNotice(
+          "success",
+          "Autored",
+          `Se completaron ${mechanicalFilled} campo(s) de mecanica para ${normalized}.`,
+        );
+      }
     } finally {
       setAutoredLookupLoading(false);
     }

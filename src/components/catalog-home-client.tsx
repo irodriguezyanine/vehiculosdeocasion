@@ -443,11 +443,52 @@ function normalizePatentToken(value: string): string {
 
 function extractPatentTokens(value: string): string[] {
   const raw = value.toUpperCase();
-  const matches = raw.match(/[A-Z]{4}\s*-?\s*\d{2}/g) ?? [];
-  const normalized = matches
+  const regexMatches =
+    raw.match(/[A-Z]{4}\s*-?\s*\d{2}|[A-Z]{2}\s*-?\s*\d{4}/g) ?? [];
+  const fromRegex = regexMatches
     .map((token) => normalizePatentToken(token))
-    .filter((token) => /^[A-Z]{4}\d{2}$/.test(token));
-  return Array.from(new Set(normalized));
+    .filter((token) => /^[A-Z]{4}\d{2}$/.test(token) || /^[A-Z]{2}\d{4}$/.test(token));
+  const fromSplit = raw
+    .split(/[\s,;]+/)
+    .map((token) => normalizePatentToken(token))
+    .filter((token) => /^[A-Z]{4}\d{2}$/.test(token) || /^[A-Z]{2}\d{4}$/.test(token));
+  return Array.from(new Set([...fromRegex, ...fromSplit]));
+}
+
+function resolveInventoryItemKey(
+  assignmentKey: string,
+  itemsByKey: Map<string, CatalogItem>,
+): string | null {
+  if (itemsByKey.has(assignmentKey)) return assignmentKey;
+  const normalized = normalizePatentToken(assignmentKey);
+  if (normalized && itemsByKey.has(normalized)) return normalized;
+  for (const [key, item] of itemsByKey) {
+    if (item.id === assignmentKey) return key;
+    if (normalizePatentToken(getPatent(item)) === normalized && normalized) return key;
+  }
+  return null;
+}
+
+function resolveInventoryItem(
+  assignmentKey: string,
+  itemsByKey: Map<string, CatalogItem>,
+): CatalogItem | undefined {
+  const key = resolveInventoryItemKey(assignmentKey, itemsByKey);
+  return key ? itemsByKey.get(key) : undefined;
+}
+
+function isVehicleAssignedToSection(
+  sectionIds: string[],
+  vehicleKey: string,
+  itemsByKey: Map<string, CatalogItem>,
+): boolean {
+  const normalizedTarget = normalizePatentToken(vehicleKey);
+  return sectionIds.some((assignedId) => {
+    const resolved = resolveInventoryItemKey(assignedId, itemsByKey);
+    if (resolved === vehicleKey) return true;
+    if (normalizedTarget && normalizePatentToken(assignedId) === normalizedTarget) return true;
+    return assignedId === vehicleKey;
+  });
 }
 
 function normalizeLookupKey(value: string): string {
@@ -3599,6 +3640,33 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     return map;
   }, [items]);
 
+  useEffect(() => {
+    if (itemsByKey.size === 0) return;
+    setConfig((prev) => {
+      let changed = false;
+      const nextSectionVehicleIds = { ...prev.sectionVehicleIds };
+      for (const sectionId of PUBLICATION_SECTION_IDS) {
+        const canonical = Array.from(
+          new Set(
+            (prev.sectionVehicleIds[sectionId] ?? [])
+              .map((id) => resolveInventoryItemKey(id, itemsByKey) ?? id)
+              .filter(Boolean),
+          ),
+        );
+        const previous = prev.sectionVehicleIds[sectionId] ?? [];
+        if (
+          canonical.length !== previous.length ||
+          canonical.some((id, index) => id !== previous[index])
+        ) {
+          changed = true;
+          nextSectionVehicleIds[sectionId] = canonical;
+        }
+      }
+      if (!changed) return prev;
+      return { ...prev, sectionVehicleIds: nextSectionVehicleIds };
+    });
+  }, [itemsByKey]);
+
   const soldVehicleIdsSet = useMemo(
     () => new Set(config.soldVehicleIds ?? []),
     [config.soldVehicleIds],
@@ -3766,13 +3834,20 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     [config.hiddenCategoryIds],
   );
 
-  const getSectionItems = (sectionId: SectionId): CatalogItem[] => {
-    const selected = config.sectionVehicleIds[sectionId] ?? [];
-    return selected
-      .map((id) => itemsByKey.get(id))
-      .filter((item): item is CatalogItem => !!item)
-      .filter((item) => homeVisibleKeys.has(getVehicleKey(item)));
-  };
+  const getAssignedSectionItems = useCallback(
+    (sectionId: SectionId, options?: { visibleOnHomeOnly?: boolean }): CatalogItem[] => {
+      const selected = config.sectionVehicleIds[sectionId] ?? [];
+      const resolved = selected
+        .map((id) => resolveInventoryItem(id, itemsByKey))
+        .filter((item): item is CatalogItem => !!item);
+      if (!options?.visibleOnHomeOnly) return resolved;
+      return resolved.filter((item) => homeVisibleKeys.has(getVehicleKey(item)));
+    },
+    [config.sectionVehicleIds, homeVisibleKeys, itemsByKey],
+  );
+
+  const getSectionItems = (sectionId: SectionId): CatalogItem[] =>
+    getAssignedSectionItems(sectionId, { visibleOnHomeOnly: true });
 
   const upcomingAuctionByVehicleKey = useMemo(() => {
     const labels: Record<string, string> = {};
@@ -5769,21 +5844,29 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     if (!batchAssignTarget) return [] as CatalogItem[];
     const query = normalizeText(batchAssignSearchTerm);
     const patentTokens = extractPatentTokens(batchAssignSearchTerm);
-    const source = items.filter((item) => {
+    const source = activeInventoryItems.filter((item) => {
       const key = getVehicleKey(item);
-      const patent = getPatent(item);
+      const patent = normalizePatentToken(getPatent(item));
       if (patentTokens.length > 0) {
-        return (
-          patentTokens.includes(normalizePatentToken(patent)) ||
-          patentTokens.includes(normalizePatentToken(key))
+        return patentTokens.some(
+          (token) => token === patent || token === normalizePatentToken(key),
         );
       }
       if (!query) return true;
-      const sample = normalizeText(`${patent} ${getModel(item)} ${item.title} ${item.subtitle ?? ""}`);
+      const sample = normalizeText(`${getPatent(item)} ${getModel(item)} ${item.title} ${item.subtitle ?? ""}`);
       return sample.includes(query);
     });
     return source;
-  }, [batchAssignSearchTerm, batchAssignTarget, items]);
+  }, [batchAssignSearchTerm, batchAssignTarget, activeInventoryItems]);
+
+  const batchAssignMissingPatents = useMemo(() => {
+    const patentTokens = extractPatentTokens(batchAssignSearchTerm);
+    if (patentTokens.length === 0) return [] as string[];
+    const found = new Set(
+      batchAssignCandidates.map((item) => normalizePatentToken(getPatent(item))),
+    );
+    return patentTokens.filter((token) => !found.has(token));
+  }, [batchAssignSearchTerm, batchAssignCandidates]);
 
   const batchAssignTargetLabel = useMemo(() => {
     if (!batchAssignTarget) return "";
@@ -5799,12 +5882,12 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   const sectionVehicleCounts = useMemo(
     () =>
       ({
-        "proximos-remates": proximosRemates.length,
-        "ventas-directas": ventasDirectas.length,
-        novedades: novedades.length,
-        catalogo: catalogoItems.length,
+        "proximos-remates": getAssignedSectionItems("proximos-remates").length,
+        "ventas-directas": getAssignedSectionItems("ventas-directas").length,
+        novedades: getAssignedSectionItems("novedades").length,
+        catalogo: getAssignedSectionItems("catalogo").length,
       }) satisfies Record<SectionId, number>,
-    [proximosRemates.length, ventasDirectas.length, novedades.length, catalogoItems.length],
+    [getAssignedSectionItems],
   );
 
   const resetAdminInventoryFilters = useCallback(() => {
@@ -6331,31 +6414,86 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       showSystemNotice("info", "Sin seleccion", "Selecciona al menos un vehiculo para agregar.");
       return;
     }
+
+    const canonicalKeys = Array.from(
+      new Set(
+        batchAssignSelectedKeys
+          .map((key) => resolveInventoryItemKey(key, itemsByKey) ?? key)
+          .filter(Boolean),
+      ),
+    );
+
     if (batchAssignTarget.type === "auction") {
       setConfig((prev) => {
         const nextAuctionMap = { ...prev.vehicleUpcomingAuctionIds };
-        for (const vehicleKey of batchAssignSelectedKeys) {
+        for (const vehicleKey of canonicalKeys) {
           nextAuctionMap[vehicleKey] = batchAssignTarget.auctionId;
         }
         return { ...prev, vehicleUpcomingAuctionIds: nextAuctionMap };
       });
     } else {
+      const sectionId = batchAssignTarget.sectionId;
+      const alreadyAssigned = canonicalKeys.filter((vehicleKey) =>
+        isVehicleAssignedToSection(
+          config.sectionVehicleIds[sectionId] ?? [],
+          vehicleKey,
+          itemsByKey,
+        ),
+      );
+      const newlyAdded = canonicalKeys.filter(
+        (vehicleKey) => !alreadyAssigned.includes(vehicleKey),
+      );
+
+      if (newlyAdded.length === 0) {
+        showSystemNotice(
+          "info",
+          "Sin cambios",
+          alreadyAssigned.length > 0
+            ? `Las ${alreadyAssigned.length} unidad(es) seleccionada(s) ya estaban en ${batchAssignTargetLabel}.`
+            : "No se pudo agregar ninguna unidad seleccionada.",
+        );
+        return;
+      }
+
       setConfig((prev) => {
-        const current = new Set(prev.sectionVehicleIds[batchAssignTarget.sectionId] ?? []);
-        for (const vehicleKey of batchAssignSelectedKeys) current.add(vehicleKey);
+        const current = new Set(
+          (prev.sectionVehicleIds[sectionId] ?? [])
+            .map((id) => resolveInventoryItemKey(id, itemsByKey) ?? id)
+            .filter(Boolean),
+        );
+        for (const vehicleKey of newlyAdded) current.add(vehicleKey);
+        const nextHidden = new Set(prev.hiddenVehicleIds);
+        for (const vehicleKey of newlyAdded) nextHidden.delete(vehicleKey);
         return {
           ...prev,
+          hiddenVehicleIds: Array.from(nextHidden),
           sectionVehicleIds: {
             ...prev.sectionVehicleIds,
-            [batchAssignTarget.sectionId]: Array.from(current),
+            [sectionId]: Array.from(current),
           },
         };
       });
+
+      const skippedMessage =
+        alreadyAssigned.length > 0
+          ? ` ${alreadyAssigned.length} ya estaban en la categoria.`
+          : batchAssignMissingPatents.length > 0
+            ? ` ${batchAssignMissingPatents.length} patente(s) no estan en inventario activo.`
+            : "";
+
+      showSystemNotice(
+        "success",
+        "Unidades agregadas",
+        `${newlyAdded.length} vehiculo(s) agregado(s) en ${batchAssignTargetLabel}.${skippedMessage}`,
+      );
+      closeBatchAssignModal();
+      return;
     }
+
     showSystemNotice(
       "success",
       "Unidades agregadas",
-      `${batchAssignSelectedKeys.length} vehiculos agregados en ${batchAssignTargetLabel}.`,
+      `${canonicalKeys.length} vehiculos agregados en ${batchAssignTargetLabel}.`,
     );
     closeBatchAssignModal();
   };
@@ -12000,6 +12138,11 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
               <p className="text-xs text-slate-600">
                 {batchAssignCandidates.length} resultados  ·  {batchAssignSelectedKeys.length} seleccionados
               </p>
+              {batchAssignMissingPatents.length > 0 ? (
+                <p className="text-xs font-medium text-amber-800">
+                  No encontradas en inventario activo: {batchAssignMissingPatents.join(", ")}
+                </p>
+              ) : null}
               <button
                 type="button"
                 onClick={() =>
@@ -12022,7 +12165,11 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                 const alreadyInTarget =
                   batchAssignTarget.type === "auction"
                     ? (config.vehicleUpcomingAuctionIds[key] ?? "") === batchAssignTarget.auctionId
-                    : (config.sectionVehicleIds[batchAssignTarget.sectionId] ?? []).includes(key);
+                    : isVehicleAssignedToSection(
+                        config.sectionVehicleIds[batchAssignTarget.sectionId] ?? [],
+                        key,
+                        itemsByKey,
+                      );
                 return (
                   <label
                     key={`assign-batch-${key}`}

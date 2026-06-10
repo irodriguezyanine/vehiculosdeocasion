@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { AutoredLookupError, isAutoredConfigured, lookupAutoredDraftFields } from "@/lib/autored-lookup";
+import { AutoredLookupError, getAutoredRateLimitStatus, isAutoredConfigured, lookupAutoredDraftFields } from "@/lib/autored-lookup";
 import { ADMIN_SESSION_COOKIE_NAME, verifyAdminSessionToken } from "@/lib/admin-session";
 
 export async function GET(req: Request) {
@@ -36,8 +36,14 @@ export async function GET(req: Request) {
     return Response.json({ ok: true, fields });
   } catch (error) {
     if (error instanceof AutoredLookupError) {
+      const rateLimit = getAutoredRateLimitStatus();
       return Response.json(
-        { ok: false, error: error.message, code: error.code },
+        {
+          ok: false,
+          error: error.message,
+          code: error.code,
+          retryAfterMs: error.code === "RATE_LIMITED" ? rateLimit.retryAfterMs : undefined,
+        },
         { status: error.status },
       );
     }

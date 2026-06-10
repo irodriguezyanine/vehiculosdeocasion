@@ -67,6 +67,11 @@ import {
   collectAutoredLookupPatents,
   enrichPublishedVehiclesConfig,
 } from "@/lib/enrich-published-vehicles";
+import {
+  getAutoredClientCooldownMs,
+  lookupAutoredPatentClient,
+  lookupAutoredPatentsSequential,
+} from "@/lib/autored-client-queue";
 import type { CatalogFeed, CatalogItem } from "@/types/catalog";
 import type { OfferRecord } from "@/types/offers";
 import {
@@ -2864,6 +2869,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     promoPrice: "",
   });
   const [revalidating, setRevalidating] = useState(false);
+  const [inventoryUpdateProgress, setInventoryUpdateProgress] = useState("");
   const [catalogItems, setCatalogItems] = useState<CatalogItem[]>(() => feed.items);
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [analyticsRangeDays, setAnalyticsRangeDays] = useState<7 | 30 | 90>(30);
@@ -6772,27 +6778,27 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       );
       return;
     }
+    const cooldown = getAutoredClientCooldownMs();
+    if (cooldown > 0) {
+      showSystemNotice(
+        "error",
+        "Autored",
+        `Autored en pausa por limite de consultas. Espera ${Math.ceil(cooldown / 60_000)} minuto(s) e intenta de nuevo.`,
+      );
+      return;
+    }
     setAutoredLookupLoading(true);
     try {
-      const response = await fetch(
-        `/api/admin/autored-lookup?patente=${encodeURIComponent(normalized)}`,
-        { credentials: "include" },
-      );
-      const payload = (await response.json().catch(() => ({}))) as {
-        ok?: boolean;
-        fields?: Partial<ManualPublicationDraft>;
-        error?: string;
-        code?: string;
-      };
-      if (!response.ok || !payload.ok || !payload.fields) {
-        if (response.status === 503 || payload.code === "AUTORED_NOT_CONFIGURED") {
+      const payload = await lookupAutoredPatentClient(normalized);
+      if (!payload.ok || !payload.fields) {
+        if (payload.code === "AUTORED_NOT_CONFIGURED") {
           showSystemNotice(
             "error",
             "Autored no configurado",
             payload.error ??
               "Agrega AUTORED_EMAIL y AUTORED_PASSWORD en Vercel o .env.local para autocompletar la ficha tecnica.",
           );
-        } else if (response.status === 429 || payload.code === "RATE_LIMITED") {
+        } else if (payload.status === 429 || payload.code === "RATE_LIMITED") {
           showSystemNotice(
             "error",
             "Autored",
@@ -6803,7 +6809,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
             "error",
             "Autored",
             payload.error ??
-              (response.status === 404
+              (payload.status === 404
                 ? `No se encontraron datos de mecanica para ${normalized} en Autored.`
                 : "No se pudo consultar Autored para esta patente."),
           );
@@ -6833,7 +6839,9 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
         showSystemNotice(
           "success",
           "Autored",
-          `Se completaron ${mechanicalFilled} campo(s) de mecanica para ${normalized}.`,
+          payload.fromCache
+            ? `Datos de mecanica cargados desde cache local para ${normalized}.`
+            : `Se completaron ${mechanicalFilled} campo(s) de mecanica para ${normalized}.`,
         );
       }
     } finally {
@@ -6857,11 +6865,6 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     setManualDraft(draft);
     setManualUploadedImages(images);
     setShowManualCreateModal(true);
-
-    const patente = draft.patente?.trim() || (getPatent(item) !== "-" ? getPatent(item) : "");
-    if (patente) {
-      void lookupAutoredPatent(patente);
-    }
   };
 
   const openCreateManualModal = () => {
@@ -7438,6 +7441,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
 
   const revalidateInventory = async () => {
     setRevalidating(true);
+    setInventoryUpdateProgress("Actualizando catalogo GLO3D...");
     try {
       const revalidateResponse = await fetch("/api/admin/revalidate", {
         method: "POST",
@@ -7445,6 +7449,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       });
       if (!revalidateResponse.ok) throw new Error("Error al revalidar");
 
+      setInventoryUpdateProgress("Descargando inventario de bodega...");
       const catalogResponse = await fetch(`/api/catalogo?_=${Date.now()}`, {
         cache: "no-store",
       });
@@ -7462,29 +7467,19 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
 
       const patentes = collectAutoredLookupPatents(workingConfig, freshItems);
       const autoredByPatent: Record<string, Partial<ManualPublicationDraft>> = {};
+      let stoppedByRateLimit = false;
 
-      for (let index = 0; index < patentes.length; index += 40) {
-        const batch = patentes.slice(index, index + 40);
-        const autoredResponse = await fetch("/api/admin/autored-lookup-bulk", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ patentes: batch }),
+      if (patentes.length > 0) {
+        const sequential = await lookupAutoredPatentsSequential(patentes, (current, total, patente) => {
+          setInventoryUpdateProgress(`Autored ${current}/${total}: ${patente} (1 consulta cada 3s)...`);
         });
-        const autoredPayload = (await autoredResponse.json().catch(() => ({}))) as {
-          ok?: boolean;
-          results?: Array<{
-            patente: string;
-            ok: boolean;
-            fields?: Partial<ManualPublicationDraft>;
-          }>;
-        };
-        if (!autoredResponse.ok || !autoredPayload.ok || !autoredPayload.results) continue;
-        for (const entry of autoredPayload.results) {
-          if (entry.ok && entry.fields) autoredByPatent[entry.patente] = entry.fields;
+        stoppedByRateLimit = sequential.stoppedByRateLimit;
+        for (const [patente, fields] of sequential.results.entries()) {
+          autoredByPatent[patente] = fields;
         }
       }
 
+      setInventoryUpdateProgress("Completando fichas publicadas...");
       const { config: enrichedConfig, stats } = enrichPublishedVehiclesConfig(
         workingConfig,
         freshItems,
@@ -7513,10 +7508,15 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       if (stats.fieldsFilled > 0) {
         summaryParts.push(`${stats.fieldsFilled} campo(s) de ficha rellenados`);
       }
+      if (stoppedByRateLimit) {
+        summaryParts.push(
+          "Autored pauso consultas por limite: vuelve a pulsar Actualizar inventario en unos minutos para continuar",
+        );
+      }
 
       showSystemNotice(
-        "success",
-        "Inventario actualizado",
+        stoppedByRateLimit ? "info" : "success",
+        stoppedByRateLimit ? "Inventario parcialmente actualizado" : "Inventario actualizado",
         `${summaryParts.join(". ")}.`,
       );
     } catch {
@@ -7527,6 +7527,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       );
     } finally {
       setRevalidating(false);
+      setInventoryUpdateProgress("");
     }
   };
 
@@ -8477,7 +8478,9 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={`h-4 w-4 ${revalidating ? "animate-spin" : ""}`}>
                     <path fillRule="evenodd" d="M15.312 11.424a5.5 5.5 0 0 1-9.201 2.466l-.312-.311h2.433a.75.75 0 0 0 0-1.5H4.598a.75.75 0 0 0-.75.75v3.634a.75.75 0 0 0 1.5 0v-2.033l.262.263A7 7 0 0 0 17.25 10a.75.75 0 0 0-1.5 0 5.48 5.48 0 0 1-.438 1.424ZM4.688 8.576a5.5 5.5 0 0 1 9.201-2.466l.312.311h-2.433a.75.75 0 0 0 0 1.5h3.634a.75.75 0 0 0 .75-.75V3.537a.75.75 0 0 0-1.5 0v2.033l-.262-.263A7 7 0 0 0 2.75 10a.75.75 0 0 0 1.5 0c0-.51.07-1.003.438-1.424Z" clipRule="evenodd" />
                   </svg>
-                  {revalidating ? "Actualizando..." : "Actualizar inventario"}
+                  {revalidating
+                    ? inventoryUpdateProgress || "Actualizando..."
+                    : "Actualizar inventario"}
                 </button>
               </div>
             </div>

@@ -1,15 +1,16 @@
 import { cookies } from "next/headers";
-import { AutoredLookupError, isAutoredConfigured, lookupAutoredDraftFields } from "@/lib/autored-lookup";
+import {
+  AutoredLookupError,
+  getAutoredRateLimitStatus,
+  isAutoredConfigured,
+  lookupAutoredDraftFields,
+} from "@/lib/autored-lookup";
+import { getAutoredMinIntervalMs } from "@/lib/autored-request-queue";
 import { normalizePatentToken } from "@/lib/patent-input";
 import { ADMIN_SESSION_COOKIE_NAME, verifyAdminSessionToken } from "@/lib/admin-session";
 import type { ManualPublicationDraft } from "@/lib/manual-publication-draft";
 
-const MAX_BULK_LOOKUPS = 40;
-const LOOKUP_DELAY_MS = 400;
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+const MAX_BULK_LOOKUPS = Number(process.env.AUTORED_BULK_MAX ?? "20");
 
 export async function POST(req: Request) {
   const cookieStore = await cookies();
@@ -28,6 +29,19 @@ export async function POST(req: Request) {
         code: "AUTORED_NOT_CONFIGURED",
       },
       { status: 503 },
+    );
+  }
+
+  const rateLimit = getAutoredRateLimitStatus();
+  if (rateLimit.blocked) {
+    return Response.json(
+      {
+        ok: false,
+        error: "Autored limito las consultas temporalmente. Espera unos minutos e intenta de nuevo.",
+        code: "RATE_LIMITED",
+        retryAfterMs: rateLimit.retryAfterMs,
+      },
+      { status: 429 },
     );
   }
 
@@ -56,9 +70,9 @@ export async function POST(req: Request) {
     code?: string;
   }> = [];
 
-  for (let index = 0; index < patentes.length; index += 1) {
-    const patente = patentes[index];
-    if (index > 0) await sleep(LOOKUP_DELAY_MS);
+  let stoppedByRateLimit = false;
+
+  for (const patente of patentes) {
     try {
       const fields = await lookupAutoredDraftFields(patente);
       results.push({ patente, ok: true, fields });
@@ -70,6 +84,10 @@ export async function POST(req: Request) {
           error: error.message,
           code: error.code,
         });
+        if (error.code === "RATE_LIMITED") {
+          stoppedByRateLimit = true;
+          break;
+        }
       } else {
         results.push({
           patente,
@@ -81,10 +99,15 @@ export async function POST(req: Request) {
     }
   }
 
+  const rateLimitAfter = getAutoredRateLimitStatus();
+
   return Response.json({
     ok: true,
     results,
     truncated: rawList.length > MAX_BULK_LOOKUPS,
     max: MAX_BULK_LOOKUPS,
+    stoppedByRateLimit,
+    intervalMs: getAutoredMinIntervalMs(),
+    retryAfterMs: rateLimitAfter.retryAfterMs,
   });
 }

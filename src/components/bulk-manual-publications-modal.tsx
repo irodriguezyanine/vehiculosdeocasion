@@ -8,6 +8,7 @@ import {
   type ManualPublicationBundle,
 } from "@/lib/create-manual-publication";
 import { parsePatentListInput } from "@/lib/patent-input";
+import { lookupAutoredPatentsSequential } from "@/lib/autored-client-queue";
 import type { EditorConfig, SectionId } from "@/types/editor";
 
 const SECTION_OPTIONS: Array<{ id: SectionId; label: string }> = [
@@ -89,42 +90,33 @@ export function BulkManualPublicationsModal({
 
     setProcessing(true);
     setResults([]);
-    setProgress(`Consultando Autored (0/${toCreate.length})...`);
+    setProgress(`Consultando Autored (0/${toCreate.length}, 1 cada 3s)...`);
 
     try {
-      const response = await fetch("/api/admin/autored-lookup-bulk", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ patentes: toCreate }),
+      const autoredByPatent = new Map<string, Record<string, string | undefined>>();
+      const sequential = await lookupAutoredPatentsSequential(toCreate, (current, total, patente) => {
+        setProgress(`Consultando Autored ${current}/${total}: ${patente}...`);
       });
-      const payload = (await response.json().catch(() => ({}))) as {
-        ok?: boolean;
-        error?: string;
-        max?: number;
-        results?: Array<{
-          patente: string;
-          ok: boolean;
-          fields?: Record<string, string | undefined>;
-          error?: string;
-        }>;
-        truncated?: boolean;
-      };
-
-      if (!response.ok || !payload.ok || !payload.results) {
-        onNotice(
-          "error",
-          "Alta masiva",
-          payload.error ?? "No se pudo consultar Autored para la lista de patentes.",
-        );
-        return;
+      for (const [patente, fields] of sequential.results.entries()) {
+        autoredByPatent.set(patente, fields as Record<string, string | undefined>);
       }
 
       const bundles: ManualPublicationBundle[] = [];
 
-      for (let index = 0; index < payload.results.length; index += 1) {
-        const entry = payload.results[index];
-        setProgress(`Creando unidades (${index + 1}/${payload.results.length})...`);
+      for (let index = 0; index < toCreate.length; index += 1) {
+        const patente = toCreate[index];
+        setProgress(`Creando unidades (${index + 1}/${toCreate.length})...`);
+
+        const cached = autoredByPatent.get(patente);
+        const entry = cached
+          ? { patente, ok: true as const, fields: cached }
+          : {
+              patente,
+              ok: false as const,
+              error: sequential.stoppedByRateLimit
+                ? "Autored pauso consultas por limite."
+                : "Sin datos Autored.",
+            };
 
         const draft = buildManualDraftFromAutoredFields(
           entry.patente,
@@ -154,9 +146,13 @@ export function BulkManualPublicationsModal({
       setResults(rows);
       const createdCount = rows.filter((row) => row.status === "created").length;
       onNotice(
-        "success",
-        "Alta masiva completada",
-        `${createdCount} unidad(es) nueva(s) creada(s).${payload.truncated ? ` Solo se procesaron las primeras ${payload.max ?? 40} patentes.` : ""}`,
+        sequential.stoppedByRateLimit ? "info" : "success",
+        sequential.stoppedByRateLimit ? "Alta masiva parcial" : "Alta masiva completada",
+        `${createdCount} unidad(es) nueva(s) creada(s).${
+          sequential.stoppedByRateLimit
+            ? " Autored pauso consultas: espera unos minutos y completa las patentes restantes manualmente."
+            : ""
+        }`,
       );
     } finally {
       setProcessing(false);

@@ -1,4 +1,9 @@
 import type { ManualPublicationDraft } from "@/lib/manual-publication-draft";
+import {
+  getAutoredCooldownRemainingMs,
+  registerAutoredRateLimit,
+  runAutoredQueued,
+} from "@/lib/autored-request-queue";
 
 const AUTORED_V2_BASE = "https://app.autored.cl/api/v2";
 
@@ -416,7 +421,12 @@ async function fetchAutoredDirectV2(patent: string): Promise<Record<string, unkn
 
   if (!response.ok) {
     const body = await response.text().catch(() => "");
-    if (response.status === 403 && /banned|too many requests/i.test(body)) {
+    if (
+      response.status === 429 ||
+      response.status === 403 ||
+      /banned|too many requests|rate limit/i.test(body)
+    ) {
+      registerAutoredRateLimit();
       throw new AutoredLookupError(
         "RATE_LIMITED",
         "Autored limito las consultas temporalmente. Espera unos minutos e intenta de nuevo.",
@@ -529,7 +539,7 @@ export async function fetchAutoredPatentData(
 
   for (const strategy of strategies) {
     try {
-      const result = await strategy(normalized);
+      const result = await runAutoredQueued(() => strategy(normalized));
       if (result && Object.keys(result).length > 0) {
         autoredPatentCache.set(normalized, {
           data: result,
@@ -543,6 +553,11 @@ export async function fetchAutoredPatentData(
   }
 
   return null;
+}
+
+export function getAutoredRateLimitStatus(): { blocked: boolean; retryAfterMs: number } {
+  const retryAfterMs = getAutoredCooldownRemainingMs();
+  return { blocked: retryAfterMs > 0, retryAfterMs };
 }
 
 export function isAutoredConfigured(): boolean {

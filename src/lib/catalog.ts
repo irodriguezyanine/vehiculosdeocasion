@@ -2,14 +2,14 @@ import { createClient } from "@supabase/supabase-js";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, ScanCommand } from "@aws-sdk/lib-dynamodb";
 import type { CatalogFeed, CatalogItem, CatalogSource } from "@/types/catalog";
-import { fetchAutoredPatentData, mapAutoredToDraftPartial } from "@/lib/autored-lookup";
+import { fetchAutoredPatentData, mapAutoredToDraftPartial, AutoredLookupError } from "@/lib/autored-lookup";
 
 const DEFAULT_TABLE = process.env.CATALOG_SUPABASE_TABLE ?? "inventario";
 const DEFAULT_SELECT = process.env.CATALOG_SUPABASE_SELECT ?? "*";
 const DEFAULT_LIMIT = Number(process.env.CATALOG_LIMIT ?? "60");
 const DEFAULT_ORDER_BY = process.env.CATALOG_SUPABASE_ORDER_BY ?? "created_at";
 const AUTORED_API_URL = process.env.CATALOG_SOURCE_AUTORED_API_URL;
-const AUTORED_MAX_LOOKUPS = Number(process.env.CATALOG_AUTORED_MAX_LOOKUPS ?? "1000");
+const AUTORED_MAX_LOOKUPS = Number(process.env.CATALOG_AUTORED_MAX_LOOKUPS ?? "0");
 const AUTORED_CONFIGURED =
   Boolean(process.env.AUTORED_EMAIL && process.env.AUTORED_PASSWORD) ||
   Boolean(process.env.VITE_AUTORED_EMAIL && process.env.VITE_AUTORED_PASSWORD) ||
@@ -1150,8 +1150,10 @@ async function enrichWithAutoredFallback(
     try {
       const autored = await fetchAutoredByPatent(entry.stock);
       if (autored) byStock.set(entry.stock, normalizeAutoredTechnicalFields(autored));
-    } catch {
-      // noop: no bloquea catálogo si Autored falla
+    } catch (error) {
+      if (error instanceof AutoredLookupError && error.code === "RATE_LIMITED") {
+        break;
+      }
     }
   }
 

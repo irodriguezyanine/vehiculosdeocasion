@@ -570,11 +570,15 @@ function getVehicleKey(item: CatalogItem): string {
   return item.id;
 }
 
-function getPatent(item: CatalogItem): string {
-  const raw = item.raw as Record<string, unknown>;
+function resolvePatenteFromRaw(raw: Record<string, unknown>): string {
   const patent = [raw.patente, raw.PATENTE, raw.PPU, raw.stock_number]
     .find((value) => typeof value === "string" && value.trim().length > 0) as string | undefined;
-  return patent?.toUpperCase().replace(/\s+/g, "").replace(/-/g, "") ?? "-";
+  return patent?.toUpperCase().replace(/\s+/g, "").replace(/-/g, "") ?? "";
+}
+
+function getPatent(item: CatalogItem): string {
+  const patent = resolvePatenteFromRaw(item.raw as Record<string, unknown>);
+  return patent || "-";
 }
 
 function getModel(item: CatalogItem): string {
@@ -1516,7 +1520,7 @@ function buildDetailsDraft(item: CatalogItem, override?: EditorVehicleDetails): 
   return {
     title: override?.title ?? item.title,
     subtitle: override?.subtitle ?? (item.subtitle ?? ""),
-    patente: override?.patente ?? String(raw.patente ?? raw.PPU ?? ""),
+    patente: override?.patente ?? resolvePatenteFromRaw(raw),
     patenteVerifier:
       override?.patenteVerifier ??
       String(
@@ -6436,7 +6440,14 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
 
   const lookupAutoredPatent = async (patente: string) => {
     const normalized = patente.toUpperCase().replace(/\s+/g, "").replace(/-/g, "");
-    if (normalized.length < 4) return;
+    if (normalized.length < 4) {
+      showSystemNotice(
+        "error",
+        "Autored",
+        "Ingresa una patente valida (al menos 4 caracteres) en Datos principales antes de consultar.",
+      );
+      return;
+    }
     setAutoredLookupLoading(true);
     try {
       const response = await fetch(
@@ -6457,11 +6468,20 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
             payload.error ??
               "Agrega AUTORED_EMAIL y AUTORED_PASSWORD en Vercel o .env.local para autocompletar la ficha tecnica.",
           );
-        } else if (response.status !== 404) {
+        } else if (response.status === 429 || payload.code === "RATE_LIMITED") {
           showSystemNotice(
             "error",
             "Autored",
-            payload.error ?? "No se pudo consultar Autored para esta patente.",
+            payload.error ?? "Autored limito las consultas. Espera unos minutos e intenta de nuevo.",
+          );
+        } else {
+          showSystemNotice(
+            "error",
+            "Autored",
+            payload.error ??
+              (response.status === 404
+                ? `No se encontraron datos de mecanica para ${normalized} en Autored.`
+                : "No se pudo consultar Autored para esta patente."),
           );
         }
         return;
@@ -6522,7 +6542,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     setManualUploadedImages(images);
     setShowManualCreateModal(true);
 
-    const patente = draft.patente?.trim();
+    const patente = draft.patente?.trim() || (getPatent(item) !== "-" ? getPatent(item) : "");
     if (patente) {
       void lookupAutoredPatent(patente);
     }

@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { isAutoredConfigured, lookupAutoredDraftFields } from "@/lib/autored-lookup";
+import { AutoredLookupError, isAutoredConfigured, lookupAutoredDraftFields } from "@/lib/autored-lookup";
 import { ADMIN_SESSION_COOKIE_NAME, verifyAdminSessionToken } from "@/lib/admin-session";
 
 export async function GET(req: Request) {
@@ -33,14 +33,14 @@ export async function GET(req: Request) {
 
   try {
     const fields = await lookupAutoredDraftFields(normalized);
-    if (!fields || Object.keys(fields).length === 0) {
+    return Response.json({ ok: true, fields });
+  } catch (error) {
+    if (error instanceof AutoredLookupError) {
       return Response.json(
-        { ok: false, error: "No se encontraron datos para esta patente en Autored.", code: "NOT_FOUND" },
-        { status: 404 },
+        { ok: false, error: error.message, code: error.code },
+        { status: error.status },
       );
     }
-    return Response.json({ ok: true, fields });
-  } catch {
     return Response.json(
       { ok: false, error: "No se pudo consultar Autored en este momento.", code: "UPSTREAM_ERROR" },
       { status: 502 },

@@ -9,6 +9,28 @@ type AutoredTokenCache = {
 
 let autoredTokenCache: AutoredTokenCache | null = null;
 
+const autoredPatentCache = new Map<string, { data: Record<string, unknown>; expiresAt: number }>();
+const AUTORED_PATENT_CACHE_MS = 10 * 60_000;
+
+export type AutoredLookupErrorCode =
+  | "NOT_CONFIGURED"
+  | "INVALID_PATENT"
+  | "AUTH_FAILED"
+  | "RATE_LIMITED"
+  | "NOT_FOUND"
+  | "UPSTREAM_ERROR";
+
+export class AutoredLookupError extends Error {
+  code: AutoredLookupErrorCode;
+  status: number;
+
+  constructor(code: AutoredLookupErrorCode, message: string, status: number) {
+    super(message);
+    this.code = code;
+    this.status = status;
+  }
+}
+
 function pickString(item: Record<string, unknown>, aliases: string[]): string | undefined {
   for (const key of aliases) {
     const value = item[key];
@@ -340,13 +362,25 @@ async function getAutoredAccessToken(): Promise<string | null> {
     cache: "no-store",
     body: JSON.stringify({ email, password }),
   });
-  if (!response.ok) return null;
+  if (!response.ok) {
+    throw new AutoredLookupError(
+      "AUTH_FAILED",
+      "No se pudo autenticar con Autored. Revisa AUTORED_EMAIL y AUTORED_PASSWORD.",
+      502,
+    );
+  }
 
   const payload = (await response.json()) as {
     accessToken?: string;
     expirationDate?: string;
   };
-  if (!payload.accessToken) return null;
+  if (!payload.accessToken) {
+    throw new AutoredLookupError(
+      "AUTH_FAILED",
+      "Autored no devolvio token de acceso.",
+      502,
+    );
+  }
 
   const expiresAt = payload.expirationDate
     ? new Date(payload.expirationDate).getTime() - 60_000
@@ -371,10 +405,41 @@ async function fetchAutoredDirectV2(patent: string): Promise<Record<string, unkn
     },
     cache: "no-store",
   });
-  if (!response.ok) return null;
+
+  if (response.status === 404) {
+    throw new AutoredLookupError(
+      "NOT_FOUND",
+      "No se encontraron datos para esta patente en Autored.",
+      404,
+    );
+  }
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    if (response.status === 403 && /banned|too many requests/i.test(body)) {
+      throw new AutoredLookupError(
+        "RATE_LIMITED",
+        "Autored limito las consultas temporalmente. Espera unos minutos e intenta de nuevo.",
+        429,
+      );
+    }
+    throw new AutoredLookupError(
+      "UPSTREAM_ERROR",
+      "Autored rechazo la consulta de esta patente.",
+      502,
+    );
+  }
 
   const payload = await response.json();
-  return unwrapAutoredRecord(payload);
+  const record = unwrapAutoredRecord(payload);
+  if (!record || Object.keys(record).length === 0) {
+    throw new AutoredLookupError(
+      "NOT_FOUND",
+      "No se encontraron datos para esta patente en Autored.",
+      404,
+    );
+  }
+  return record;
 }
 
 async function fetchAutoredSupabaseFunction(patent: string): Promise<Record<string, unknown> | null> {
@@ -448,6 +513,11 @@ export async function fetchAutoredPatentData(
   const normalized = patent.toUpperCase().replace(/\s+/g, "").replace(/-/g, "");
   if (normalized.length < 4) return null;
 
+  const cached = autoredPatentCache.get(normalized);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data;
+  }
+
   const hasDirectCredentials = Boolean(
     (process.env.AUTORED_EMAIL ?? process.env.VITE_AUTORED_EMAIL) &&
       (process.env.AUTORED_PASSWORD ?? process.env.VITE_AUTORED_PASSWORD),
@@ -460,9 +530,15 @@ export async function fetchAutoredPatentData(
   for (const strategy of strategies) {
     try {
       const result = await strategy(normalized);
-      if (result && Object.keys(result).length > 0) return result;
-    } catch {
-      // intenta la siguiente fuente
+      if (result && Object.keys(result).length > 0) {
+        autoredPatentCache.set(normalized, {
+          data: result,
+          expiresAt: Date.now() + AUTORED_PATENT_CACHE_MS,
+        });
+        return result;
+      }
+    } catch (error) {
+      if (error instanceof AutoredLookupError) throw error;
     }
   }
 
@@ -483,13 +559,38 @@ export function isAutoredConfigured(): boolean {
 
 export async function lookupAutoredDraftFields(
   patent: string,
-): Promise<Partial<ManualPublicationDraft> | null> {
+): Promise<Partial<ManualPublicationDraft>> {
   const normalized = patent.toUpperCase().replace(/\s+/g, "").replace(/-/g, "");
-  if (normalized.length < 4) return null;
-  if (!isAutoredConfigured()) return null;
+  if (normalized.length < 4) {
+    throw new AutoredLookupError(
+      "INVALID_PATENT",
+      "Patente invalida. Ingresa al menos 4 caracteres.",
+      400,
+    );
+  }
+  if (!isAutoredConfigured()) {
+    throw new AutoredLookupError(
+      "NOT_CONFIGURED",
+      "Autored no esta configurado. Agrega AUTORED_EMAIL y AUTORED_PASSWORD en las variables de entorno.",
+      503,
+    );
+  }
 
   const raw = await fetchAutoredPatentData(normalized);
-  if (!raw) return null;
+  if (!raw) {
+    throw new AutoredLookupError(
+      "NOT_FOUND",
+      "No se encontraron datos para esta patente en Autored.",
+      404,
+    );
+  }
   const mapped = mapAutoredToDraftPartial(raw);
-  return Object.keys(mapped).length > 0 ? mapped : null;
+  if (Object.keys(mapped).length === 0) {
+    throw new AutoredLookupError(
+      "NOT_FOUND",
+      "Autored respondio sin campos utilizables para esta patente.",
+      404,
+    );
+  }
+  return mapped;
 }

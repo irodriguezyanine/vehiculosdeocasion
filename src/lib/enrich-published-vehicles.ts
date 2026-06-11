@@ -109,7 +109,9 @@ function enrichDetailsFromCatalogItem(
   item: CatalogItem,
 ): { details: EditorVehicleDetails; filled: number } {
   let draft = editorDetailsToDraft(current);
-  draft = mergeGlo3dOperationIntoDraft(draft, extractGlo3dOperationDetails(item), false);
+  const raw = item.raw as Record<string, unknown>;
+  const preferGlo3d = Boolean(raw?.glo3d && typeof raw.glo3d === "object") || Boolean(item.view3dUrl?.trim());
+  draft = mergeGlo3dOperationIntoDraft(draft, extractGlo3dOperationDetails(item), preferGlo3d);
   draft = mergeAutoredMechanicalIntoDraft(draft, extractAutoredMechanicalDetails(item), false);
 
   const gloEditor = extractGlo3dEditorDetails(item);

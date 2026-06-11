@@ -4,6 +4,7 @@ import { DynamoDBDocumentClient, ScanCommand } from "@aws-sdk/lib-dynamodb";
 import { cache } from "react";
 import type { CatalogFeed, CatalogItem, CatalogSource } from "@/types/catalog";
 import { fetchAutoredPatentData, mapAutoredToDraftPartial, AutoredLookupError } from "@/lib/autored-lookup";
+import { extractGlo3dTechnicalRawFromRecord } from "@/lib/glo3d-custom-specs";
 
 const DEFAULT_TABLE = process.env.CATALOG_SUPABASE_TABLE ?? "inventario";
 const DEFAULT_SELECT = process.env.CATALOG_SUPABASE_SELECT ?? "*";
@@ -673,10 +674,11 @@ type Glo3dInventoryEntry = {
 function normalizeGlo3dTechnicalFields(
   glo3dRaw: Record<string, unknown>,
 ): Record<string, unknown> {
+  const dictionaryRaw = extractGlo3dTechnicalRawFromRecord(glo3dRaw);
   const flat = flattenObject(glo3dRaw);
   const customSpecFields = extractCustomSpecFieldMap(glo3dRaw);
   const merged = { ...glo3dRaw, ...flat, ...customSpecFields };
-  const result: Record<string, unknown> = {};
+  const result: Record<string, unknown> = { ...dictionaryRaw };
 
   const patenteVerifier = pickString(merged, [
     "patente_verifier",

@@ -1,3 +1,7 @@
+import {
+  extractGlo3dOperationDetailsFromRaw,
+  flattenGlo3dSpecMap,
+} from "@/lib/glo3d-custom-specs";
 import { mapAutoredToDraftPartial } from "@/lib/autored-lookup";
 import type { ManualPublicationDraft } from "@/lib/manual-publication-draft";
 import { buildVehicleTitleFromParts } from "@/lib/vehicle-title";
@@ -29,94 +33,64 @@ function pickString(item: Record<string, unknown>, aliases: string[]): string | 
   return undefined;
 }
 
-function pickScalarString(value: unknown): string | undefined {
-  if (typeof value === "string" && value.trim()) return value.trim();
-  if (typeof value === "number" && Number.isFinite(value)) return String(value);
-  return undefined;
-}
-
-function extractGlo3dCustomSpecMap(raw: Record<string, unknown>): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  const visited = new Set<unknown>();
-
-  const visit = (node: unknown): void => {
-    if (node == null || typeof node !== "object") return;
-    if (visited.has(node)) return;
-    visited.add(node);
-
-    if (Array.isArray(node)) {
-      for (const entry of node) {
-        if (entry && typeof entry === "object" && !Array.isArray(entry)) {
-          const record = entry as Record<string, unknown>;
-          const keyRaw =
-            pickScalarString(record.abbreviation) ??
-            pickScalarString(record.abbrev) ??
-            pickScalarString(record.short_name) ??
-            pickScalarString(record.key) ??
-            pickScalarString(record.code) ??
-            pickScalarString(record.name) ??
-            pickScalarString(record.label);
-          const valueRaw =
-            pickScalarString(record.value) ??
-            pickScalarString(record.field_value) ??
-            pickScalarString(record.val) ??
-            pickScalarString(record.content) ??
-            pickScalarString(record.display_value);
-
-          if (keyRaw && valueRaw) {
-            const literalKey = keyRaw.trim().toLowerCase();
-            if (!(literalKey in result)) result[literalKey] = valueRaw;
-            result[keyRaw.trim()] = valueRaw;
-          }
-        }
-        visit(entry);
-      }
-      return;
-    }
-
-    for (const value of Object.values(node as Record<string, unknown>)) {
-      visit(value);
-    }
-  };
-
-  visit(raw);
-  return result;
-}
-
 function buildGlo3dMergedRaw(item: CatalogItem): Record<string, unknown> {
   const raw = (item.raw ?? {}) as Record<string, unknown>;
   const glo3dRaw = (raw.glo3d as Record<string, unknown> | undefined) ?? {};
-  const customSpecs = extractGlo3dCustomSpecMap(glo3dRaw);
-  return { ...raw, ...glo3dRaw, ...customSpecs };
+  const specs = flattenGlo3dSpecMap({ ...glo3dRaw, ...raw });
+  return { ...raw, ...glo3dRaw, ...specs };
 }
 
 const GLO3D_OPERATION_FIELDS: Array<{
   key: keyof EditorVehicleDetails;
   aliases: string[];
 }> = [
-  { key: "llaves", aliases: ["llaves", "lla", "keys", "has_keys", "tiene_llaves"] },
-  { key: "aireAcondicionado", aliases: ["aire_acondicionado", "ac", "air_conditioning", "has_ac"] },
-  { key: "unicoPropietario", aliases: ["unico_propietario", "dun", "DUN", "single_owner", "one_owner"] },
+  { key: "llaves", aliases: ["llaves", "lla", "fields_lla", "keys", "has_keys", "tiene_llaves"] },
+  {
+    key: "aireAcondicionado",
+    aliases: ["aire_acondicionado", "ac", "air_conditioning", "has_ac", "fields_ac"],
+  },
+  {
+    key: "unicoPropietario",
+    aliases: ["unico_propietario", "dun", "DUN", "single_owner", "one_owner", "fields_dun"],
+  },
   { key: "condicionado", aliases: ["condicionado", "conditioned", "acondicionado"] },
-  { key: "multas", aliases: ["multas", "mul", "Mul"] },
-  { key: "tag", aliases: ["tag", "TAG"] },
-  { key: "pruebaMotor", aliases: ["prueba_motor", "pdm"] },
-  { key: "pruebaDesplazamiento", aliases: ["prueba_desplazamiento", "pdd"] },
-  { key: "vencRevisionTecnica", aliases: ["vencimiento_revision_tecnica", "vrt"] },
-  { key: "vencPermisoCirculacion", aliases: ["vencimiento_permiso_circulacion", "vpc"] },
-  { key: "vencSeguroObligatorio", aliases: ["vencimiento_seguro_obligatorio", "vso"] },
-  { key: "transportista", aliases: ["transportista", "tra"] },
-  { key: "taller", aliases: ["taller", "tal"] },
-  { key: "ubicacionFisica", aliases: ["ubicacion_fisica", "ubi", "location"] },
-  { key: "nombrePropietarioAnterior", aliases: ["nombre_propietario_anterior", "npa"] },
-  { key: "rutPropietarioAnterior", aliases: ["rut_propietario_anterior", "rpa"] },
-  { key: "estadoAirbags", aliases: ["estado_airbags", "eda"] },
-  { key: "nSiniestro", aliases: ["n_de_siniestro", "numero_siniestro", "n_s", "ns", "n°s"] },
-  { key: "nMotor", aliases: ["n_de_motor", "numero_motor", "ndm", "n°m"] },
-  { key: "nSerie", aliases: ["n_de_serie", "numero_serie", "nds", "ser"] },
-  { key: "nChasis", aliases: ["n_de_chasis", "numero_chasis", "ndc", "chasis"] },
-  { key: "vin", aliases: ["vin", "n_de_vin"] },
-  { key: "version", aliases: ["version", "ver", "trim"] },
+  { key: "multas", aliases: ["multas", "mul", "Mul", "fields_mul"] },
+  { key: "tag", aliases: ["tag", "TAG", "fields_tag"] },
+  { key: "pruebaMotor", aliases: ["prueba_motor", "pdm", "fields_pdm"] },
+  { key: "pruebaDesplazamiento", aliases: ["prueba_desplazamiento", "pdd", "fields_pdd"] },
+  {
+    key: "vencRevisionTecnica",
+    aliases: ["vencimiento_revision_tecnica", "vrt", "fields_vrt"],
+  },
+  {
+    key: "vencPermisoCirculacion",
+    aliases: ["vencimiento_permiso_circulacion", "vpc", "fields_vpc"],
+  },
+  {
+    key: "vencSeguroObligatorio",
+    aliases: ["vencimiento_seguro_obligatorio", "vso", "fields_vso"],
+  },
+  { key: "transportista", aliases: ["transportista", "tra", "fields_tra"] },
+  { key: "taller", aliases: ["taller", "tal", "fields_tal"] },
+  { key: "ubicacionFisica", aliases: ["ubicacion_fisica", "ubi", "location", "fields_ubi"] },
+  {
+    key: "nombrePropietarioAnterior",
+    aliases: ["nombre_propietario_anterior", "npa", "fields_npa"],
+  },
+  {
+    key: "rutPropietarioAnterior",
+    aliases: ["rut_propietario_anterior", "rpa", "fields_rpa"],
+  },
+  { key: "estadoAirbags", aliases: ["estado_airbags", "eda", "fields_eda"] },
+  {
+    key: "nSiniestro",
+    aliases: ["n_de_siniestro", "numero_siniestro", "n_s", "ns", "n°s", "fields_n_s"],
+  },
+  { key: "nMotor", aliases: ["n_de_motor", "numero_motor", "ndm", "n°m", "fields_ndm"] },
+  { key: "nSerie", aliases: ["n_de_serie", "numero_serie", "nds", "ser", "fields_ser"] },
+  { key: "nChasis", aliases: ["n_de_chasis", "numero_chasis", "ndc", "fields_ndc"] },
+  { key: "vin", aliases: ["vin", "n_de_vin", "fields_vin"] },
+  { key: "version", aliases: ["version", "ver", "trim", "fields_ver"] },
 ];
 
 export function extractAutoredMechanicalDetails(
@@ -137,15 +111,21 @@ export function extractAutoredMechanicalDetails(
 }
 
 export function extractGlo3dOperationDetails(item: CatalogItem): Partial<EditorVehicleDetails> {
-  const merged = buildGlo3dMergedRaw(item);
-  const details: Partial<EditorVehicleDetails> = {};
+  const raw = (item.raw ?? {}) as Record<string, unknown>;
+  const glo3dRaw = (raw.glo3d as Record<string, unknown> | undefined) ?? {};
+  const details: Partial<EditorVehicleDetails> = {
+    ...extractGlo3dOperationDetailsFromRaw(glo3dRaw),
+    ...extractGlo3dOperationDetailsFromRaw(raw),
+  };
 
+  const merged = buildGlo3dMergedRaw(item);
   for (const { key, aliases } of GLO3D_OPERATION_FIELDS) {
+    if (String(details[key] ?? "").trim()) continue;
     const value = pickString(merged, aliases);
     if (value) (details as Record<string, string>)[key] = value;
   }
 
-  const kilometraje = pickString(merged, ["mileage", "kilometraje", "km", "odometer"]);
+  const kilometraje = pickString(merged, ["mileage", "kilometraje", "km", "odometer", "fields_mileage"]);
   if (kilometraje && !details.kilometraje) details.kilometraje = kilometraje;
 
   return details;

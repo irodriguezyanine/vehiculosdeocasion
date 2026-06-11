@@ -5868,40 +5868,6 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     showSystemNotice,
   ]);
 
-  const organizationSchema = useMemo(
-    () => ({
-      "@context": "https://schema.org",
-      "@type": "Organization",
-      name: "Vehículos de Ocasión",
-      url: "https://vehiculosdeocasion.vercel.app",
-      logo: "https://vehiculosdeocasion.vercel.app/vehiculos-ocasion-logo.png",
-      contactPoint: {
-        "@type": "ContactPoint",
-        telephone: CONTACT_PHONE,
-        contactType: "customer service",
-        areaServed: "CL",
-        availableLanguage: "es",
-      },
-      sameAs: [INSTAGRAM_PROFILE_URL],
-    }),
-    [],
-  );
-
-  const websiteSchema = useMemo(
-    () => ({
-      "@context": "https://schema.org",
-      "@type": "WebSite",
-      name: "Catalogo Vehículos de Ocasión",
-      url: "https://vehiculosdeocasion.vercel.app",
-      potentialAction: {
-        "@type": "SearchAction",
-        target: "https://vehiculosdeocasion.vercel.app/?q={search_term_string}",
-        "query-input": "required name=search_term_string",
-      },
-    }),
-    [],
-  );
-
   const filteredEditorItems = useMemo(() => {
     const query = normalizeText(searchTerm);
     const patentTokens = extractPatentTokens(searchTerm);
@@ -8539,16 +8505,6 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     <main className={`premium-bg min-h-screen overflow-x-hidden text-[#2d2118] ${showPublicHome ? "front-public" : ""}`}>
       <div className="premium-glow premium-glow-cyan" />
       <div className="premium-glow premium-glow-gold" />
-      <script
-        type="application/ld+json"
-        suppressHydrationWarning
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
-      />
-      <script
-        type="application/ld+json"
-        suppressHydrationWarning
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
-      />
 
       <SiteHeader
         onLogoClick={(event) => {

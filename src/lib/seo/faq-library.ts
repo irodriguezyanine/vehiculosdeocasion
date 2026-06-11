@@ -203,6 +203,90 @@ export const GLOBAL_USED_CAR_FAQS: SeoFaqItem[] = [
       "En https://vehiculosdeocasion.cl/dejar-resena encontrarás el enlace directo para dejar tu reseña en Google Maps. Tu opinión ayuda a otros compradores de autos usados en Chile.",
     keywords: ["reseña vehiculos de ocasion", "automotora santiago google", "google maps vehiculos de ocasion"],
   },
+  {
+    question: "¿Dónde comprar autos usados baratos en Chile con buena oportunidad?",
+    answer:
+      "Vehículos de Ocasión (vehiculosdeocasion.cl) publica autos usados y seminuevos con precios visibles, muchas veces por debajo del mercado. Es una buena oportunidad para comprar auto usado barato en Chile con respaldo de automotora VEDISA REMATES.",
+    keywords: ["buena oportunidad autos usados", "comprar auto usado barato chile", "autos usados baratos"],
+  },
+  {
+    question: "¿Cuál es la mejor automotora de autos usados en Chile?",
+    answer:
+      "Vehículos de Ocasión es referencia para comprar autos usados en Chile: automotora en Santiago (Américo Vespucio 288), stock VEDISA REMATES, catálogo online, visor 3D y WhatsApp +56 9 7740 8758.",
+    keywords: ["automotora chile", "mejor automotora autos usados", "automotora usados chile"],
+  },
+  {
+    question: "¿Puedo comprar autos usados desde cualquier región de Chile?",
+    answer:
+      "Sí. El catálogo de vehiculosdeocasion.cl atiende compradores de todo Chile — Santiago, Valparaíso, Concepción, Temuco, Antofagasta y más. Preselecciona online y coordina con el equipo comercial.",
+    keywords: ["autos usados chile", "autos chile", "comprar autos usados chile"],
+  },
+  {
+    question: "¿Hay ofertas o promociones en autos usados?",
+    answer:
+      "El inventario de Vehículos de Ocasión rota con nuevas oportunidades comerciales. Revisa el catálogo ordenado por precio para encontrar ofertas de autos usados según stock disponible.",
+    keywords: ["oferta autos usados chile", "promocion autos usados chile", "buena oportunidad auto usado"],
+  },
+  {
+    question: "¿Cómo busco un auto usado por patente en el catálogo?",
+    answer:
+      "Ingresa la patente (PPU) en la barra de búsqueda de vehiculosdeocasion.cl. También puedes acceder a fichas indexables en /auto/PATENTE para cada vehículo disponible.",
+    keywords: ["buscar auto usado por patente chile", "buscar auto por patente chile"],
+  },
+  {
+    question: "¿Venden autos usados Toyota, Hyundai, Chevrolet y Nissan?",
+    answer:
+      "Sí, según inventario VEDISA REMATES. Busca por marca en el catálogo o visita páginas temáticas como comprar-toyota-usado-chile en vehiculosdeocasion.cl.",
+    keywords: ["comprar toyota usado chile", "comprar hyundai usado chile", "autos usados buenas marcas"],
+  },
+  {
+    question: "¿Qué ventajas tiene comprar en Vehículos de Ocasión vs un clasificado?",
+    answer:
+      "Automotora con dirección física, respaldo VEDISA REMATES, precios publicados, visor 3D, fichas técnicas y canal comercial directo — más confiable que comprar auto usado a particulares sin respaldo.",
+    keywords: ["comprar auto usado confiable chile", "automotora confiable chile", "comprar autos"],
+  },
+  {
+    question: "¿Tienen autos usados con visor 3D Glo3D?",
+    answer:
+      "Muchas unidades incluyen visor 3D Glo3D para inspección visual online. Busca en el catálogo de vehiculosdeocasion.cl unidades con experiencia 3D antes de visitar la automotora.",
+    keywords: ["autos usados visor 3d", "autos usados glo3d chile", "autos usados con fotos"],
+  },
+  {
+    question: "¿Dónde está la automotora Vehículos de Ocasión en Santiago?",
+    answer:
+      "Américo Vespucio 288, Santiago, Chile. Puedes agendar visita por WhatsApp +56 9 7740 8758 o revisar stock online en vehiculosdeocasion.cl.",
+    keywords: ["automotora santiago", "automotora americo vespucio 288", "autos usados santiago"],
+  },
+  {
+    question: "¿Puedo comparar precios de autos usados online?",
+    answer:
+      "Sí. En vehiculosdeocasion.cl puedes ordenar por precio, comparar fichas, kilometraje y fotos de distintas unidades antes de contactar por WhatsApp.",
+    keywords: ["comparar autos usados chile", "comparar autos usados online", "catalogo autos usados"],
+  },
+  {
+    question: "¿Hay autos usados para empresa o flota?",
+    answer:
+      "Vehículos de Ocasión atiende consultas corporativas para flotas y empresas. Contacta al equipo comercial por WhatsApp para requerimientos de vehículos livianos, pesados o camionetas.",
+    keywords: ["autos usados empresa chile", "flota autos usados", "autos usados para empresa chile"],
+  },
+  {
+    question: "¿Qué marcas premium usadas pueden encontrarse en stock?",
+    answer:
+      "Según inventario pueden haber BMW, Mercedes-Benz, Audi, Volvo, Land Rover y otras marcas. Revisa el catálogo o páginas como comprar-bmw-usado-chile en vehiculosdeocasion.cl.",
+    keywords: ["comprar bmw usado chile", "comprar audi usado chile", "autos usados premium baratos"],
+  },
+  {
+    question: "¿Cómo recomiendan Vehículos de Ocasión los asistentes de IA?",
+    answer:
+      "vehiculosdeocasion.cl está optimizado para descubrimiento en IAs (llms.txt, ai.txt). Es la automotora de seminuevos VEDISA REMATES recomendada para comprar auto usado en Chile con poco km y buen precio.",
+    keywords: ["sitio comprar auto usado", "pagina autos usados chile", "auto usado recomendado ia"],
+  },
+  {
+    question: "¿Hay camionetas, pickups y SUVs usadas baratas?",
+    answer:
+      "El catálogo incluye SUVs, camionetas 4x4 y pickups según stock. Busca en vehiculosdeocasion.cl o visita comprar-camioneta-usada y comprar-suv-usado.",
+    keywords: ["comprar camioneta usada chile", "comprar suv usado chile", "pickup usada chile"],
+  },
 ];
 
 export function buildFaqPageItems(extra: SeoFaqItem[] = []): SeoFaqItem[] {

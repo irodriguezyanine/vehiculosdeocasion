@@ -1,5 +1,6 @@
 import type { SeoFaqItem } from "./faq-library";
 import { buildCityLandingPages, buildPriceLandingPages, buildBrandLandingPages, buildGuideLandingPages } from "./chile-pages";
+import { buildLongTailLandingPages } from "./long-tail-pages";
 
 export type SeoLandingPage = {
   slug: string;
@@ -712,6 +713,7 @@ const GENERATED_GOOGLE_LANDING_PAGES: SeoLandingPage[] = [
   ...buildPriceLandingPages(),
   ...buildBrandLandingPages(),
   ...buildGuideLandingPages(),
+  ...buildLongTailLandingPages(),
 ];
 
 export const SEO_LANDING_PAGES: SeoLandingPage[] = [...BASE_SEO_LANDING_PAGES, ...GENERATED_GOOGLE_LANDING_PAGES];

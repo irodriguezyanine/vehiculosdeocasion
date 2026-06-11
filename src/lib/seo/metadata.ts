@@ -76,9 +76,12 @@ export function buildPageMetadata(params: {
   title: string;
   description: string;
   keywords?: string[];
+  ogImage?: string;
+  ogImageAlt?: string;
 }): Metadata {
   const siteUrl = getSiteUrl();
   const canonical = params.path === "/" ? siteUrl : `${siteUrl}/${params.path.replace(/^\//, "")}`;
+  const ogImage = params.ogImage ?? DEFAULT_OG_IMAGE;
   return buildSiteMetadata({
     title: params.title,
     description: params.description,
@@ -88,10 +91,19 @@ export function buildPageMetadata(params: {
       url: canonical,
       title: params.title,
       description: params.description,
+      images: [
+        {
+          url: ogImage,
+          width: params.ogImage ? 1200 : 512,
+          height: params.ogImage ? 630 : 512,
+          alt: params.ogImageAlt ?? params.title,
+        },
+      ],
     },
     twitter: {
       title: params.title,
       description: params.description,
+      images: [ogImage],
     },
   });
 }

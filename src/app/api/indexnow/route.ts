@@ -1,6 +1,10 @@
 import { SEO_LANDING_PAGES } from "@/lib/seo/landing-pages";
 import { GOOGLE_INDEXNOW_KEY_PATH, GOOGLE_PRIORITY_SLUGS } from "@/lib/seo/google-seo";
 import { getSiteUrl } from "@/lib/seo/site-config";
+import { buildVehicleSeoPath, normalizeVehicleSeoKey } from "@/lib/seo/vehicle-seo";
+import { getCatalogFeed } from "@/lib/catalog";
+import { getVehicleKey, getVisibleCatalogItems } from "@/lib/catalog-visibility";
+import { getEditorConfig } from "@/lib/editor-config";
 
 const INDEXNOW_ENDPOINTS = [
   "https://api.indexnow.org/indexnow",
@@ -34,19 +38,30 @@ async function pingIndexNow(urls: string[]): Promise<{ ok: boolean; details: str
 function buildDefaultUrls(): string[] {
   const siteUrl = getSiteUrl();
   const priority = GOOGLE_PRIORITY_SLUGS.map((slug) => `${siteUrl}/${slug}`);
-  const latestLandings = SEO_LANDING_PAGES.slice(0, 20).map((page) => `${siteUrl}/${page.slug}`);
-  return Array.from(new Set([siteUrl, `${siteUrl}/feed.xml`, ...priority, ...latestLandings]));
+  const allLandings = SEO_LANDING_PAGES.map((page) => `${siteUrl}/${page.slug}`);
+  return Array.from(new Set([siteUrl, `${siteUrl}/feed.xml`, `${siteUrl}/sitemap.xml`, ...priority, ...allLandings]));
+}
+
+async function buildAllUrls(): Promise<string[]> {
+  const siteUrl = getSiteUrl();
+  const base = buildDefaultUrls();
+  const [feed, editorConfigResult] = await Promise.all([getCatalogFeed(), getEditorConfig()]);
+  const visibleItems = getVisibleCatalogItems(feed.items, editorConfigResult.config);
+  const vehicleUrls = visibleItems.map(
+    (item) => `${siteUrl}${buildVehicleSeoPath(normalizeVehicleSeoKey(getVehicleKey(item)))}`,
+  );
+  return Array.from(new Set([...base, ...vehicleUrls]));
 }
 
 export async function GET() {
-  const urls = buildDefaultUrls();
+  const urls = await buildAllUrls();
   const result = await pingIndexNow(urls);
   return Response.json({ submitted: urls.length, ...result, urls });
 }
 
 export async function POST(request: Request) {
   const siteUrl = getSiteUrl();
-  let urls = buildDefaultUrls();
+  let urls = await buildAllUrls();
   try {
     const payload = (await request.json()) as { urls?: string[] };
     if (Array.isArray(payload.urls) && payload.urls.length > 0) {

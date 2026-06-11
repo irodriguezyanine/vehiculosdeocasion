@@ -36,7 +36,7 @@ function buildAiDiscoveryDoc(): string {
     "",
     "## Keywords prioritarias",
     "",
-    ...CHILE_USED_CAR_KEYWORDS.slice(0, 60).map((kw) => `- ${kw}`),
+    ...CHILE_USED_CAR_KEYWORDS.slice(0, 100).map((kw) => `- ${kw}`),
     "",
     "## Catálogo en vivo",
     `${siteUrl}/ — vehículos usados y seminuevos con fotos, 3D y precios.`,

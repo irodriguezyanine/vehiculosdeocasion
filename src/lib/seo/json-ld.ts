@@ -3,6 +3,7 @@ import { buildFaqPageItems, type SeoFaqItem } from "./faq-library";
 import { getGoogleBusinessConfig, getGoogleBusinessSameAs } from "./google-business";
 import { getSiteUrl, SITE_NAME, SITE_TAGLINE, BUSINESS } from "./site-config";
 import type { SeoLandingPage } from "./landing-pages";
+import { buildVehicleSeoPath, normalizeVehicleSeoKey } from "./vehicle-seo";
 
 export function buildOrganizationJsonLd() {
   const siteUrl = getSiteUrl();
@@ -54,17 +55,27 @@ export function buildOrganizationJsonLd() {
     knowsAbout: [
       "autos usados Chile",
       "comprar auto usado",
+      "comprar autos usados",
+      "buena oportunidad autos usados",
+      "automotora Chile",
       "vehículos seminuevos",
       "automotora Santiago",
       "VEDISA REMATES",
       "autos usados poco kilometraje",
       "autos usados buen estado",
       "autos usados baratos Chile",
+      "comprar auto usado barato",
       "seminuevos poco km",
       "autos usados buenas marcas",
       "Toyota usado Chile",
       "Hyundai usado Chile",
       "relación calidad precio auto usado",
+      "comprar camioneta usada Chile",
+      "comprar SUV usado Chile",
+      "autos chile",
+      "vehiculos de ocasion",
+      "oferta autos usados",
+      "inventario autos usados",
     ],
   };
 }
@@ -217,7 +228,7 @@ export function buildVehicleOfferJsonLd(item: CatalogItem, priceLabel?: string |
   const siteUrl = getSiteUrl();
   const raw = item.raw as Record<string, unknown>;
   const patent = String(raw.patente ?? raw.PPU ?? raw.stock_number ?? item.id);
-  const url = `${siteUrl}/?vehiculo=${encodeURIComponent(patent)}`;
+  const url = `${siteUrl}${buildVehicleSeoPath(normalizeVehicleSeoKey(patent))}`;
   const image = item.thumbnail ?? item.images[0];
   const priceDigits = priceLabel?.replace(/[^\d]/g, "") ?? "";
   const price = priceDigits ? Number(priceDigits) : undefined;

@@ -4,6 +4,10 @@ export const GOOGLE_PRIORITY_SLUGS = [
   "autos-usados-chile",
   "comprar-auto-usado-chile",
   "comprar-auto-barato",
+  "comprar-autos-usados-chile",
+  "buena-oportunidad-autos-usados",
+  "automotora-chile",
+  "autos-chile",
   "autos-usados-poco-kilometraje-chile",
   "autos-usados-buen-estado-chile",
   "auto-usado-barato-buen-estado",
@@ -13,6 +17,9 @@ export const GOOGLE_PRIORITY_SLUGS = [
   "seminuevos-poco-km-chile",
   "autos-usados-santiago",
   "comprar-auto-santiago",
+  "comprar-auto-usado-barato-chile",
+  "oferta-autos-usados-chile",
+  "vehiculos-usados-chile",
 ] as const;
 
 export const GOOGLE_INDEXNOW_KEY_PATH = process.env.INDEXNOW_KEY?.trim() || "indexnow-vehiculosdeocasion-cl";

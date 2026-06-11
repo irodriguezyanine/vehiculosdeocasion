@@ -2,6 +2,7 @@ import { getCatalogFeed } from "@/lib/catalog";
 import { getVisibleCatalogItems, getVehicleKey } from "@/lib/catalog-visibility";
 import { getEditorConfig } from "@/lib/editor-config";
 import { getSiteUrl, SITE_NAME } from "@/lib/seo/site-config";
+import { buildVehicleSeoUrl, normalizeVehicleSeoKey } from "@/lib/seo/vehicle-seo";
 
 export const revalidate = 300;
 
@@ -22,8 +23,8 @@ export async function GET() {
 
   const itemXml = items
     .map((item) => {
-      const key = getVehicleKey(item);
-      const link = `${siteUrl}/?vehiculo=${encodeURIComponent(key)}`;
+      const key = normalizeVehicleSeoKey(getVehicleKey(item));
+      const link = buildVehicleSeoUrl(key);
       return [
         "<item>",
         `<title>${escapeXml(item.title)}</title>`,

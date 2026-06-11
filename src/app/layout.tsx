@@ -40,6 +40,7 @@ export default function RootLayout({
         <link rel="alternate" type="text/plain" href={`${siteUrl}/llms.txt`} title="LLMs discovery file" />
         <link rel="alternate" type="text/plain" href={`${siteUrl}/ai.txt`} title="AI discovery file" />
         <link rel="alternate" type="application/rss+xml" href={`${siteUrl}/feed.xml`} title="RSS catálogo autos usados" />
+        <link rel="sitemap" type="application/xml" href={`${siteUrl}/sitemap.xml`} title="Sitemap" />
       </head>
       <body className="app-body min-h-full flex flex-col overflow-x-hidden">
         {children}

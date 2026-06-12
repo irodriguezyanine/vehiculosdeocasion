@@ -107,6 +107,8 @@ const HOME_QUICK_FILTERS_STORAGE_KEY = "vehiculosdeocasion_home_quick_filters";
 const HOME_CARD_DENSITY_STORAGE_KEY = "vehiculosdeocasion_home_card_density";
 const EDITOR_PAGE_SIZE = 20;
 const EDITOR_PATENT_PAGE_SIZE = 100;
+/** Este sitio no opera remates; solo venta directa y secciones del home. */
+const AUCTION_ADMIN_ENABLED = false;
 
 function AdminIconBtn({
   label,
@@ -151,7 +153,7 @@ type EditorGroupFilter = "all" | "home" | "unassigned" | SectionId | `managed:${
 type EditorVisibilityFilter = "all" | "visible" | "hidden";
 type EditorVehicleCategoryFilter = "all" | "livianos" | "pesados" | "maquinaria" | "chatarra" | "otros";
 type BatchAssignTarget =
-  | { type: "section"; sectionId: "ventas-directas" | "novedades" | "catalogo" }
+  | { type: "section"; sectionId: SectionId }
   | { type: "auction"; auctionId: string };
 type SortOption = "recomendado" | "relevancia" | "fecha-remate" | "precio-asc" | "precio-desc" | "titulo";
 type QuickFilterId =
@@ -4065,6 +4067,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     getAssignedSectionItems(sectionId, { visibleOnly: true });
 
   const upcomingAuctionByVehicleKey = useMemo(() => {
+    if (!AUCTION_ADMIN_ENABLED) return {} as Record<string, string>;
     const labels: Record<string, string> = {};
     const auctionsById = new Map(
       (config.upcomingAuctions ?? []).map((auction) => [auction.id, auction] as const),
@@ -4080,9 +4083,11 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
 
   const sortedUpcomingAuctions = useMemo(
     () =>
-      [...(config.upcomingAuctions ?? [])].sort((a, b) =>
-        (a.date ?? "").localeCompare(b.date ?? "", "es"),
-      ),
+      AUCTION_ADMIN_ENABLED
+        ? [...(config.upcomingAuctions ?? [])].sort((a, b) =>
+            (a.date ?? "").localeCompare(b.date ?? "", "es"),
+          )
+        : [],
     [config.upcomingAuctions],
   );
 
@@ -6670,7 +6675,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       ? { type: "auction", auctionId: value.slice("auction:".length) }
       : {
           type: "section",
-          sectionId: value.slice("section:".length) as "ventas-directas" | "novedades" | "catalogo",
+          sectionId: value.slice("section:".length) as SectionId,
         };
     pendingAddStockTargetRef.current = target;
     setBatchAssignTarget(target);
@@ -9104,27 +9109,29 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                           <option value="otros">Otros</option>
                         </select>
                       </label>
-                      <label className="block space-y-1">
-                        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                          Remate
-                        </span>
-                        <select
-                          value={auctionFilterId}
-                          onChange={(event) => {
-                            setAuctionFilterId(event.target.value);
-                            if (event.target.value) setEditorGroupFilter("proximos-remates");
-                            setEditorPage(1);
-                          }}
-                          className="ui-focus w-full rounded-md border border-slate-300/80 bg-white/90 px-3 py-2 text-sm"
-                        >
-                          <option value="">Todos los remates</option>
-                          {sortedUpcomingAuctions.map((auction) => (
-                            <option key={auction.id} value={auction.id}>
-                              {auction.name} ({formatAuctionDateLabel(auction.date)})
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                      {AUCTION_ADMIN_ENABLED ? (
+                        <label className="block space-y-1">
+                          <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                            Remate
+                          </span>
+                          <select
+                            value={auctionFilterId}
+                            onChange={(event) => {
+                              setAuctionFilterId(event.target.value);
+                              if (event.target.value) setEditorGroupFilter("proximos-remates");
+                              setEditorPage(1);
+                            }}
+                            className="ui-focus w-full rounded-md border border-slate-300/80 bg-white/90 px-3 py-2 text-sm"
+                          >
+                            <option value="">Todos los remates</option>
+                            {sortedUpcomingAuctions.map((auction) => (
+                              <option key={auction.id} value={auction.id}>
+                                {auction.name} ({formatAuctionDateLabel(auction.date)})
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      ) : null}
                       <label className="block space-y-1">
                         <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                           Grupo / seccion
@@ -9142,7 +9149,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                           <option value="home">Stock visible en home</option>
                           <option value="unassigned">Sin asignar al home</option>
                           <option value="all">Inventario completo</option>
-                          <option value="proximos-remates">Proximos remates</option>
+                          <option value="proximos-remates">Destacados</option>
                           <option value="ventas-directas">Ventas directas</option>
                           <option value="novedades">Novedades</option>
                           <option value="catalogo">Catalogo</option>
@@ -9312,7 +9319,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                     const hidden = mergedHiddenVehicleIds.has(key);
                     const selected = editorSelectedKeys.includes(key);
                     const channelLabels = getHomeEditorChannelLabels(config, key, itemsByKey);
-                    const auctionLabel = upcomingAuctionByVehicleKey[key] ?? "Sin remate";
+                    const auctionLabel = upcomingAuctionByVehicleKey[key];
                     const priceLabel = formatPrice(config.vehiclePrices[key]);
                     return (
                       <article
@@ -9365,7 +9372,9 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                           />
                         </div>
                         <div className="min-w-0 text-[11px] text-slate-600 sm:text-right">
-                          <p className="line-clamp-1">{auctionLabel}</p>
+                          {auctionLabel ? (
+                            <p className="line-clamp-1">{auctionLabel}</p>
+                          ) : null}
                           <p className="line-clamp-1 font-medium text-slate-800">
                             {priceLabel ?? "—"}
                           </p>
@@ -9621,7 +9630,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                       Secciones base del home
                     </p>
                     <p className="text-sm text-slate-600">
-                      Gestiona todos los grupos desde este panel: base, remates y categorias personalizadas.
+                      Gestiona las secciones base del home y las categorias personalizadas.
                     </p>
                   </div>
                   <button
@@ -9636,85 +9645,33 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                 </div>
 
                 {showCreateCategoryForm ? (
-                  <div className="mt-3 grid gap-2 rounded-lg border border-stone-200 bg-stone-100/40 p-2 md:grid-cols-[auto_1fr_1fr_auto_auto]">
-                    <select
-                      value={createGroupKind}
-                      onChange={(event) => setCreateGroupKind(event.target.value as "categoria" | "remate")}
-                      className="ui-focus rounded-md border border-stone-300 bg-white px-2.5 py-2 text-sm"
+                  <div className="mt-3 grid gap-2 rounded-lg border border-stone-200 bg-stone-100/40 p-2 md:grid-cols-[1fr_1fr_auto_auto]">
+                    <input
+                      value={newCategoryName}
+                      onChange={(event) => setNewCategoryName(event.target.value)}
+                      placeholder="Nombre categoria"
+                      className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
+                    />
+                    <input
+                      value={newCategoryDescription}
+                      onChange={(event) => setNewCategoryDescription(event.target.value)}
+                      placeholder="Descripcion categoria"
+                      className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => createManagedCategory(false)}
+                      className="ui-focus rounded-md border border-amber-300 bg-white px-3 py-2 text-sm font-semibold text-amber-800 transition hover:bg-stone-100"
                     >
-                      <option value="categoria">Categoria</option>
-                      <option value="remate">Remate</option>
-                    </select>
-                    {createGroupKind === "remate" ? (
-                      <>
-                        <input
-                          value={newAuctionName}
-                          onChange={(event) => setNewAuctionName(event.target.value)}
-                          placeholder="Nombre del remate"
-                          className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
-                        />
-                        <input
-                          type="date"
-                          value={newAuctionDate}
-                          onChange={(event) => setNewAuctionDate(event.target.value)}
-                          className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
-                        />
-                        <button
-                          type="button"
-                          onClick={createUpcomingAuction}
-                          className="ui-focus rounded-md border border-amber-300 bg-white px-3 py-2 text-sm font-semibold text-amber-800 transition hover:bg-stone-100"
-                        >
-                          Crear remate
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!newAuctionName.trim() || !newAuctionDate.trim()) {
-                              showSystemNotice(
-                                "error",
-                                "Remate incompleto",
-                                "Ingresa nombre y fecha para crear el remate.",
-                              );
-                              return;
-                            }
-                            createUpcomingAuction();
-                            setShowCreateCategoryForm(false);
-                          }}
-                          className="ui-focus rounded-md bg-amber-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-amber-600"
-                        >
-                          Crear y cerrar
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <input
-                          value={newCategoryName}
-                          onChange={(event) => setNewCategoryName(event.target.value)}
-                          placeholder="Nombre categoria"
-                          className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
-                        />
-                        <input
-                          value={newCategoryDescription}
-                          onChange={(event) => setNewCategoryDescription(event.target.value)}
-                          placeholder="Descripcion categoria"
-                          className="ui-focus rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => createManagedCategory(false)}
-                          className="ui-focus rounded-md border border-amber-300 bg-white px-3 py-2 text-sm font-semibold text-amber-800 transition hover:bg-stone-100"
-                        >
-                          Guardar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => createManagedCategory(true)}
-                          className="ui-focus rounded-md bg-amber-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-amber-600"
-                        >
-                          Agregar unidades
-                        </button>
-                      </>
-                    )}
+                      Guardar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => createManagedCategory(true)}
+                      className="ui-focus rounded-md bg-amber-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-amber-600"
+                    >
+                      Agregar unidades
+                    </button>
                   </div>
                 ) : null}
 
@@ -9858,140 +9815,24 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                               <path d="M10 4c4.5 0 7.8 3.16 8.9 5.5.13.28.13.62 0 .9C17.8 12.74 14.5 15.9 10 15.9S2.2 12.74 1.1 10.4a1.06 1.06 0 0 1 0-.9C2.2 7.16 5.5 4 10 4Zm0 2c-3.42 0-6.06 2.31-7.08 4 .99 1.69 3.64 4 7.08 4s6.09-2.31 7.08-4C16.06 8.31 13.42 6 10 6Zm0 1.5A2.5 2.5 0 1 1 7.5 10 2.5 2.5 0 0 1 10 7.5Z" />
                             </svg>
                           </button>
-                          {sectionId !== "proximos-remates" ? (
+                          {sectionId !== "proximos-remates" || !AUCTION_ADMIN_ENABLED ? (
                             <EditorAddVehicleMenu
                               compact
                               menuLabel={`Agregar unidades a ${SECTION_LABELS[sectionId]}`}
-                              onAddNew={() =>
-                                openAddVehicleNew([sectionId as "ventas-directas" | "novedades" | "catalogo"])
-                              }
+                              onAddNew={() => openAddVehicleNew([sectionId])}
                               onAddFromStock={() =>
                                 openAddVehicleFromStock({
                                   type: "section",
-                                  sectionId: sectionId as "ventas-directas" | "novedades" | "catalogo",
+                                  sectionId,
                                 })
                               }
-                              onAddBulk={() =>
-                                openAddVehicleBulk([
-                                  sectionId as "ventas-directas" | "novedades" | "catalogo",
-                                ])
-                              }
+                              onAddBulk={() => openAddVehicleBulk([sectionId])}
                             />
                           ) : null}
                         </div>
                       </article>
                       );
                     },
-                  )}
-
-                  <p className="px-2 pt-2 text-[11px] font-semibold uppercase tracking-wide text-indigo-600">
-                    Remates creados
-                  </p>
-                  {sortedUpcomingAuctions.length === 0 ? (
-                    <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3 text-sm text-slate-500">
-                      No hay remates creados.
-                    </div>
-                  ) : (
-                    sortedUpcomingAuctions.map((auction) => {
-                      const count = Object.values(config.vehicleUpcomingAuctionIds).filter(
-                        (id) => id === auction.id,
-                      ).length;
-                      const auctionHidden = hiddenHomeCategoryIds.has(auctionCategoryKey(auction.id));
-                      return (
-                        <article
-                          key={auction.id}
-                          className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-slate-50/30 px-2.5 py-2 md:grid-cols-[minmax(170px,1.1fr)_minmax(300px,1.8fr)_72px_228px] md:items-center"
-                        >
-                          <div className="min-h-8 md:flex md:items-center">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
-                              {auction.name}
-                            </p>
-                          </div>
-                          <p className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-600">
-                            Remate programado para {formatAuctionDateLabel(auction.date)}
-                          </p>
-                          <div className="mx-auto flex h-8 w-14 items-center justify-center rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
-                            {count}
-                          </div>
-                          <div className="flex items-center justify-end gap-1.5 md:w-56">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                toggleCategoryHidden(auctionCategoryKey(auction.id), auction.name)
-                              }
-                              className={`ui-focus inline-flex h-8 w-8 items-center justify-center rounded border transition ${
-                                auctionHidden
-                                  ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
-                              }`}
-                              aria-label={`${auctionHidden ? "Mostrar" : "Ocultar"} ${auction.name} en home`}
-                              title={auctionHidden ? "Mostrar en home" : "Ocultar del home"}
-                            >
-                              {auctionHidden ? (
-                                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
-                                  <path d="M10 4c3.38 0 6.63 2 8.37 5.42a1.3 1.3 0 0 1 0 1.16C16.63 14 13.38 16 10 16s-6.63-2-8.37-5.42a1.3 1.3 0 0 1 0-1.16C3.37 6 6.62 4 10 4Zm0 2c-2.6 0-5.16 1.5-6.71 4 .01.02.02.04.03.05C4.84 12.5 7.4 14 10 14s5.16-1.5 6.71-4a.63.63 0 0 0-.03-.05C15.16 7.5 12.6 6 10 6Zm0 1.75A2.25 2.25 0 1 1 10 12.25 2.25 2.25 0 0 1 10 7.75Z" />
-                                </svg>
-                              ) : (
-                                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
-                                  <path d="M10 4c3.38 0 6.63 2 8.37 5.42a1.3 1.3 0 0 1 0 1.16C16.63 14 13.38 16 10 16c-1.72 0-3.42-.52-4.95-1.5l1.5-1.5c1.06.63 2.24.97 3.45.97 2.6 0 5.16-1.5 6.71-4a.63.63 0 0 0-.03-.05C15.16 7.5 12.6 6 10 6c-1.2 0-2.38.34-3.43.96L5.1 5.49A9.85 9.85 0 0 1 10 4Zm7.2 13.6a.75.75 0 0 1-1.06 0l-13-13a.75.75 0 1 1 1.06-1.06l13 13a.75.75 0 0 1 0 1.06ZM10 7.75c.7 0 1.33.32 1.75.83L8.58 11.75A2.25 2.25 0 0 1 10 7.75Z" />
-                                </svg>
-                              )}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setAuctionFilterId(auction.id);
-                                setEditorGroupFilter("proximos-remates");
-                                setEditorPage(1);
-                                setAdminTab("vehiculos");
-                              }}
-                              className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-amber-300 bg-stone-100 text-amber-800"
-                              aria-label={`Ver y gestionar ${auction.name}`}
-                              title="Ver y gestionar"
-                            >
-                              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
-                                <path d="M10 4c4.5 0 7.8 3.16 8.9 5.5.13.28.13.62 0 .9C17.8 12.74 14.5 15.9 10 15.9S2.2 12.74 1.1 10.4a1.06 1.06 0 0 1 0-.9C2.2 7.16 5.5 4 10 4Zm0 2c-3.42 0-6.06 2.31-7.08 4 .99 1.69 3.64 4 7.08 4s6.09-2.31 7.08-4C16.06 8.31 13.42 6 10 6Zm0 1.5A2.5 2.5 0 1 1 7.5 10 2.5 2.5 0 0 1 10 7.5Z" />
-                              </svg>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => openBatchAssignModal({ type: "auction", auctionId: auction.id })}
-                              className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-emerald-300 bg-emerald-50 text-emerald-700"
-                              aria-label={`Agregar unidades a ${auction.name}`}
-                              title="Agregar unidades"
-                            >
-                              +
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setFinalizeAuctionId(auction.id);
-                                setFinalizeAuctionSearchTerm("");
-                                setFinalizeSoldVehicleKeys([]);
-                              }}
-                              className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-amber-300 bg-amber-50 text-amber-700"
-                              aria-label={`Finalizar remate ${auction.name}`}
-                              title="Finalizar remate"
-                            >
-                              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
-                                <path fillRule="evenodd" d="M16.704 5.29a1 1 0 0 1 .006 1.414l-7.2 7.25a1 1 0 0 1-1.42.001l-3-3.015a1 1 0 1 1 1.418-1.41l2.29 2.3 6.49-6.534a1 1 0 0 1 1.416-.006Z" clipRule="evenodd" />
-                              </svg>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => removeUpcomingAuction(auction.id)}
-                              className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-rose-300 bg-rose-50 text-rose-700"
-                              aria-label={`Quitar ${auction.name}`}
-                              title="Quitar"
-                            >
-                              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
-                                <path d="M7 2.5A1.5 1.5 0 0 0 5.5 4v.5H3.75a.75.75 0 0 0 0 1.5h.56l.75 9.02A2 2 0 0 0 7.06 17h5.88a2 2 0 0 0 1.99-1.98l.75-9.02h.57a.75.75 0 0 0 0-1.5H14.5V4A1.5 1.5 0 0 0 13 2.5H7Zm6 .5a.5.5 0 0 1 .5.5v.5h-7V3.5a.5.5 0 0 1 .5-.5h6ZM8 8.25a.75.75 0 0 1 1.5 0v5a.75.75 0 0 1-1.5 0v-5Zm3 0a.75.75 0 0 1 1.5 0v5a.75.75 0 0 1-1.5 0v-5Z" />
-                              </svg>
-                            </button>
-                          </div>
-                        </article>
-                      );
-                    })
                   )}
 
                   <p className="px-2 pt-2 text-[11px] font-semibold uppercase tracking-wide text-indigo-600">
@@ -11519,25 +11360,10 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
             );
           }
           if (sectionId === "proximos-remates") {
-            if (proximosRemates.length === 0 && !hasUpcomingAuctionCategories) {
+            if (proximosRemates.length === 0) {
               return null;
             }
-            return hasUpcomingAuctionCategories ? (
-              <UpcomingAuctionsSection
-                key="public-proximos-auctions"
-                groups={visibleUpcomingAuctionGroups}
-                priceMap={config.vehiclePrices}
-                upcomingAuctionByVehicleKey={upcomingAuctionByVehicleKey}
-                favoriteKeys={favoriteKeys}
-                onToggleFavorite={toggleFavorite}
-                compareKeys={compareKeys}
-                onToggleCompare={toggleCompare}
-                onOpenVehicle={openVehicleDetail}
-                cardDensity={cardDensity}
-                canInlineEdit={canAdminEditNow}
-                onInlineSaveItem={saveInlineCardChanges}
-              />
-            ) : (
+            return (
               <Section
                 key="public-proximos-fallback"
                 id="proximos-remates"
@@ -12587,7 +12413,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
         </div>
       ) : null}
 
-      {isAdmin && finalizeAuctionId && finalizeAuction ? (
+      {isAdmin && finalizeAuctionId && finalizeAuction && AUCTION_ADMIN_ENABLED ? (
         <div
           className="fixed inset-0 z-[74] flex items-center justify-center bg-slate-900/70 p-4"
           onClick={() => setFinalizeAuctionId(null)}
@@ -12924,14 +12750,17 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                   onChange={(event) => changeBatchAssignTarget(event.target.value)}
                   className="ui-focus mt-1 w-full max-w-md rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900"
                 >
+                  <option value="section:proximos-remates">Destacados</option>
                   <option value="section:ventas-directas">Ventas directas</option>
                   <option value="section:novedades">Novedades</option>
                   <option value="section:catalogo">Catalogo</option>
-                  {sortedUpcomingAuctions.map((auction) => (
-                    <option key={`batch-target-${auction.id}`} value={`auction:${auction.id}`}>
-                      {auction.name} ({formatAuctionDateLabel(auction.date)})
-                    </option>
-                  ))}
+                  {AUCTION_ADMIN_ENABLED
+                    ? sortedUpcomingAuctions.map((auction) => (
+                        <option key={`batch-target-${auction.id}`} value={`auction:${auction.id}`}>
+                          {auction.name} ({formatAuctionDateLabel(auction.date)})
+                        </option>
+                      ))
+                    : null}
                 </select>
                 <p className="mt-2 text-xs text-slate-500">
                   Busca por patente, puedes ingresar varias separadas por espacio: LRBR11 SWBC56 THXX63

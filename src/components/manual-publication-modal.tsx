@@ -573,36 +573,42 @@ export function ManualPublicationModal({
                     ),
                   )}
                 </div>
-                <label className="mt-4 inline-flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={draft.visible}
-                    onChange={(event) => patch({ visible: event.target.checked })}
-                  />
-                  Visible en el home
-                </label>
-                <Field label="Remate asociado" className="mt-4">
-                  <select
-                    className={inputClass}
-                    value={draft.upcomingAuctionId}
-                    onChange={(event) => patch({ upcomingAuctionId: event.target.value })}
-                  >
-                    <option value="">Sin remate</option>
-                    {upcomingAuctions.map((auction) => (
-                      <option key={auction.id} value={auction.id}>
-                        {auction.name} ({formatAuctionDateLabel(auction.date)})
-                      </option>
-                    ))}
-                  </select>
+                <Field label="Visible en el home" className="mt-4">
+                  <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={draft.visible}
+                      onChange={(event) => patch({ visible: event.target.checked })}
+                    />
+                    Visible en el home
+                  </label>
                 </Field>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <Field label="Lote">
-                    <input className={inputClass} value={draft.lot} onChange={(event) => patch({ lot: event.target.value })} />
-                  </Field>
-                  <Field label="Fecha (YYYY-MM-DD)">
-                    <input className={inputClass} value={draft.auctionDate} onChange={(event) => patch({ auctionDate: event.target.value })} />
-                  </Field>
-                </div>
+                {upcomingAuctions.length > 0 ? (
+                  <>
+                    <Field label="Remate asociado" className="mt-4">
+                      <select
+                        className={inputClass}
+                        value={draft.upcomingAuctionId}
+                        onChange={(event) => patch({ upcomingAuctionId: event.target.value })}
+                      >
+                        <option value="">Sin remate</option>
+                        {upcomingAuctions.map((auction) => (
+                          <option key={auction.id} value={auction.id}>
+                            {auction.name} ({formatAuctionDateLabel(auction.date)})
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <Field label="Lote">
+                        <input className={inputClass} value={draft.lot} onChange={(event) => patch({ lot: event.target.value })} />
+                      </Field>
+                      <Field label="Fecha (YYYY-MM-DD)">
+                        <input className={inputClass} value={draft.auctionDate} onChange={(event) => patch({ auctionDate: event.target.value })} />
+                      </Field>
+                    </div>
+                  </>
+                ) : null}
               </section>
             </div>
           ) : null}

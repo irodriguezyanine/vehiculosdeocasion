@@ -2901,6 +2901,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   const [showEditorFiltersMenu, setShowEditorFiltersMenu] = useState(false);
   const [editorSelectedKeys, setEditorSelectedKeys] = useState<string[]>([]);
   const [showEditorBulkMenu, setShowEditorBulkMenu] = useState(false);
+  const [showEditorBulkGroupMenu, setShowEditorBulkGroupMenu] = useState(false);
   const [editorPage, setEditorPage] = useState(1);
   const [editingVehicleKey, setEditingVehicleKey] = useState<string | null>(null);
   const [editingDetails, setEditingDetails] = useState<EditorVehicleDetails | null>(null);
@@ -6112,6 +6113,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     setEditorPage(1);
     setEditorSelectedKeys([]);
     setShowEditorBulkMenu(false);
+    setShowEditorBulkGroupMenu(false);
   }, []);
 
   const toggleEditorItemSelection = useCallback((vehicleKey: string) => {
@@ -6138,6 +6140,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   const clearEditorSelection = useCallback(() => {
     setEditorSelectedKeys([]);
     setShowEditorBulkMenu(false);
+    setShowEditorBulkGroupMenu(false);
   }, []);
 
   const stripVehicleFromAssignmentIds = useCallback(
@@ -7524,6 +7527,63 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       itemsByKey,
       markVehicleAsSold,
       removeVehicleFromHomeEditor,
+      showSystemNotice,
+    ],
+  );
+
+  const assignVehicleKeysToSection = useCallback(
+    (sectionId: SectionId, rawKeys: string[]) => {
+      const canonicalKeys = Array.from(
+        new Set(
+          rawKeys
+            .map((key) => resolveInventoryItemKey(key, itemsByKey) ?? key)
+            .filter(Boolean),
+        ),
+      );
+      if (canonicalKeys.length === 0) return 0;
+
+      setConfig((prev) => {
+        const current = new Set(
+          (prev.sectionVehicleIds[sectionId] ?? [])
+            .map((id) => resolveInventoryItemKey(id, itemsByKey) ?? id)
+            .filter(Boolean),
+        );
+        for (const vehicleKey of canonicalKeys) current.add(vehicleKey);
+        return {
+          ...prev,
+          hiddenVehicleIds: unhideVehiclesInConfig(prev.hiddenVehicleIds, canonicalKeys, itemsByKey),
+          sectionVehicleIds: {
+            ...prev.sectionVehicleIds,
+            [sectionId]: Array.from(current),
+          },
+        };
+      });
+      return canonicalKeys.length;
+    },
+    [itemsByKey],
+  );
+
+  const applyBulkAssignToSection = useCallback(
+    (sectionId: SectionId) => {
+      if (editorSelectedKeys.length === 0) return;
+      const count = assignVehicleKeysToSection(sectionId, editorSelectedKeys);
+      if (count === 0) return;
+      showSystemNotice(
+        "success",
+        "Grupo actualizado",
+        `${count} unidad(es) agregada(s) a ${SECTION_LABELS[sectionId]}.`,
+      );
+      setEditorVisibilityFilter("all");
+      setEditorGroupFilter(sectionId);
+      setEditorPage(1);
+      setShowEditorBulkGroupMenu(false);
+      setShowEditorBulkMenu(false);
+      clearEditorSelection();
+    },
+    [
+      assignVehicleKeysToSection,
+      clearEditorSelection,
+      editorSelectedKeys,
       showSystemNotice,
     ],
   );
@@ -9125,9 +9185,50 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                         </span>
                         <div className="relative">
                           <AdminIconBtn
+                            label="Agregar a grupo"
+                            tone={showEditorBulkGroupMenu ? "active" : "success"}
+                            onClick={() => {
+                              setShowEditorBulkGroupMenu((prev) => !prev);
+                              setShowEditorBulkMenu(false);
+                            }}
+                          >
+                            <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                              <path d="M10 3a1 1 0 0 1 1 1v5h5a1 1 0 1 1 0 2h-5v5a1 1 0 1 1-2 0v-5H4a1 1 0 1 1 0-2h5V4a1 1 0 0 1 1-1Z" />
+                            </svg>
+                          </AdminIconBtn>
+                          {showEditorBulkGroupMenu ? (
+                            <div className="absolute left-0 top-full z-50 mt-1 min-w-[10.5rem] rounded-lg border border-slate-200 bg-white p-1 shadow-lg">
+                              {BASE_HOME_SECTION_ORDER.map((sectionId) => (
+                                <button
+                                  key={`bulk-group-${sectionId}`}
+                                  type="button"
+                                  onClick={() => applyBulkAssignToSection(sectionId)}
+                                  className="ui-focus flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs font-semibold text-slate-700 transition hover:bg-amber-50"
+                                  title={`Agregar a ${SECTION_LABELS[sectionId]}`}
+                                >
+                                  <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded bg-slate-100 text-[10px] font-bold uppercase text-slate-600">
+                                    {sectionId === "proximos-remates"
+                                      ? "★"
+                                      : sectionId === "ventas-directas"
+                                        ? "VD"
+                                        : sectionId === "novedades"
+                                          ? "N"
+                                          : "C"}
+                                  </span>
+                                  {SECTION_LABELS[sectionId]}
+                                </button>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                        <div className="relative">
+                          <AdminIconBtn
                             label="Acciones masivas"
                             tone={showEditorBulkMenu ? "active" : "neutral"}
-                            onClick={() => setShowEditorBulkMenu((prev) => !prev)}
+                            onClick={() => {
+                              setShowEditorBulkMenu((prev) => !prev);
+                              setShowEditorBulkGroupMenu(false);
+                            }}
                           >
                             <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
                               <path d="M4 10a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0Zm4.5 0a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0Zm4.5 0a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0Z" />

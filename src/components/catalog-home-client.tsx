@@ -5971,6 +5971,19 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     return filteredEditorItems.slice(start, start + EDITOR_PAGE_SIZE);
   }, [filteredEditorItems, currentEditorPage]);
 
+  const editorHiddenPatentMatches = useMemo(() => {
+    const patentTokens = extractPatentTokens(searchTerm);
+    if (patentTokens.length === 0) return [] as CatalogItem[];
+    return activeInventoryItems.filter((item) => {
+      const key = getVehicleKey(item);
+      const itemPatent = normalizePatentToken(getPatent(item));
+      const matchesPatent = patentTokens.some(
+        (token) => token === itemPatent || token === normalizePatentToken(key),
+      );
+      return matchesPatent && mergedHiddenVehicleIds.has(key);
+    });
+  }, [searchTerm, activeInventoryItems, mergedHiddenVehicleIds]);
+
   const activeManagedCategory = useMemo(
     () =>
       assignCategoryId
@@ -6680,11 +6693,29 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       );
 
       if (newlyAdded.length === 0) {
+        const hiddenButAssigned = alreadyAssigned.filter((vehicleKey) =>
+          mergedHiddenVehicleIds.has(vehicleKey),
+        );
+        if (hiddenButAssigned.length > 0) {
+          setConfig((prev) => {
+            const nextHidden = new Set(prev.hiddenVehicleIds);
+            for (const vehicleKey of hiddenButAssigned) nextHidden.delete(vehicleKey);
+            return { ...prev, hiddenVehicleIds: Array.from(nextHidden) };
+          });
+          showSystemNotice(
+            "success",
+            "Unidades visibles de nuevo",
+            `${hiddenButAssigned.length} vehiculo(s) ya estaban en ${batchAssignTargetLabel} pero ocultos del home. Ahora vuelven a mostrarse.`,
+          );
+          closeBatchAssignModal();
+          return;
+        }
+
         showSystemNotice(
           "info",
           "Sin cambios",
           alreadyAssigned.length > 0
-            ? `Las ${alreadyAssigned.length} unidad(es) seleccionada(s) ya estaban en ${batchAssignTargetLabel}.`
+            ? `Las ${alreadyAssigned.length} unidad(es) seleccionada(s) ya estaban en ${batchAssignTargetLabel}. Si no las ves en el listado, revisa filtros: "Solo ocultas" o "Inventario completo".`
             : "No se pudo agregar ninguna unidad seleccionada.",
         );
         return;
@@ -8830,6 +8861,15 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                     menuLabel="Agregar unidad al inventario"
                   />
                 </div>
+                {filteredEditorItems.length === 0 && editorHiddenPatentMatches.length > 0 ? (
+                  <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                    {editorHiddenPatentMatches.length === 1
+                      ? `${getPatent(editorHiddenPatentMatches[0]!)} esta en inventario pero oculta del home.`
+                      : `${editorHiddenPatentMatches.length} unidades coinciden pero estan ocultas del home.`}{" "}
+                    Abre filtros → <strong>Solo ocultas</strong>, o vuelve a agregarla desde «Agregar desde
+                    inventario» para restaurar la visibilidad.
+                  </p>
+                ) : null}
                 <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-2">
                   {paginatedEditorItems.map((item) => {
                     const key = getVehicleKey(item);
@@ -12535,6 +12575,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                         key,
                         itemsByKey,
                       );
+                const hiddenFromHome = mergedHiddenVehicleIds.has(key);
                 return (
                   <label
                     key={`assign-batch-${key}`}
@@ -12545,7 +12586,9 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                     <div>
                       <p className="font-semibold text-slate-900">{getModel(item)}</p>
                       <p className="text-xs text-slate-500">
-                        {getPatent(item)} {alreadyInTarget ? " ·  ya agregado" : ""}
+                        {getPatent(item)}
+                        {alreadyInTarget ? " · ya agregado" : ""}
+                        {hiddenFromHome ? " · oculta del home" : ""}
                       </p>
                     </div>
                     <input

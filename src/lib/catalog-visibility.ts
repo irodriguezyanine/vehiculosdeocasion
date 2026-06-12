@@ -1,5 +1,6 @@
 import type { CatalogItem } from "@/types/catalog";
 import type { EditorConfig } from "@/types/editor";
+import { getManualPublicationKey } from "@/lib/manual-publication-sync";
 import { normalizePatentToken } from "@/lib/patent-input";
 
 export function getPatentFromItem(item: CatalogItem): string {
@@ -68,18 +69,19 @@ export function formatCatalogPrice(value?: string): string | null {
 
 export function getVisibleCatalogItems(items: CatalogItem[], config: EditorConfig): CatalogItem[] {
   const soldSet = new Set(config.soldVehicleIds ?? []);
-  const hiddenSet = new Set(config.hiddenVehicleIds ?? []);
-
-  for (const soldVehicleId of config.soldVehicleIds ?? []) {
-    hiddenSet.add(soldVehicleId);
-  }
-  for (const manual of config.manualPublications ?? []) {
-    if (!manual.visible) hiddenSet.add(`manual-${manual.id}`);
-  }
+  const itemsByKey = buildItemsByKey(items);
 
   return items.filter((item) => {
     const key = getVehicleKey(item);
-    return !soldSet.has(key) && !hiddenSet.has(key);
+    if (soldSet.has(key)) return false;
+    for (const soldVehicleId of config.soldVehicleIds ?? []) {
+      if (assignmentKeysMatch(soldVehicleId, key)) return false;
+    }
+    if (isVehicleHiddenInConfig(config, key, itemsByKey)) return false;
+    for (const manual of config.manualPublications ?? []) {
+      if (!manual.visible && getManualPublicationKey(manual) === key) return false;
+    }
+    return true;
   });
 }
 
@@ -99,6 +101,67 @@ function assignmentKeysMatch(storedId: string, vehicleKey: string): boolean {
 
 export function isVehicleInAssignmentList(ids: string[], vehicleKey: string): boolean {
   return ids.some((storedId) => assignmentKeysMatch(storedId, vehicleKey));
+}
+
+/** Quita del listado oculto todas las claves/alias del vehiculo (patente, id feed, ids viejos). */
+export function filterHiddenVehicleIdsForVehicle(
+  hiddenVehicleIds: string[],
+  vehicleKey: string,
+  itemsByKey: Map<string, CatalogItem>,
+): string[] {
+  const resolvedTarget = resolveInventoryItemKey(vehicleKey, itemsByKey) ?? vehicleKey;
+  const item = resolveInventoryItem(vehicleKey, itemsByKey);
+  const canonicalKey = item ? getVehicleKey(item) : resolvedTarget;
+
+  return hiddenVehicleIds.filter((hiddenId) => {
+    if (assignmentKeysMatch(hiddenId, vehicleKey)) return false;
+    if (assignmentKeysMatch(hiddenId, canonicalKey)) return false;
+    if (assignmentKeysMatch(hiddenId, resolvedTarget)) return false;
+    const resolvedHidden = resolveInventoryItemKey(hiddenId, itemsByKey);
+    if (resolvedHidden && resolvedHidden === resolvedTarget) return false;
+    if (resolvedHidden && resolvedHidden === canonicalKey) return false;
+    if (item && hiddenId === item.id) return false;
+    return true;
+  });
+}
+
+export function unhideVehiclesInConfig(
+  hiddenVehicleIds: string[],
+  vehicleKeys: string[],
+  itemsByKey: Map<string, CatalogItem>,
+): string[] {
+  let next = hiddenVehicleIds;
+  for (const vehicleKey of vehicleKeys) {
+    next = filterHiddenVehicleIdsForVehicle(next, vehicleKey, itemsByKey);
+  }
+  return next;
+}
+
+export function isVehicleHiddenInConfig(
+  config: EditorConfig,
+  vehicleKey: string,
+  itemsByKey?: Map<string, CatalogItem>,
+): boolean {
+  const hiddenIds = config.hiddenVehicleIds ?? [];
+  if (isVehicleInAssignmentList(hiddenIds, vehicleKey)) return true;
+  if (!itemsByKey || itemsByKey.size === 0) return false;
+  return filterHiddenVehicleIdsForVehicle(hiddenIds, vehicleKey, itemsByKey).length < hiddenIds.length;
+}
+
+export function registerHiddenKeyAliases(
+  set: Set<string>,
+  rawId: string,
+  itemsByKey: Map<string, CatalogItem>,
+): void {
+  if (!rawId) return;
+  set.add(rawId);
+  const resolved = resolveInventoryItemKey(rawId, itemsByKey);
+  if (resolved) set.add(resolved);
+  const item = resolveInventoryItem(rawId, itemsByKey);
+  if (item) {
+    set.add(getVehicleKey(item));
+    set.add(item.id);
+  }
 }
 
 /** Igual que en el modal de alta: reconoce IDs antiguos, patentes e item.id. */

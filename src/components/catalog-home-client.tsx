@@ -43,12 +43,15 @@ import {
 } from "@/lib/manual-publication-sync";
 import { COMMERCIAL_EMAIL } from "@/lib/site-content";
 import {
+  filterHiddenVehicleIdsForVehicle,
   getHomeEditorChannelLabels,
   isVehicleAssignedInSectionList,
   isVehicleAssignedToHomeEditorChannels,
   isVehicleInAssignmentList,
+  registerHiddenKeyAliases,
   resolveInventoryItem,
   resolveInventoryItemKey,
+  unhideVehiclesInConfig,
 } from "@/lib/catalog-visibility";
 import {
   applyAutoredLookupToDraft,
@@ -2853,7 +2856,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   const [auctionFilterId, setAuctionFilterId] = useState("");
   const [editorGroupFilter, setEditorGroupFilter] = useState<EditorGroupFilter>("home");
   const [editorVisibilityFilter, setEditorVisibilityFilter] =
-    useState<EditorVisibilityFilter>("visible");
+    useState<EditorVisibilityFilter>("all");
   const [editorVehicleCategoryFilter, setEditorVehicleCategoryFilter] =
     useState<EditorVehicleCategoryFilter>("all");
   const [showEditorFiltersMenu, setShowEditorFiltersMenu] = useState(false);
@@ -3839,15 +3842,18 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   }, [itemsByKey, selectedVehicle]);
 
   const mergedHiddenVehicleIds = useMemo(() => {
-    const set = new Set(config.hiddenVehicleIds);
+    const set = new Set<string>();
+    for (const id of config.hiddenVehicleIds) {
+      registerHiddenKeyAliases(set, id, itemsByKey);
+    }
     for (const soldVehicleId of config.soldVehicleIds ?? []) {
-      set.add(soldVehicleId);
+      registerHiddenKeyAliases(set, soldVehicleId, itemsByKey);
     }
     for (const manual of config.manualPublications ?? []) {
-      if (!manual.visible) set.add(getManualPublicationKey(manual));
+      if (!manual.visible) registerHiddenKeyAliases(set, getManualPublicationKey(manual), itemsByKey);
     }
     return set;
-  }, [config.hiddenVehicleIds, config.manualPublications, config.soldVehicleIds]);
+  }, [config.hiddenVehicleIds, config.manualPublications, config.soldVehicleIds, itemsByKey]);
 
   const activeInventoryItems = useMemo(
     () => items.filter((item) => !soldVehicleIdsSet.has(getVehicleKey(item))),
@@ -5855,24 +5861,21 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
           ).includes(query);
         })
       : activeInventoryItems;
+    const hideHiddenInGroup = editorVisibilityFilter === "visible";
     const byGroup =
       editorGroupFilter === "all"
         ? source
         : editorGroupFilter === "home"
           ? source.filter((item) => {
               const key = getVehicleKey(item);
-              return (
-                !mergedHiddenVehicleIds.has(key) &&
-                isVehicleAssignedToHomeEditorChannels(config, key, itemsByKey)
-              );
+              if (hideHiddenInGroup && mergedHiddenVehicleIds.has(key)) return false;
+              return isVehicleAssignedToHomeEditorChannels(config, key, itemsByKey);
             })
           : editorGroupFilter === "unassigned"
             ? source.filter((item) => {
                 const key = getVehicleKey(item);
-                return (
-                  !mergedHiddenVehicleIds.has(key) &&
-                  !isVehicleAssignedToHomeEditorChannels(config, key, itemsByKey)
-                );
+                if (hideHiddenInGroup && mergedHiddenVehicleIds.has(key)) return false;
+                return !isVehicleAssignedToHomeEditorChannels(config, key, itemsByKey);
               })
             : editorGroupFilter === "proximos-remates"
           ? source.filter((item) =>
@@ -6027,7 +6030,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
 
   const resetAdminInventoryFilters = useCallback(() => {
     setEditorGroupFilter("home");
-    setEditorVisibilityFilter("visible");
+    setEditorVisibilityFilter("all");
     setEditorVehicleCategoryFilter("all");
     setAuctionFilterId("");
     setSearchTerm("");
@@ -6047,15 +6050,22 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   };
 
   const toggleHidden = (itemKey: string) => {
+    const canonicalKey = resolveInventoryItemKey(itemKey, itemsByKey) ?? itemKey;
     setConfig((prev) => {
-      const set = new Set(prev.hiddenVehicleIds);
-      if (set.has(itemKey)) set.delete(itemKey);
-      else set.add(itemKey);
+      const currentlyHidden = filterHiddenVehicleIdsForVehicle(
+        prev.hiddenVehicleIds,
+        canonicalKey,
+        itemsByKey,
+      ).length < prev.hiddenVehicleIds.length;
+      const nextHidden = currentlyHidden
+        ? filterHiddenVehicleIdsForVehicle(prev.hiddenVehicleIds, canonicalKey, itemsByKey)
+        : [...prev.hiddenVehicleIds, canonicalKey];
       const manualPublications = (prev.manualPublications ?? []).map((entry) => {
-        if (getManualPublicationKey(entry) !== itemKey) return entry;
-        return { ...entry, visible: set.has(itemKey) ? false : true };
+        const manualKey = getManualPublicationKey(entry);
+        if (manualKey !== itemKey && manualKey !== canonicalKey) return entry;
+        return { ...entry, visible: currentlyHidden };
       });
-      return { ...prev, hiddenVehicleIds: Array.from(set), manualPublications };
+      return { ...prev, hiddenVehicleIds: nextHidden, manualPublications };
     });
   };
 
@@ -6641,6 +6651,16 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       ),
     );
 
+    const focusInventoryAfterAssign = () => {
+      setEditorVisibilityFilter("all");
+      setEditorGroupFilter("home");
+      setEditorPage(1);
+      if (canonicalKeys.length === 1) {
+        const item = resolveInventoryItem(canonicalKeys[0]!, itemsByKey);
+        if (item) setSearchTerm(getPatent(item));
+      }
+    };
+
     if (batchAssignTarget.type === "auction") {
       setConfig((prev) => {
         const nextAuctionMap = { ...prev.vehicleUpcomingAuctionIds };
@@ -6668,8 +6688,6 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
             mergedHiddenVehicleIds.has(vehicleKey),
           );
           setConfig((prev) => {
-            const nextHidden = new Set(prev.hiddenVehicleIds);
-            for (const vehicleKey of alreadyAssigned) nextHidden.delete(vehicleKey);
             const current = new Set(
               (prev.sectionVehicleIds[sectionId] ?? [])
                 .map((id) => resolveInventoryItemKey(id, itemsByKey) ?? id)
@@ -6678,7 +6696,11 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
             for (const vehicleKey of alreadyAssigned) current.add(vehicleKey);
             return {
               ...prev,
-              hiddenVehicleIds: Array.from(nextHidden),
+              hiddenVehicleIds: unhideVehiclesInConfig(
+                prev.hiddenVehicleIds,
+                alreadyAssigned,
+                itemsByKey,
+              ),
               sectionVehicleIds: {
                 ...prev.sectionVehicleIds,
                 [sectionId]: Array.from(current),
@@ -6692,6 +6714,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
               ? `${alreadyAssigned.length} vehiculo(s) ya estaban en ${batchAssignTargetLabel}. Se normalizo la asignacion y ${hiddenButAssigned.length} quedo visible en el home.`
               : `${alreadyAssigned.length} vehiculo(s) ya estaban en ${batchAssignTargetLabel}. Se normalizo la asignacion para que aparezcan en el listado.`,
           );
+          focusInventoryAfterAssign();
           closeBatchAssignModal();
           return;
         }
@@ -6711,11 +6734,13 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
             .filter(Boolean),
         );
         for (const vehicleKey of newlyAdded) current.add(vehicleKey);
-        const nextHidden = new Set(prev.hiddenVehicleIds);
-        for (const vehicleKey of newlyAdded) nextHidden.delete(vehicleKey);
         return {
           ...prev,
-          hiddenVehicleIds: Array.from(nextHidden),
+          hiddenVehicleIds: unhideVehiclesInConfig(
+            prev.hiddenVehicleIds,
+            [...newlyAdded, ...alreadyAssigned],
+            itemsByKey,
+          ),
           sectionVehicleIds: {
             ...prev.sectionVehicleIds,
             [sectionId]: Array.from(current),
@@ -6735,6 +6760,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
         "Unidades agregadas",
         `${newlyAdded.length} vehiculo(s) agregado(s) en ${batchAssignTargetLabel}.${skippedMessage}`,
       );
+      focusInventoryAfterAssign();
       closeBatchAssignModal();
       return;
     }
@@ -8516,9 +8542,17 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   );
 
   return (
-    <main className={`premium-bg min-h-screen overflow-x-hidden text-[#2d2118] ${showPublicHome ? "front-public" : ""}`}>
-      <div className="premium-glow premium-glow-cyan" />
-      <div className="premium-glow premium-glow-gold" />
+    <main
+      className={`premium-bg min-h-screen text-[#2d2118] ${
+        showPublicHome ? "front-public overflow-x-hidden" : "admin-editor-mode overflow-visible"
+      }`}
+    >
+      {showPublicHome ? (
+        <>
+          <div className="premium-glow premium-glow-cyan" />
+          <div className="premium-glow premium-glow-gold" />
+        </>
+      ) : null}
 
       <SiteHeader
         onLogoClick={(event) => {
@@ -8563,7 +8597,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       </SiteHeader>
 
       {showAdminEditor ? (
-        <section className="admin-editor-shell relative z-10 mx-auto mt-6 max-w-7xl space-y-4 overflow-visible px-4 pb-8 sm:px-6 lg:px-8">
+        <section className="admin-editor-shell relative z-10 w-full space-y-5 overflow-visible px-4 pb-10 pt-4 sm:px-8 lg:px-10">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-lg font-semibold text-slate-900">Modo editor administrador</h3>
@@ -8664,42 +8698,40 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                 </div>
                 {inventorySubtab === "actual" ? (
                   <>
-                <div className="rounded-xl border border-amber-200 bg-amber-50/50 px-3 py-2.5 text-xs text-slate-700">
-                  <p className="font-semibold text-slate-900">Stock alineado con el home</p>
-                  <p className="mt-1">
-                    <strong>{homeStockStats.uniqueOnHome}</strong> unidades visibles en home
-                    {" · "}
-                    Ventas directas {homeStockStats.bySection.ventasDirectas}
-                    {" · "}
-                    Novedades {homeStockStats.bySection.novedades}
-                    {" · "}
-                    Catalogo {homeStockStats.bySection.catalogo}
-                    {homeStockStats.bySection.proximosRemates > 0
-                      ? ` · Destacados ${homeStockStats.bySection.proximosRemates}`
-                      : ""}
-                    {homeStockStats.bySection.managed > 0
-                      ? ` · Otras ventas ${homeStockStats.bySection.managed}`
-                      : ""}
-                  </p>
-                </div>
-                <div className="grid gap-2 overflow-visible sm:grid-cols-[1fr_auto_auto]">
-                  <input
-                    value={searchTerm}
-                    onChange={(event) => {
-                      setSearchTerm(event.target.value);
-                      setEditorPage(1);
-                    }}
-                    placeholder="Buscar vehiculo para editar..."
-                    className="ui-focus w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
-                  />
-                  <div className="relative z-30 overflow-visible">
+                <p className="text-xs leading-relaxed text-slate-700">
+                  <strong className="text-slate-900">Stock alineado con el home:</strong>{" "}
+                  {homeStockStats.uniqueOnHome} unidades visibles en home
+                  {" · "}
+                  Ventas directas {homeStockStats.bySection.ventasDirectas}
+                  {" · "}
+                  Novedades {homeStockStats.bySection.novedades}
+                  {" · "}
+                  Catalogo {homeStockStats.bySection.catalogo}
+                  {homeStockStats.bySection.proximosRemates > 0
+                    ? ` · Destacados ${homeStockStats.bySection.proximosRemates}`
+                    : ""}
+                  {homeStockStats.bySection.managed > 0
+                    ? ` · Otras ventas ${homeStockStats.bySection.managed}`
+                    : ""}
+                </p>
+                <div className="space-y-2 overflow-visible">
+                  <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+                    <input
+                      value={searchTerm}
+                      onChange={(event) => {
+                        setSearchTerm(event.target.value);
+                        setEditorPage(1);
+                      }}
+                      placeholder="Buscar vehiculo para editar..."
+                      className="ui-focus w-full rounded-md border border-slate-300/80 bg-white/90 px-3 py-2 text-sm"
+                    />
                     <button
                       type="button"
                       onClick={() => setShowEditorFiltersMenu((prev) => !prev)}
-                      className={`ui-focus inline-flex h-full min-h-10 items-center justify-center rounded-md border px-3 transition ${
+                      className={`ui-focus inline-flex h-full min-h-10 items-center justify-center gap-1.5 rounded-md border px-3 text-xs font-semibold transition ${
                         showEditorFiltersMenu
                           ? "border-amber-400 bg-amber-50 text-amber-900"
-                          : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                          : "border-slate-300 bg-white/90 text-slate-700 hover:bg-slate-50"
                       }`}
                       aria-label="Abrir filtros del inventario"
                       aria-expanded={showEditorFiltersMenu}
@@ -8715,135 +8747,142 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                       >
                         <path d="M3 5h18M6 12h12M10 19h4" strokeLinecap="round" />
                       </svg>
+                      Filtros
                     </button>
-                    {showEditorFiltersMenu ? (
-                      <div className="absolute right-0 z-[120] mt-2 w-[min(20rem,calc(100vw-2rem))] max-h-[min(70vh,28rem)] overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 shadow-2xl ring-1 ring-black/5">
-                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          Filtros del inventario
-                        </p>
-                        <div className="space-y-2">
-                          <label className="block text-[11px] font-semibold text-slate-600">Visibilidad</label>
-                          <select
-                            value={editorVisibilityFilter}
-                            onChange={(event) => {
-                              setEditorVisibilityFilter(
-                                event.target.value as EditorVisibilityFilter,
-                              );
-                              setEditorPage(1);
-                            }}
-                            className="ui-focus w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
-                          >
-                            <option value="visible">Solo visibles en home</option>
-                            <option value="hidden">Solo ocultas</option>
-                            <option value="all">Visibles y ocultas</option>
-                          </select>
-                          <label className="block text-[11px] font-semibold text-slate-600">Tipo de vehiculo</label>
-                          <select
-                            value={editorVehicleCategoryFilter}
-                            onChange={(event) => {
-                              setEditorVehicleCategoryFilter(
-                                event.target.value as EditorVehicleCategoryFilter,
-                              );
-                              setEditorPage(1);
-                            }}
-                            className="ui-focus w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
-                          >
-                            <option value="all">Todas las categorias</option>
-                            <option value="livianos">Vehiculos livianos</option>
-                            <option value="pesados">Vehiculos pesados</option>
-                            <option value="maquinaria">Maquinaria</option>
-                            <option value="chatarra">Chatarra</option>
-                            <option value="otros">Otros</option>
-                          </select>
-                          <label className="block text-[11px] font-semibold text-slate-600">Remate</label>
-                          <select
-                            value={auctionFilterId}
-                            onChange={(event) => {
-                              setAuctionFilterId(event.target.value);
-                              if (event.target.value) setEditorGroupFilter("proximos-remates");
-                              setEditorPage(1);
-                            }}
-                            className="ui-focus w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
-                          >
-                            <option value="">Todos los remates</option>
-                            {sortedUpcomingAuctions.map((auction) => (
-                              <option key={auction.id} value={auction.id}>
-                                {auction.name} ({formatAuctionDateLabel(auction.date)})
-                              </option>
-                            ))}
-                          </select>
-                          <label className="block text-[11px] font-semibold text-slate-600">Grupo / seccion</label>
-                          <select
-                            value={editorGroupFilter}
-                            onChange={(event) => {
-                              const next = event.target.value as EditorGroupFilter;
-                              setEditorGroupFilter(next);
-                              if (next !== "proximos-remates") setAuctionFilterId("");
-                              setEditorPage(1);
-                            }}
-                            className="ui-focus w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
-                          >
-                            <option value="home">Stock visible en home</option>
-                            <option value="unassigned">Sin asignar al home</option>
-                            <option value="all">Inventario completo</option>
-                            <option value="proximos-remates">Proximos remates</option>
-                            <option value="ventas-directas">Ventas directas</option>
-                            <option value="novedades">Novedades</option>
-                            <option value="catalogo">Catalogo</option>
-                            {(config.managedCategories ?? []).map((category) => (
-                              <option key={`group-filter-${category.id}`} value={`managed:${category.id}`}>
-                                {category.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setShowEditorFiltersMenu(false)}
-                          className="ui-focus mt-3 w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
-                        >
-                          Cerrar
-                        </button>
-                      </div>
-                    ) : null}
+                    <EditorAddVehicleMenu
+                      onAddNew={() => {
+                        if (adminTab !== "vehiculos") {
+                          showSystemNotice(
+                            "info",
+                            "Inventario",
+                            "La creacion manual de publicaciones esta disponible en la pestana Inventario.",
+                          );
+                          return;
+                        }
+                        openAddVehicleNew();
+                      }}
+                      onAddFromStock={() => openAddVehicleFromStock()}
+                      onAddBulk={() => {
+                        if (adminTab !== "vehiculos") {
+                          showSystemNotice(
+                            "info",
+                            "Inventario",
+                            "La alta masiva por patente esta disponible en la pestana Inventario.",
+                          );
+                          return;
+                        }
+                        openAddVehicleBulk();
+                      }}
+                      menuLabel="Agregar unidad al inventario"
+                    />
                   </div>
-                  <EditorAddVehicleMenu
-                    onAddNew={() => {
-                      if (adminTab !== "vehiculos") {
-                        showSystemNotice(
-                          "info",
-                          "Inventario",
-                          "La creacion manual de publicaciones esta disponible en la pestana Inventario.",
-                        );
-                        return;
-                      }
-                      openAddVehicleNew();
-                    }}
-                    onAddFromStock={() => openAddVehicleFromStock()}
-                    onAddBulk={() => {
-                      if (adminTab !== "vehiculos") {
-                        showSystemNotice(
-                          "info",
-                          "Inventario",
-                          "La alta masiva por patente esta disponible en la pestana Inventario.",
-                        );
-                        return;
-                      }
-                      openAddVehicleBulk();
-                    }}
-                    menuLabel="Agregar unidad al inventario"
-                  />
+                  {showEditorFiltersMenu ? (
+                    <div className="admin-editor-filters grid gap-3 border-y border-slate-300/50 py-3 sm:grid-cols-2 lg:grid-cols-4">
+                      <label className="block space-y-1">
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                          Visibilidad
+                        </span>
+                        <select
+                          value={editorVisibilityFilter}
+                          onChange={(event) => {
+                            setEditorVisibilityFilter(
+                              event.target.value as EditorVisibilityFilter,
+                            );
+                            setEditorPage(1);
+                          }}
+                          className="ui-focus w-full rounded-md border border-slate-300/80 bg-white/90 px-3 py-2 text-sm"
+                        >
+                          <option value="all">Visibles y ocultas</option>
+                          <option value="visible">Solo visibles en home</option>
+                          <option value="hidden">Solo ocultas</option>
+                        </select>
+                      </label>
+                      <label className="block space-y-1">
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                          Tipo de vehiculo
+                        </span>
+                        <select
+                          value={editorVehicleCategoryFilter}
+                          onChange={(event) => {
+                            setEditorVehicleCategoryFilter(
+                              event.target.value as EditorVehicleCategoryFilter,
+                            );
+                            setEditorPage(1);
+                          }}
+                          className="ui-focus w-full rounded-md border border-slate-300/80 bg-white/90 px-3 py-2 text-sm"
+                        >
+                          <option value="all">Todas las categorias</option>
+                          <option value="livianos">Vehiculos livianos</option>
+                          <option value="pesados">Vehiculos pesados</option>
+                          <option value="maquinaria">Maquinaria</option>
+                          <option value="chatarra">Chatarra</option>
+                          <option value="otros">Otros</option>
+                        </select>
+                      </label>
+                      <label className="block space-y-1">
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                          Remate
+                        </span>
+                        <select
+                          value={auctionFilterId}
+                          onChange={(event) => {
+                            setAuctionFilterId(event.target.value);
+                            if (event.target.value) setEditorGroupFilter("proximos-remates");
+                            setEditorPage(1);
+                          }}
+                          className="ui-focus w-full rounded-md border border-slate-300/80 bg-white/90 px-3 py-2 text-sm"
+                        >
+                          <option value="">Todos los remates</option>
+                          {sortedUpcomingAuctions.map((auction) => (
+                            <option key={auction.id} value={auction.id}>
+                              {auction.name} ({formatAuctionDateLabel(auction.date)})
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="block space-y-1">
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                          Grupo / seccion
+                        </span>
+                        <select
+                          value={editorGroupFilter}
+                          onChange={(event) => {
+                            const next = event.target.value as EditorGroupFilter;
+                            setEditorGroupFilter(next);
+                            if (next !== "proximos-remates") setAuctionFilterId("");
+                            setEditorPage(1);
+                          }}
+                          className="ui-focus w-full rounded-md border border-slate-300/80 bg-white/90 px-3 py-2 text-sm"
+                        >
+                          <option value="home">Stock visible en home</option>
+                          <option value="unassigned">Sin asignar al home</option>
+                          <option value="all">Inventario completo</option>
+                          <option value="proximos-remates">Proximos remates</option>
+                          <option value="ventas-directas">Ventas directas</option>
+                          <option value="novedades">Novedades</option>
+                          <option value="catalogo">Catalogo</option>
+                          {(config.managedCategories ?? []).map((category) => (
+                            <option key={`group-filter-${category.id}`} value={`managed:${category.id}`}>
+                              {category.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                  ) : null}
                 </div>
-                {filteredEditorItems.length === 0 && editorHiddenPatentMatches.length > 0 ? (
-                  <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                {filteredEditorItems.length === 0 &&
+                editorHiddenPatentMatches.length > 0 &&
+                editorVisibilityFilter === "visible" ? (
+                  <p className="rounded-md border border-amber-300/60 bg-amber-50/80 px-3 py-2 text-xs text-amber-900">
                     {editorHiddenPatentMatches.length === 1
                       ? `${getPatent(editorHiddenPatentMatches[0]!)} esta en inventario pero oculta del home.`
                       : `${editorHiddenPatentMatches.length} unidades coinciden pero estan ocultas del home.`}{" "}
-                    Abre filtros → <strong>Solo ocultas</strong>, o vuelve a agregarla desde «Agregar desde
-                    inventario» para restaurar la visibilidad.
+                    Cambia visibilidad a <strong>Visibles y ocultas</strong>, o vuelve a agregarla desde «Agregar
+                    desde inventario» para restaurar la visibilidad.
                   </p>
                 ) : null}
-                <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-2">
+                <div className="space-y-2">
                   {paginatedEditorItems.map((item) => {
                     const key = getVehicleKey(item);
                     const hidden = mergedHiddenVehicleIds.has(key);
@@ -8958,7 +8997,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                     );
                   })}
                 </div>
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-3 py-2">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-300/40 pt-3">
                   <p className="text-xs text-slate-600">
                     Mostrando {paginatedEditorItems.length} de {filteredEditorItems.length}{" "}
                     {editorGroupFilter === "home"

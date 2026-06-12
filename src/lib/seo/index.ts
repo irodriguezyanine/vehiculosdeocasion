@@ -5,6 +5,8 @@ export { SEO_LANDING_PAGES, SEO_LANDING_SLUGS, getLandingPageBySlug, type SeoLan
 export { buildLongTailLandingPages } from "./long-tail-pages";
 export {
   buildVehicleCatalogDeepLink,
+  buildPublicVehicleCatalogDeepLink,
+  extractPublicVehicleSeoDescription,
   buildVehicleSeoPath,
   buildVehicleSeoUrl,
   normalizeVehicleSeoKey,

@@ -11,14 +11,15 @@ import {
 import { getEditorConfig } from "@/lib/editor-config";
 import { buildPageMetadata } from "@/lib/seo/metadata";
 import {
-  buildVehicleCatalogDeepLink,
+  buildPublicVehicleCatalogDeepLink,
   buildVehicleSeoKeywords,
   buildVehicleSeoPath,
   extractVehicleBrandModel,
-  extractVehicleSeoDescription,
+  extractPublicVehicleSeoDescription,
   extractVehicleSeoTitle,
   normalizeVehicleSeoKey,
 } from "@/lib/seo/vehicle-seo";
+import { getPublicVehicleSubtitle } from "@/lib/public-patent-policy";
 import { buildVehicleOfferJsonLd } from "@/lib/seo/json-ld";
 import { BUSINESS, SITE_NAME } from "@/lib/seo/site-config";
 import type { CatalogItem } from "@/types/catalog";
@@ -67,7 +68,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const { item, vehicleKey, priceLabel } = found;
   const title = `${extractVehicleSeoTitle(item)} | Autos usados Chile — ${SITE_NAME}`;
-  const description = `${extractVehicleSeoDescription(item, priceLabel)} Compra auto usado en Chile con VEDISA REMATES. WhatsApp ${BUSINESS.phone}.`;
+  const description = `${extractPublicVehicleSeoDescription(item, priceLabel)} Compra auto usado en Chile con VEDISA REMATES. WhatsApp ${BUSINESS.phone}.`;
   const image = resolveCatalogItemThumbnail(item) ?? item.images[0];
   const path = buildVehicleSeoPath(vehicleKey).replace(/^\//, "");
 
@@ -86,10 +87,11 @@ export default async function VehicleSeoPage({ params }: PageProps) {
   const found = await findVehicleByKey(key);
   if (!found) notFound();
 
-  const { item, vehicleKey, priceLabel } = found;
+  const { item, priceLabel } = found;
   const { brand, model, year } = extractVehicleBrandModel(item);
   const image = resolveCatalogItemThumbnail(item) ?? item.images[0];
-  const catalogLink = buildVehicleCatalogDeepLink(vehicleKey);
+  const catalogLink = buildPublicVehicleCatalogDeepLink(item);
+  const publicSubtitle = getPublicVehicleSubtitle(item, false);
 
   return (
     <>
@@ -118,7 +120,7 @@ export default async function VehicleSeoPage({ params }: PageProps) {
             <span>{item.title}</span>
           </nav>
           <h1 className="mb-2 text-2xl font-bold">{item.title}</h1>
-          {item.subtitle ? <p className="mb-4 text-neutral-700">{item.subtitle}</p> : null}
+          {publicSubtitle ? <p className="mb-4 text-neutral-700">{publicSubtitle}</p> : null}
           {image ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={image} alt={item.title} className="mb-4 w-full rounded-xl object-cover" />
@@ -148,8 +150,6 @@ export default async function VehicleSeoPage({ params }: PageProps) {
                 <dd>{priceLabel}</dd>
               </>
             ) : null}
-            <dt className="font-medium">Patente / ID</dt>
-            <dd>{vehicleKey}</dd>
           </dl>
           <p className="mb-6 text-neutral-700">
             Auto usado disponible en {SITE_NAME}, automotora VEDISA REMATES en Santiago. Buena oportunidad

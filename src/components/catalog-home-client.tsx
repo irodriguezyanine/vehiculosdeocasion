@@ -54,6 +54,13 @@ import {
   unhideVehiclesInConfig,
 } from "@/lib/catalog-visibility";
 import {
+  getPublicShareKey,
+  getPublicVehicleSubtitle,
+  PUBLIC_PATENT_FIELD_LABELS,
+  shouldExposePatentToViewer,
+  stripPatentFromPublicText,
+} from "@/lib/public-patent-policy";
+import {
   applyAutoredLookupToDraft,
   extractAutoredMechanicalDetails,
   extractGlo3dOperationDetails,
@@ -2445,6 +2452,7 @@ type SectionProps = {
   onOpenVehicle: (item: CatalogItem) => void;
   cardDensity: CardDensity;
   canInlineEdit?: boolean;
+  showPatent?: boolean;
   onInlineSaveItem?: (
     item: CatalogItem,
     changes: { title?: string; subtitle?: string; price?: string },
@@ -2463,6 +2471,7 @@ type HorizontalCardsRailProps = {
   onOpenVehicle: (item: CatalogItem) => void;
   cardDensity: CardDensity;
   canInlineEdit?: boolean;
+  showPatent?: boolean;
   onInlineSaveItem?: (
     item: CatalogItem,
     changes: { title?: string; subtitle?: string; price?: string },
@@ -2481,6 +2490,7 @@ function HorizontalCardsRail({
   onOpenVehicle,
   cardDensity,
   canInlineEdit = false,
+  showPatent = false,
   onInlineSaveItem,
 }: HorizontalCardsRailProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -2667,6 +2677,7 @@ function HorizontalCardsRail({
                 })
               }
               canInlineEdit={canInlineEdit}
+              showPatent={showPatent}
               editablePriceValue={priceMap[getVehicleKey(item)]}
               onInlineSave={
                 onInlineSaveItem
@@ -2695,6 +2706,7 @@ function Section({
   onOpenVehicle,
   cardDensity,
   canInlineEdit = false,
+  showPatent = false,
   onInlineSaveItem,
 }: SectionProps) {
   const [isMinimized, setIsMinimized] = useState(false);
@@ -2739,6 +2751,7 @@ function Section({
                 })
               }
               canInlineEdit={canInlineEdit}
+              showPatent={showPatent}
               editablePriceValue={priceMap[getVehicleKey(item)]}
               onInlineSave={
                 onInlineSaveItem
@@ -2764,6 +2777,7 @@ type UpcomingAuctionsSectionProps = {
   onOpenVehicle: (item: CatalogItem) => void;
   cardDensity: CardDensity;
   canInlineEdit?: boolean;
+  showPatent?: boolean;
   onInlineSaveItem?: (
     item: CatalogItem,
     changes: { title?: string; subtitle?: string; price?: string },
@@ -2781,6 +2795,7 @@ function UpcomingAuctionsSection({
   onOpenVehicle,
   cardDensity,
   canInlineEdit = false,
+  showPatent = false,
   onInlineSaveItem,
 }: UpcomingAuctionsSectionProps) {
   const [isMinimized, setIsMinimized] = useState(false);
@@ -2824,6 +2839,7 @@ function UpcomingAuctionsSection({
               onOpenVehicle={onOpenVehicle}
               cardDensity={cardDensity}
               canInlineEdit={canInlineEdit}
+              showPatent={showPatent}
               onInlineSaveItem={onInlineSaveItem}
             />
           </div>
@@ -3407,13 +3423,13 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   const openVehicleDetail = useCallback(
     (item: CatalogItem) => {
       setSelectedVehicle(item);
-      updateVehicleUrlParam(getVehicleKey(item));
+      updateVehicleUrlParam(getPublicShareKey(item, getVehicleKey(item), isAdmin));
       trackEvent("vehicle_detail_open", {
         itemKey: getVehicleKey(item),
         section: topSectionFilter,
       });
     },
-    [updateVehicleUrlParam, topSectionFilter],
+    [updateVehicleUrlParam, topSectionFilter, isAdmin],
   );
   const closeSelectedVehicle = useCallback(() => {
     setSelectedVehicle(null);
@@ -3822,6 +3838,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     const map = new Map<string, CatalogItem>();
     for (const item of items) {
       map.set(getVehicleKey(item), item);
+      map.set(item.id, item);
     }
     return map;
   }, [items]);
@@ -4267,10 +4284,13 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     const buildRow = (item: CatalogItem): CalendarPdfRow => {
       const key = getVehicleKey(item);
       const vehicleDisplay = getPdfVehicleDisplay(item);
+      const patent = getPatent(item);
       return {
         vehiclePrimary: vehicleDisplay.primary,
-        vehicleSecondary: vehicleDisplay.secondary,
-        patent: getPatent(item),
+        vehicleSecondary: shouldExposePatentToViewer(isAdmin)
+          ? vehicleDisplay.secondary
+          : stripPatentFromPublicText(vehicleDisplay.secondary, patent) ?? "",
+        patent,
         model: getModel(item),
         priceLabel: formatPrice(config.vehiclePrices[key]) ?? "Sin precio",
         thumbnailUrls: collectVehicleImageCandidates(item),
@@ -4327,6 +4347,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     homeVisibleItems,
     config.vehiclePrices,
     config.sectionTexts,
+    isAdmin,
   ]);
 
   const favoritesItems = useMemo(
@@ -4609,22 +4630,26 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       }
       const priceColWidth = Math.ceil(maxPriceTextWidth) + cellPaddingX * 2;
       const thumbColWidth = 72;
-      const patentColWidth = 68;
+      const includePatentColumn = shouldExposePatentToViewer(isAdmin);
+      const patentColWidth = includePatentColumn ? 68 : 0;
       const modelColWidth = 84;
-      const vehicleColWidth = usableWidth - priceColWidth - thumbColWidth - patentColWidth - modelColWidth;
+      const vehicleColWidth =
+        usableWidth - priceColWidth - thumbColWidth - patentColWidth - modelColWidth;
 
       const tableColumns = [
         { key: "vehicle" as const, label: "Vehiculo", width: vehicleColWidth, align: "left" as const },
-        { key: "patent" as const, label: "Patente", width: patentColWidth, align: "left" as const },
+        ...(includePatentColumn
+          ? [{ key: "patent" as const, label: "Patente", width: patentColWidth, align: "left" as const }]
+          : []),
         { key: "model" as const, label: "Modelo", width: modelColWidth, align: "left" as const },
         { key: "thumbnail" as const, label: "Foto", width: thumbColWidth, align: "center" as const },
         { key: "priceLabel" as const, label: "Precio", width: priceColWidth, align: "right" as const },
       ];
-      const vehicleColIndex = 0;
-      const patentColIndex = 1;
-      const modelColIndex = 2;
-      const thumbnailColIndex = 3;
-      const priceColIndex = 4;
+      const vehicleColIndex = tableColumns.findIndex((column) => column.key === "vehicle");
+      const patentColIndex = tableColumns.findIndex((column) => column.key === "patent");
+      const modelColIndex = tableColumns.findIndex((column) => column.key === "model");
+      const thumbnailColIndex = tableColumns.findIndex((column) => column.key === "thumbnail");
+      const priceColIndex = tableColumns.findIndex((column) => column.key === "priceLabel");
       const thumbMaxWidth = 58;
       const thumbMaxHeight = 40;
 
@@ -4768,7 +4793,10 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
           const linePaddingY = 6;
           const lineHeight = 10;
           const vehicleInnerWidth = Math.max(16, tableColumns[vehicleColIndex].width - cellPaddingX * 2);
-          const patentInnerWidth = Math.max(16, tableColumns[patentColIndex].width - cellPaddingX * 2);
+          const patentInnerWidth =
+            patentColIndex >= 0
+              ? Math.max(16, tableColumns[patentColIndex].width - cellPaddingX * 2)
+              : 0;
           const modelInnerWidth = Math.max(16, tableColumns[modelColIndex].width - cellPaddingX * 2);
           const priceInnerWidth = Math.max(16, tableColumns[priceColIndex].width - cellPaddingX * 2);
 
@@ -4782,7 +4810,8 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
             : [];
           doc.setFont("helvetica", "normal");
           doc.setFontSize(9);
-          const patentLines = doc.splitTextToSize(row.patent, patentInnerWidth);
+          const patentLines =
+            patentColIndex >= 0 ? doc.splitTextToSize(row.patent, patentInnerWidth) : [];
           const modelLines = doc.splitTextToSize(row.model, modelInnerWidth);
           doc.setFont("helvetica", "bold");
           doc.setFontSize(9);
@@ -4825,12 +4854,14 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
           doc.setFont("helvetica", "normal");
           doc.setFontSize(9);
           doc.setTextColor(...BRAND.text);
-          doc.text(
-            patentLines,
-            getColumnX(patentColIndex) + cellPaddingX,
-            y + linePaddingY + 8,
-            { maxWidth: patentInnerWidth },
-          );
+          if (patentColIndex >= 0) {
+            doc.text(
+              patentLines,
+              getColumnX(patentColIndex) + cellPaddingX,
+              y + linePaddingY + 8,
+              { maxWidth: patentInnerWidth },
+            );
+          }
           doc.text(
             modelLines,
             getColumnX(modelColIndex) + cellPaddingX,
@@ -4923,7 +4954,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     } finally {
       setIsDownloadingCalendarPdf(false);
     }
-  }, [calendarPdfSections, isDownloadingCalendarPdf, showSystemNotice]);
+  }, [calendarPdfSections, isDownloadingCalendarPdf, isAdmin, showSystemNotice]);
 
   const latestItems = useMemo(
     () =>
@@ -5104,21 +5135,26 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   const selectedVehicleShareUrl = useMemo(() => {
     if (!selectedVehicle || typeof window === "undefined") return "";
     const url = new URL(window.location.href);
-    url.searchParams.set("vehiculo", selectedVehicleKey);
+    url.searchParams.set(
+      "vehiculo",
+      getPublicShareKey(selectedVehicle, selectedVehicleKey, isAdmin),
+    );
     if (!url.hash) url.hash = "catalogo";
     return url.toString();
-  }, [selectedVehicle, selectedVehicleKey]);
+  }, [selectedVehicle, selectedVehicleKey, isAdmin]);
 
   const selectedVehicleWhatsappUrl = useMemo(() => {
     if (!selectedVehicle) return "";
     const patent = getPatent(selectedVehicle);
     const label = getModel(selectedVehicle);
     const shareLink = selectedVehicleShareUrl || "https://vehiculosdeocasion.vercel.app/#catalogo";
-    const text = `Hola, me interesa este vehiculo: ${patent} - ${label}. ¿Me puedes asesorar? ${shareLink}`;
+    const text = shouldExposePatentToViewer(isAdmin)
+      ? `Hola, me interesa este vehiculo: ${patent} - ${label}. ¿Me puedes asesorar? ${shareLink}`
+      : `Hola, me interesa este vehiculo: ${label}. ¿Me puedes asesorar? ${shareLink}`;
     return `https://api.whatsapp.com/send/?phone=${WHATSAPP_PHONE}&text=${encodeURIComponent(
       text,
     )}&type=phone_number&app_absent=0`;
-  }, [selectedVehicle, selectedVehicleShareUrl]);
+  }, [selectedVehicle, selectedVehicleShareUrl, isAdmin]);
 
   const selectedVehicleConditionLabel = useMemo(() => {
     if (!selectedVehicle) return null;
@@ -5348,8 +5384,13 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       return String(value);
     };
 
+    const filterPublicPairs = (pairs: Array<[string, string]>) =>
+      shouldExposePatentToViewer(isAdmin)
+        ? pairs
+        : pairs.filter(([label]) => !PUBLIC_PATENT_FIELD_LABELS.has(label));
+
     return {
-      general: toPairs([
+      general: filterPublicPairs(toPairs([
         { label: "Patente", value: getPatent(selectedVehicle) },
         {
           label: "Patente verificador",
@@ -5434,7 +5475,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
               "status",
             ]),
         },
-      ]),
+      ])),
       descripcion: [] as Array<[string, string]>,
       tecnica: toPairs([
         {
@@ -5776,7 +5817,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
         },
       ]),
     };
-  }, [selectedVehicle, selectedVehicleLookup, selectedVehicleOverride]);
+  }, [selectedVehicle, selectedVehicleLookup, selectedVehicleOverride, isAdmin]);
 
   const openOfferModal = useCallback(() => {
     if (!selectedVehicle) return;
@@ -10985,9 +11026,9 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                   setHomeSearchTerm(event.target.value);
                   trackEvent("home_search_change", { query: event.target.value });
                 }}
-                placeholder="Buscar patente, marca, modelo..."
+                placeholder="Buscar marca, modelo o categoria..."
                 className="ui-focus w-full rounded-xl border border-amber-300/70 bg-[#4a3020] py-3 pl-10 pr-20 text-base font-medium text-amber-50 shadow-sm placeholder:text-amber-200/80 md:pr-24 md:text-sm"
-                aria-label="Buscar vehiculos por patente, marca, modelo o categoria"
+                aria-label="Buscar vehiculos por marca, modelo o categoria"
                 type="search"
                 inputMode="search"
                 enterKeyHint="search"
@@ -11289,6 +11330,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                     })
                   }
                   canInlineEdit={canAdminEditNow}
+                  showPatent={isAdmin}
                   editablePriceValue={config.vehiclePrices[getVehicleKey(item)]}
                   onInlineSave={(changes) => saveInlineCardChanges(item, changes)}
                 />
@@ -11324,6 +11366,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                     })
                   }
                   canInlineEdit={canAdminEditNow}
+                  showPatent={isAdmin}
                   editablePriceValue={config.vehiclePrices[getVehicleKey(item)]}
                   onInlineSave={(changes) => saveInlineCardChanges(item, changes)}
                 />
@@ -11355,6 +11398,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                 onOpenVehicle={openVehicleDetail}
                 cardDensity={cardDensity}
                 canInlineEdit={canAdminEditNow}
+                showPatent={isAdmin}
                 onInlineSaveItem={saveInlineCardChanges}
               />
             );
@@ -11379,6 +11423,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                 onOpenVehicle={openVehicleDetail}
                 cardDensity={cardDensity}
                 canInlineEdit={canAdminEditNow}
+                showPatent={isAdmin}
                 onInlineSaveItem={saveInlineCardChanges}
               />
             );
@@ -11401,6 +11446,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                 onOpenVehicle={openVehicleDetail}
                 cardDensity={cardDensity}
                 canInlineEdit={canAdminEditNow}
+                showPatent={isAdmin}
                 onInlineSaveItem={saveInlineCardChanges}
               />
             );
@@ -11423,6 +11469,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                 onOpenVehicle={openVehicleDetail}
                 cardDensity={cardDensity}
                 canInlineEdit={canAdminEditNow}
+                showPatent={isAdmin}
                 onInlineSaveItem={saveInlineCardChanges}
               />
             );
@@ -11471,7 +11518,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500">
                   No encontramos vehiculos para esta combinacion.
                   {" "}
-                  Prueba con Livianos, quita filtros activos o busca por patente exacta (ej: SYGD93).
+                  Prueba con Livianos, quita filtros activos o busca por marca o modelo.
                 </div>
               ) : (
                 <HorizontalCardsRail
@@ -11485,6 +11532,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                   onToggleCompare={toggleCompare}
                   onOpenVehicle={openVehicleDetail}
                   cardDensity={cardDensity}
+                  showPatent={isAdmin}
                 />
               )}
             </section>
@@ -11568,12 +11616,19 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                     ) : (
                       <>
                         <span className="vehicle-detail-chip inline-block w-full max-w-full rounded-lg border border-stone-300 bg-stone-100 px-2.5 py-1.5 text-xs font-semibold text-amber-900 md:w-auto md:rounded-full md:px-3 md:py-1">
-                          {selectedVehicle.subtitle?.trim() || getPatent(selectedVehicle)}
+                          {getPublicVehicleSubtitle(selectedVehicle, isAdmin) ||
+                            (isAdmin ? getPatent(selectedVehicle) : getModel(selectedVehicle))}
                         </span>
                         {canAdminEditNow ? (
                           <button
                             type="button"
-                            onClick={() => beginInlineSummaryFieldEdit("Subtitulo", selectedVehicle.subtitle?.trim() || getPatent(selectedVehicle))}
+                            onClick={() =>
+                              beginInlineSummaryFieldEdit(
+                                "Subtitulo",
+                                selectedVehicle.subtitle?.trim() ||
+                                  (isAdmin ? getPatent(selectedVehicle) : getModel(selectedVehicle)),
+                              )
+                            }
                             className="ui-focus inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-amber-300 bg-amber-50 text-amber-800 md:ml-0"
                             title="Editar subtitulo"
                             aria-label="Editar subtitulo"
@@ -12313,8 +12368,12 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                   <article key={`cmp-mobile-${item.id}`} className="compare-mobile-card">
                     <h4 className="text-sm font-bold text-slate-900">{item.title}</h4>
                     <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                      <dt className="text-slate-500">Patente</dt>
-                      <dd className="font-medium text-slate-800">{getPatent(item)}</dd>
+                      {isAdmin ? (
+                        <>
+                          <dt className="text-slate-500">Patente</dt>
+                          <dd className="font-medium text-slate-800">{getPatent(item)}</dd>
+                        </>
+                      ) : null}
                       <dt className="text-slate-500">Modelo</dt>
                       <dd className="font-medium text-slate-800">{getModel(item)}</dd>
                       <dt className="text-slate-500">Precio</dt>
@@ -12339,7 +12398,9 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                   </thead>
                   <tbody>
                     {[
-                      ["Patente", (item: CatalogItem) => getPatent(item)],
+                      ...(isAdmin
+                        ? [["Patente", (item: CatalogItem) => getPatent(item)] as const]
+                        : []),
                       ["Marca", (item: CatalogItem) => String((item.raw as Record<string, unknown>).marca ?? (item.raw as Record<string, unknown>).brand ?? "-")],
                       ["Modelo", (item: CatalogItem) => getModel(item)],
                       ["Ano", (item: CatalogItem) => String((item.raw as Record<string, unknown>).ano ?? (item.raw as Record<string, unknown>).anio ?? (item.raw as Record<string, unknown>).year ?? "-")],
@@ -12629,7 +12690,9 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Enviar mi precio</p>
                 <h3 className="text-lg font-bold text-slate-900">{getModel(selectedVehicle)}</h3>
-                <p className="text-xs text-slate-500">Patente {getPatent(selectedVehicle)}</p>
+                {isAdmin ? (
+                  <p className="text-xs text-slate-500">Patente {getPatent(selectedVehicle)}</p>
+                ) : null}
               </div>
               <button
                 type="button"

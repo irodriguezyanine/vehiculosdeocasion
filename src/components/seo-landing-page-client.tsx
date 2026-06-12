@@ -9,6 +9,7 @@ import {
   getVehicleMileage,
   getVisibleCatalogItems,
 } from "@/lib/catalog-visibility";
+import { getPublicVehicleSubtitle } from "@/lib/public-patent-policy";
 import { GOOGLE_PRIORITY_SLUGS } from "@/lib/seo/google-seo";
 import { getLandingPageBySlug, type SeoLandingPage } from "@/lib/seo/landing-pages";
 import { BUSINESS, SITE_NAME } from "@/lib/seo/site-config";
@@ -138,15 +139,15 @@ export function SeoLandingPageClient({ page, feed, config }: SeoLandingPageClien
               className="seo-vehicle-carousel -mx-1 flex gap-4 overflow-x-auto px-1 pb-2 scroll-smooth"
             >
               {visibleItems.map((item) => {
-                const key = getVehicleKey(item);
                 const image = getVehicleImage(item);
-                const price = priceLabels[key];
+                const price = priceLabels[getVehicleKey(item)];
                 const mileage = getVehicleMileage(item);
-                const detailHref = `/?vehiculo=${encodeURIComponent(key)}`;
+                const detailHref = `/?vehiculo=${encodeURIComponent(item.id)}#catalogo`;
+                const publicSubtitle = getPublicVehicleSubtitle(item, false);
 
                 return (
                   <article
-                    key={key}
+                    key={item.id}
                     data-seo-carousel-card
                     className="seo-carousel-card shrink-0"
                   >
@@ -162,14 +163,10 @@ export function SeoLandingPageClient({ page, feed, config }: SeoLandingPageClien
                     </div>
                     <div className="flex flex-1 flex-col p-4">
                       <h3 className="line-clamp-2 text-base font-semibold text-neutral-900">{item.title}</h3>
-                      {item.subtitle ? (
-                        <p className="mt-1 line-clamp-2 text-sm text-neutral-600">{item.subtitle}</p>
+                      {publicSubtitle ? (
+                        <p className="mt-1 line-clamp-2 text-sm text-neutral-600">{publicSubtitle}</p>
                       ) : null}
                       <dl className="mt-3 space-y-1 text-sm text-neutral-700">
-                        <div className="flex justify-between gap-2">
-                          <dt className="text-neutral-500">Patente</dt>
-                          <dd className="font-medium">{key}</dd>
-                        </div>
                         {mileage ? (
                           <div className="flex justify-between gap-2">
                             <dt className="text-neutral-500">Km</dt>
@@ -202,7 +199,7 @@ export function SeoLandingPageClient({ page, feed, config }: SeoLandingPageClien
         <section className="mb-8 rounded-2xl bg-[#8a542f] p-6 text-white">
           <h2 className="mb-2 text-xl font-semibold">¿Quieres el catálogo completo con búsqueda y visor 3D?</h2>
           <p className="mb-4 opacity-95">
-            En el home puedes filtrar por marca, patente, comparar precios y contactar por WhatsApp al {BUSINESS.phone}.
+            En el home puedes filtrar por marca y modelo, comparar precios y contactar por WhatsApp al {BUSINESS.phone}.
           </p>
           <div className="flex flex-wrap gap-3">
             <Link href="/" className="inline-flex rounded-lg bg-white px-4 py-2 font-medium text-[#8a542f] transition hover:bg-neutral-100">

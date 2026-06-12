@@ -5,6 +5,7 @@
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
 } from "react";
+import { getPublicVehicleSubtitle } from "@/lib/public-patent-policy";
 import type { CatalogItem } from "@/types/catalog";
 import { resolveCatalogItemThumbnail } from "@/lib/catalog";
 import { WHATSAPP_API_BASE } from "@/lib/contact";
@@ -26,6 +27,7 @@ type CatalogCardProps = {
   onWhatsappClick?: () => void;
   imageLoading?: "lazy" | "eager";
   canInlineEdit?: boolean;
+  showPatent?: boolean;
   editablePriceValue?: string;
   onInlineSave?: (changes: { title?: string; subtitle?: string; price?: string }) => void;
 };
@@ -422,6 +424,7 @@ export function CatalogCard({
   onWhatsappClick,
   imageLoading = "lazy",
   canInlineEdit = false,
+  showPatent = false,
   editablePriceValue,
   onInlineSave,
 }: CatalogCardProps) {
@@ -457,7 +460,10 @@ export function CatalogCard({
     if (!url.hash) url.hash = "catalogo";
     return url.toString();
   }, [itemKey]);
-  const whatsappText = `Hola, estoy interesado en ofertar por el vehiculo ${patent} ${brandModel}`;
+  const publicSubtitle = getPublicVehicleSubtitle(item, showPatent);
+  const whatsappText = showPatent
+    ? `Hola, estoy interesado en ofertar por el vehiculo ${patent} ${brandModel}`
+    : `Hola, estoy interesado en ofertar por el vehiculo ${brandModel}`;
   const whatsappUrl = `${WHATSAPP_BASE_URL}&text=${encodeURIComponent(
     `${whatsappText}${shareUrl ? `. Link: ${shareUrl}` : ""}`,
   )}&type=phone_number&app_absent=0`;
@@ -615,7 +621,7 @@ export function CatalogCard({
               ) : (
                 <div className="mt-1 flex items-start justify-between gap-2">
                   <p className="break-words text-[0.93rem] text-[#6c5440] [overflow-wrap:anywhere]">
-                    {shortText(item.subtitle) ?? "-"}
+                    {shortText(publicSubtitle) ?? "-"}
                   </p>
                   {canInlineEdit ? (
                     <button
@@ -736,7 +742,7 @@ export function CatalogCard({
                 if (navigator.share && shareUrl) {
                   await navigator.share({
                     title: item.title,
-                    text: `Revisa este vehiculo: ${patent}`,
+                    text: showPatent ? `Revisa este vehiculo: ${patent}` : `Revisa este vehiculo: ${item.title}`,
                     url: shareUrl,
                   });
                 } else if (navigator.clipboard && shareUrl) {

@@ -1,4 +1,5 @@
 import type { CatalogItem } from "@/types/catalog";
+import { getPublicVehicleSubtitle } from "@/lib/public-patent-policy";
 import { getSiteUrl } from "./site-config";
 
 export function normalizeVehicleSeoKey(key: string): string {
@@ -16,6 +17,23 @@ export function buildVehicleSeoUrl(key: string): string {
 export function buildVehicleCatalogDeepLink(key: string): string {
   const siteUrl = getSiteUrl();
   return `${siteUrl}/?vehiculo=${encodeURIComponent(normalizeVehicleSeoKey(key))}`;
+}
+
+export function buildPublicVehicleCatalogDeepLink(item: CatalogItem): string {
+  const siteUrl = getSiteUrl();
+  return `${siteUrl}/?vehiculo=${encodeURIComponent(item.id)}#catalogo`;
+}
+
+export function extractPublicVehicleSeoDescription(
+  item: CatalogItem,
+  priceLabel?: string | null,
+): string {
+  const parts = [
+    getPublicVehicleSubtitle(item, false),
+    item.title,
+    priceLabel ? `Precio: ${priceLabel}` : null,
+  ].filter(Boolean);
+  return parts.join(" — ") || "Auto usado disponible en Vehículos de Ocasión Chile.";
 }
 
 export function extractVehicleSeoTitle(item: CatalogItem): string {

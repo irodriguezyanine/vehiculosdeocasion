@@ -106,6 +106,45 @@ const FAVORITES_STORAGE_KEY = "vehiculosdeocasion_client_favorites";
 const HOME_QUICK_FILTERS_STORAGE_KEY = "vehiculosdeocasion_home_quick_filters";
 const HOME_CARD_DENSITY_STORAGE_KEY = "vehiculosdeocasion_home_card_density";
 const EDITOR_PAGE_SIZE = 20;
+const EDITOR_PATENT_PAGE_SIZE = 100;
+
+function AdminIconBtn({
+  label,
+  onClick,
+  disabled,
+  tone = "neutral",
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  tone?: "neutral" | "success" | "warn" | "danger" | "active";
+  children: ReactNode;
+}) {
+  const toneClass =
+    tone === "success"
+      ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+      : tone === "warn"
+        ? "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
+        : tone === "danger"
+          ? "border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100"
+          : tone === "active"
+            ? "border-slate-900 bg-slate-900 text-white hover:bg-slate-800"
+            : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={label}
+      aria-label={label}
+      className={`ui-focus inline-flex h-8 w-8 items-center justify-center rounded-md border transition disabled:cursor-not-allowed disabled:opacity-40 ${toneClass}`}
+    >
+      {children}
+    </button>
+  );
+}
+
 type AdminTabId = "vehiculos" | "categorias" | "layout" | "analytics" | "ofertas";
 type InventorySubtabId = "actual" | "vendidas";
 type EditorGroupFilter = "all" | "home" | "unassigned" | SectionId | `managed:${string}`;
@@ -2860,6 +2899,8 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   const [editorVehicleCategoryFilter, setEditorVehicleCategoryFilter] =
     useState<EditorVehicleCategoryFilter>("all");
   const [showEditorFiltersMenu, setShowEditorFiltersMenu] = useState(false);
+  const [editorSelectedKeys, setEditorSelectedKeys] = useState<string[]>([]);
+  const [showEditorBulkMenu, setShowEditorBulkMenu] = useState(false);
   const [editorPage, setEditorPage] = useState(1);
   const [editingVehicleKey, setEditingVehicleKey] = useState<string | null>(null);
   const [editingDetails, setEditingDetails] = useState<EditorVehicleDetails | null>(null);
@@ -5844,26 +5885,33 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     showSystemNotice,
   ]);
 
+  const editorPatentTokens = useMemo(() => extractPatentTokens(searchTerm), [searchTerm]);
+  const editorPatentFilterActive = editorPatentTokens.length > 0;
+
   const filteredEditorItems = useMemo(() => {
     const query = normalizeText(searchTerm);
-    const patentTokens = extractPatentTokens(searchTerm);
-    const source = query
-      ? activeInventoryItems.filter((item) => {
-          if (patentTokens.length > 0) {
-            const itemPatent = getPatent(item);
-            if (itemPatent !== "-") {
-              return patentTokens.includes(normalizePatentToken(itemPatent));
-            }
-            return patentTokens.includes(normalizePatentToken(getVehicleKey(item)));
-          }
-          return normalizeText(
-            `${getPatent(item)} ${getVehicleDisplayTitle(item)} ${getModel(item)} ${item.title} ${item.subtitle ?? ""}`,
-          ).includes(query);
-        })
-      : activeInventoryItems;
+    const patentTokens = editorPatentTokens;
+    const matchesPatentItem = (item: CatalogItem) => {
+      const itemPatent = normalizePatentToken(getPatent(item));
+      const itemKey = normalizePatentToken(getVehicleKey(item));
+      return patentTokens.some(
+        (token) => token === itemPatent || token === itemKey,
+      );
+    };
+    const source = patentTokens.length > 0
+      ? activeInventoryItems.filter(matchesPatentItem)
+      : query
+        ? activeInventoryItems.filter((item) =>
+            normalizeText(
+              `${getPatent(item)} ${getVehicleDisplayTitle(item)} ${getModel(item)} ${item.title} ${item.subtitle ?? ""}`,
+            ).includes(query),
+          )
+        : activeInventoryItems;
     const hideHiddenInGroup = editorVisibilityFilter === "visible";
     const byGroup =
-      editorGroupFilter === "all"
+      patentTokens.length > 0
+        ? source
+        : editorGroupFilter === "all"
         ? source
         : editorGroupFilter === "home"
           ? source.filter((item) => {
@@ -5926,6 +5974,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   }, [
     activeInventoryItems,
     searchTerm,
+    editorPatentTokens,
     auctionFilterId,
     editorGroupFilter,
     editorVisibilityFilter,
@@ -5937,12 +5986,38 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     itemsByKey,
   ]);
 
-  const totalEditorPages = Math.max(1, Math.ceil(filteredEditorItems.length / EDITOR_PAGE_SIZE));
+  const editorPageSize = editorPatentFilterActive ? EDITOR_PATENT_PAGE_SIZE : EDITOR_PAGE_SIZE;
+  const totalEditorPages = Math.max(1, Math.ceil(filteredEditorItems.length / editorPageSize));
   const currentEditorPage = Math.min(editorPage, totalEditorPages);
   const paginatedEditorItems = useMemo(() => {
-    const start = (currentEditorPage - 1) * EDITOR_PAGE_SIZE;
-    return filteredEditorItems.slice(start, start + EDITOR_PAGE_SIZE);
-  }, [filteredEditorItems, currentEditorPage]);
+    const start = (currentEditorPage - 1) * editorPageSize;
+    return filteredEditorItems.slice(start, start + editorPageSize);
+  }, [filteredEditorItems, currentEditorPage, editorPageSize]);
+
+  const editorMissingPatentTokens = useMemo(() => {
+    if (editorPatentTokens.length === 0) return [] as string[];
+    const found = new Set(
+      activeInventoryItems
+        .filter((item) => {
+          const itemPatent = normalizePatentToken(getPatent(item));
+          const itemKey = normalizePatentToken(getVehicleKey(item));
+          return editorPatentTokens.some(
+            (token) => token === itemPatent || token === itemKey,
+          );
+        })
+        .flatMap((item) => {
+          const itemPatent = normalizePatentToken(getPatent(item));
+          const itemKey = normalizePatentToken(getVehicleKey(item));
+          return [itemPatent, itemKey].filter(Boolean);
+        }),
+    );
+    return editorPatentTokens.filter((token) => !found.has(token));
+  }, [editorPatentTokens, activeInventoryItems]);
+
+  const editorSelectedCount = editorSelectedKeys.length;
+  const allFilteredEditorSelected =
+    filteredEditorItems.length > 0 &&
+    filteredEditorItems.every((item) => editorSelectedKeys.includes(getVehicleKey(item)));
 
   const editorHiddenPatentMatches = useMemo(() => {
     const patentTokens = extractPatentTokens(searchTerm);
@@ -6035,7 +6110,46 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     setAuctionFilterId("");
     setSearchTerm("");
     setEditorPage(1);
+    setEditorSelectedKeys([]);
+    setShowEditorBulkMenu(false);
   }, []);
+
+  const toggleEditorItemSelection = useCallback((vehicleKey: string) => {
+    setEditorSelectedKeys((prev) =>
+      prev.includes(vehicleKey)
+        ? prev.filter((key) => key !== vehicleKey)
+        : [...prev, vehicleKey],
+    );
+  }, []);
+
+  const toggleSelectAllFilteredEditorItems = useCallback(() => {
+    setEditorSelectedKeys((prev) => {
+      const filteredKeys = filteredEditorItems.map((item) => getVehicleKey(item));
+      const allSelected =
+        filteredKeys.length > 0 && filteredKeys.every((key) => prev.includes(key));
+      if (allSelected) {
+        const filteredSet = new Set(filteredKeys);
+        return prev.filter((key) => !filteredSet.has(key));
+      }
+      return Array.from(new Set([...prev, ...filteredKeys]));
+    });
+  }, [filteredEditorItems]);
+
+  const clearEditorSelection = useCallback(() => {
+    setEditorSelectedKeys([]);
+    setShowEditorBulkMenu(false);
+  }, []);
+
+  const stripVehicleFromAssignmentIds = useCallback(
+    (ids: string[], vehicleKey: string) => {
+      const target = resolveInventoryItemKey(vehicleKey, itemsByKey) ?? vehicleKey;
+      return ids.filter((id) => {
+        const resolved = resolveInventoryItemKey(id, itemsByKey) ?? id;
+        return resolved !== target && !isVehicleInAssignmentList([id], target);
+      });
+    },
+    [itemsByKey],
+  );
 
   const toggleItemInSection = (sectionId: SectionId, itemKey: string) => {
     setConfig((prev) => {
@@ -7302,6 +7416,117 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       };
     });
   };
+
+  const removeVehicleFromHomeEditor = useCallback(
+    (vehicleKey: string) => {
+      const item = itemsByKey.get(vehicleKey);
+      if (item && isManualCatalogItem(item)) {
+        const manual = (config.manualPublications ?? []).find(
+          (entry) => getManualPublicationKey(entry) === vehicleKey,
+        );
+        if (manual) deleteManualPublication(manual.id);
+        return;
+      }
+      const canonicalKey = resolveInventoryItemKey(vehicleKey, itemsByKey) ?? vehicleKey;
+      setConfig((prev) => {
+        const nextAssignments = { ...prev.vehicleUpcomingAuctionIds };
+        delete nextAssignments[canonicalKey];
+        delete nextAssignments[vehicleKey];
+        const nextPrices = { ...prev.vehiclePrices };
+        delete nextPrices[canonicalKey];
+        delete nextPrices[vehicleKey];
+        const nextDetails = { ...prev.vehicleDetails };
+        delete nextDetails[canonicalKey];
+        delete nextDetails[vehicleKey];
+        const nextHidden = new Set(prev.hiddenVehicleIds);
+        nextHidden.add(canonicalKey);
+        return {
+          ...prev,
+          hiddenVehicleIds: Array.from(nextHidden),
+          vehicleUpcomingAuctionIds: nextAssignments,
+          vehiclePrices: nextPrices,
+          vehicleDetails: nextDetails,
+          sectionVehicleIds: {
+            "proximos-remates": stripVehicleFromAssignmentIds(
+              prev.sectionVehicleIds["proximos-remates"] ?? [],
+              vehicleKey,
+            ),
+            "ventas-directas": stripVehicleFromAssignmentIds(
+              prev.sectionVehicleIds["ventas-directas"] ?? [],
+              vehicleKey,
+            ),
+            novedades: stripVehicleFromAssignmentIds(
+              prev.sectionVehicleIds.novedades ?? [],
+              vehicleKey,
+            ),
+            catalogo: stripVehicleFromAssignmentIds(
+              prev.sectionVehicleIds.catalogo ?? [],
+              vehicleKey,
+            ),
+          },
+          managedCategories: (prev.managedCategories ?? []).map((category) => ({
+            ...category,
+            vehicleIds: stripVehicleFromAssignmentIds(category.vehicleIds ?? [], vehicleKey),
+          })),
+        };
+      });
+    },
+    [config.manualPublications, itemsByKey, stripVehicleFromAssignmentIds],
+  );
+
+  const applyBulkEditorInventoryAction = useCallback(
+    (action: "show" | "hide" | "sold" | "remove") => {
+      if (editorSelectedKeys.length === 0) return;
+      const keys = [...editorSelectedKeys];
+      if (action === "show") {
+        setConfig((prev) => ({
+          ...prev,
+          hiddenVehicleIds: unhideVehiclesInConfig(prev.hiddenVehicleIds, keys, itemsByKey),
+        }));
+        showSystemNotice(
+          "success",
+          "Visibilidad",
+          `${keys.length} unidad(es) visible(s) en home.`,
+        );
+      } else if (action === "hide") {
+        setConfig((prev) => {
+          const nextHidden = new Set(prev.hiddenVehicleIds);
+          for (const key of keys) {
+            nextHidden.add(resolveInventoryItemKey(key, itemsByKey) ?? key);
+          }
+          return { ...prev, hiddenVehicleIds: Array.from(nextHidden) };
+        });
+        showSystemNotice(
+          "success",
+          "Visibilidad",
+          `${keys.length} unidad(es) oculta(s) del home.`,
+        );
+      } else if (action === "sold") {
+        for (const key of keys) markVehicleAsSold(key);
+        showSystemNotice(
+          "success",
+          "Vendidas",
+          `${keys.length} unidad(es) movida(s) a historial.`,
+        );
+      } else {
+        for (const key of keys) removeVehicleFromHomeEditor(key);
+        showSystemNotice(
+          "success",
+          "Eliminadas",
+          `${keys.length} unidad(es) quitada(s) del home.`,
+        );
+      }
+      clearEditorSelection();
+    },
+    [
+      clearEditorSelection,
+      editorSelectedKeys,
+      itemsByKey,
+      markVehicleAsSold,
+      removeVehicleFromHomeEditor,
+      showSystemNotice,
+    ],
+  );
 
   const removeUpcomingAuction = (auctionId: string) => {
     setConfig((prev) => {
@@ -8722,7 +8947,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                         setSearchTerm(event.target.value);
                         setEditorPage(1);
                       }}
-                      placeholder="Buscar vehiculo para editar..."
+                      placeholder="Patentes (espacio/coma), modelo o texto..."
                       className="ui-focus w-full rounded-md border border-slate-300/80 bg-white/90 px-3 py-2 text-sm"
                     />
                     <button
@@ -8870,6 +9095,104 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                       </label>
                     </div>
                   ) : null}
+                  {editorPatentFilterActive ? (
+                    <p className="text-[11px] tabular-nums text-slate-500">
+                      {editorPatentTokens.length} patentes · {filteredEditorItems.length} encontradas
+                      {editorMissingPatentTokens.length > 0
+                        ? ` · ${editorMissingPatentTokens.length} sin match`
+                        : ""}
+                    </p>
+                  ) : null}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <AdminIconBtn
+                      label={allFilteredEditorSelected ? "Desmarcar filtradas" : "Seleccionar filtradas"}
+                      onClick={toggleSelectAllFilteredEditorItems}
+                      tone={allFilteredEditorSelected ? "active" : "neutral"}
+                      disabled={filteredEditorItems.length === 0}
+                    >
+                      <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                        <path
+                          fillRule="evenodd"
+                          d="M16.704 5.29a1 1 0 0 1 .006 1.414l-7.2 7.25a1 1 0 0 1-1.42.001l-3-3.015a1 1 0 1 1 1.418-1.41l2.29 2.3 6.49-6.534a1 1 0 0 1 1.416-.006Z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </AdminIconBtn>
+                    {editorSelectedCount > 0 ? (
+                      <>
+                        <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-md bg-slate-900 px-2 text-xs font-semibold tabular-nums text-white">
+                          {editorSelectedCount}
+                        </span>
+                        <div className="relative">
+                          <AdminIconBtn
+                            label="Acciones masivas"
+                            tone={showEditorBulkMenu ? "active" : "neutral"}
+                            onClick={() => setShowEditorBulkMenu((prev) => !prev)}
+                          >
+                            <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                              <path d="M4 10a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0Zm4.5 0a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0Zm4.5 0a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0Z" />
+                            </svg>
+                          </AdminIconBtn>
+                          {showEditorBulkMenu ? (
+                            <div className="absolute left-0 top-full z-40 mt-1 flex gap-1 rounded-lg border border-slate-200 bg-white p-1.5 shadow-lg">
+                              <AdminIconBtn
+                                label="Mostrar en home"
+                                tone="success"
+                                onClick={() => {
+                                  applyBulkEditorInventoryAction("show");
+                                  setShowEditorBulkMenu(false);
+                                }}
+                              >
+                                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                                  <path d="M10 4c3.38 0 6.63 2 8.37 5.42a1.3 1.3 0 0 1 0 1.16C16.63 14 13.38 16 10 16s-6.63-2-8.37-5.42a1.3 1.3 0 0 1 0-1.16C3.37 6 6.62 4 10 4Zm0 2c-2.6 0-5.16 1.5-6.71 4 .01.02.02.04.03.05C4.84 12.5 7.4 14 10 14s5.16-1.5 6.71-4a.63.63 0 0 0-.03-.05C15.16 7.5 12.6 6 10 6Zm0 1.75A2.25 2.25 0 1 1 10 12.25 2.25 2.25 0 0 1 10 7.75Z" />
+                                </svg>
+                              </AdminIconBtn>
+                              <AdminIconBtn
+                                label="Ocultar del home"
+                                onClick={() => {
+                                  applyBulkEditorInventoryAction("hide");
+                                  setShowEditorBulkMenu(false);
+                                }}
+                              >
+                                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                                  <path d="M10 4c3.38 0 6.63 2 8.37 5.42a1.3 1.3 0 0 1 0 1.16C16.63 14 13.38 16 10 16c-1.72 0-3.42-.52-4.95-1.5l1.5-1.5c1.06.63 2.24.97 3.45.97 2.6 0 5.16-1.5 6.71-4a.63.63 0 0 0-.03-.05C15.16 7.5 12.6 6 10 6c-1.2 0-2.38.34-3.43.96L5.1 5.49A9.85 9.85 0 0 1 10 4Zm7.2 13.6a.75.75 0 0 1-1.06 0l-13-13a.75.75 0 1 1 1.06-1.06l13 13a.75.75 0 0 1 0 1.06ZM10 7.75c.7 0 1.33.32 1.75.83L8.58 11.75A2.25 2.25 0 0 1 10 7.75Z" />
+                                </svg>
+                              </AdminIconBtn>
+                              <AdminIconBtn
+                                label="Marcar vendidas"
+                                tone="warn"
+                                onClick={() => {
+                                  applyBulkEditorInventoryAction("sold");
+                                  setShowEditorBulkMenu(false);
+                                }}
+                              >
+                                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                                  <path fillRule="evenodd" d="M16.704 5.29a1 1 0 0 1 .006 1.414l-7.2 7.25a1 1 0 0 1-1.42.001l-3-3.015a1 1 0 1 1 1.418-1.41l2.29 2.3 6.49-6.534a1 1 0 0 1 1.416-.006Z" clipRule="evenodd" />
+                                </svg>
+                              </AdminIconBtn>
+                              <AdminIconBtn
+                                label="Quitar del home"
+                                tone="danger"
+                                onClick={() => {
+                                  applyBulkEditorInventoryAction("remove");
+                                  setShowEditorBulkMenu(false);
+                                }}
+                              >
+                                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                                  <path fillRule="evenodd" d="M8.75 2A2.75 2.75 0 0 0 6 4.75V5H3.75a.75.75 0 0 0 0 1.5h.38l.96 10.04A2.75 2.75 0 0 0 7.87 19h4.26a2.75 2.75 0 0 0 2.73-2.46l.96-10.04h.38a.75.75 0 0 0 0-1.5H14v-.25A2.75 2.75 0 0 0 11.25 2h-2.5Zm1.5 3V4.75c0-.69.56-1.25 1.25-1.25h.5c.69 0 1.25.56 1.25 1.25V5h-3Zm-2.16 1.5h6.82l-.9 9.4a1.25 1.25 0 0 1-1.24 1.12H7.87a1.25 1.25 0 0 1-1.24-1.12l-.9-9.4Z" clipRule="evenodd" />
+                                </svg>
+                              </AdminIconBtn>
+                            </div>
+                          ) : null}
+                        </div>
+                        <AdminIconBtn label="Limpiar seleccion" onClick={clearEditorSelection}>
+                          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                            <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+                          </svg>
+                        </AdminIconBtn>
+                      </>
+                    ) : null}
+                  </div>
                 </div>
                 {filteredEditorItems.length === 0 &&
                 editorHiddenPatentMatches.length > 0 &&
@@ -8882,44 +9205,57 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                     desde inventario» para restaurar la visibilidad.
                   </p>
                 ) : null}
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {paginatedEditorItems.map((item) => {
                     const key = getVehicleKey(item);
                     const hidden = mergedHiddenVehicleIds.has(key);
+                    const selected = editorSelectedKeys.includes(key);
                     const channelLabels = getHomeEditorChannelLabels(config, key, itemsByKey);
-                    const auctionLabel = upcomingAuctionByVehicleKey[key] ?? "Sin remate asignado";
+                    const auctionLabel = upcomingAuctionByVehicleKey[key] ?? "Sin remate";
+                    const priceLabel = formatPrice(config.vehiclePrices[key]);
                     return (
                       <article
                         key={`editor-${key}`}
-                        className="grid grid-cols-1 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/30 px-2.5 py-1.5 sm:grid-cols-[1.5fr_auto_1fr_auto]"
+                        className={`grid grid-cols-1 items-center gap-2 rounded-lg border px-2 py-1.5 sm:grid-cols-[auto_1.5fr_auto_1fr_auto] ${
+                          selected
+                            ? "border-amber-400 bg-amber-50/40"
+                            : "border-slate-200/80 bg-slate-50/20"
+                        }`}
                       >
+                        <label className="flex items-center justify-center px-1">
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={() => toggleEditorItemSelection(key)}
+                            className="ui-focus h-4 w-4 rounded border-slate-300"
+                            aria-label={`Seleccionar ${getPatent(item)}`}
+                          />
+                        </label>
                         <div className="min-w-0">
-                          <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
                             {getPatent(item)}
                             <span
                               className={`inline-flex h-1.5 w-1.5 rounded-full ${
                                 hidden ? "bg-rose-500" : "bg-emerald-500"
                               }`}
+                              title={hidden ? "Oculto" : "Visible"}
                               aria-hidden="true"
                             />
-                            <span className="normal-case tracking-normal text-[11px] text-slate-500">
-                              {hidden ? "Oculto" : "Visible"}
-                            </span>
                           </p>
                           <p className="line-clamp-1 text-sm font-semibold leading-tight text-slate-900">
                             {getVehicleDisplayTitle(item)}
                           </p>
-                          <p className="mt-0.5 line-clamp-1 text-[11px] text-slate-500">
-                            {channelLabels.length > 0
-                              ? channelLabels.join("  ·  ")
-                              : "Sin canal asignado"}
-                          </p>
+                          {channelLabels.length > 0 ? (
+                            <p className="mt-0.5 line-clamp-1 text-[10px] text-slate-500">
+                              {channelLabels.join(" · ")}
+                            </p>
+                          ) : null}
                         </div>
-                        <div className="mx-auto h-12 w-20 overflow-hidden rounded-md border border-slate-200 bg-slate-100">
+                        <div className="mx-auto h-11 w-[4.5rem] overflow-hidden rounded-md border border-slate-200 bg-slate-100">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={item.thumbnail ?? item.images[0] ?? "/placeholder-car.svg"}
-                            alt={`Miniatura ${getModel(item)}`}
+                            alt=""
                             className="h-full w-full object-cover"
                             loading="lazy"
                             onError={(event) => {
@@ -8927,108 +9263,74 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                             }}
                           />
                         </div>
-                        <div className="min-w-0 text-xs text-slate-600 sm:text-right">
-                          <p className="line-clamp-1 font-semibold text-slate-700">{auctionLabel}</p>
-                          <p className="line-clamp-1">{formatPrice(config.vehiclePrices[key]) ?? "Precio no definido"}</p>
+                        <div className="min-w-0 text-[11px] text-slate-600 sm:text-right">
+                          <p className="line-clamp-1">{auctionLabel}</p>
+                          <p className="line-clamp-1 font-medium text-slate-800">
+                            {priceLabel ?? "—"}
+                          </p>
                         </div>
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => openEditVehicleModal(item)}
-                            className="ui-focus inline-flex h-7 w-7 items-center justify-center rounded border border-amber-300 bg-stone-100 text-amber-800 transition hover:bg-stone-200"
-                            aria-label={`Gestionar unidad ${getPatent(item)}`}
-                            title="Gestionar unidad"
-                          >
-                            <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                        <div className="flex items-center justify-end gap-1">
+                          <AdminIconBtn label="Editar" onClick={() => openEditVehicleModal(item)}>
+                            <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
                               <path d="M13.586 2.586a2 2 0 0 1 2.828 2.828l-8.2 8.2a1 1 0 0 1-.475.264l-3 0.75a1 1 0 0 1-1.212-1.213l.75-3a1 1 0 0 1 .264-.474l8.2-8.2ZM12.172 4 5.24 10.932l-.39 1.56 1.56-.39L13.344 5.17 12.172 4Z" />
                             </svg>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const nextHidden = !hidden;
-                              toggleHidden(key);
-                              showSystemNotice(
-                                "success",
-                                nextHidden ? "Unidad oculta del home" : "Unidad visible en home",
-                                nextHidden
-                                  ? `${getPatent(item)} quedo oculta del home, sin eliminarse del inventario.`
-                                  : `${getPatent(item)} volvio a mostrarse en el home.`,
-                              );
-                            }}
-                            className={`ui-focus inline-flex h-7 w-7 items-center justify-center rounded border transition ${
-                              hidden
-                                ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                                : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
-                            }`}
-                            aria-label={`${hidden ? "Mostrar" : "Ocultar"} en home ${getPatent(item)}`}
-                            title={hidden ? "Mostrar en home" : "Ocultar del home"}
+                          </AdminIconBtn>
+                          <AdminIconBtn
+                            label={hidden ? "Mostrar en home" : "Ocultar del home"}
+                            tone={hidden ? "success" : "neutral"}
+                            onClick={() => toggleHidden(key)}
                           >
                             {hidden ? (
-                              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                              <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
                                 <path d="M10 4c3.38 0 6.63 2 8.37 5.42a1.3 1.3 0 0 1 0 1.16C16.63 14 13.38 16 10 16s-6.63-2-8.37-5.42a1.3 1.3 0 0 1 0-1.16C3.37 6 6.62 4 10 4Zm0 2c-2.6 0-5.16 1.5-6.71 4 .01.02.02.04.03.05C4.84 12.5 7.4 14 10 14s5.16-1.5 6.71-4a.63.63 0 0 0-.03-.05C15.16 7.5 12.6 6 10 6Zm0 1.75A2.25 2.25 0 1 1 10 12.25 2.25 2.25 0 0 1 10 7.75Z" />
                               </svg>
                             ) : (
-                              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                              <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
                                 <path d="M10 4c3.38 0 6.63 2 8.37 5.42a1.3 1.3 0 0 1 0 1.16C16.63 14 13.38 16 10 16c-1.72 0-3.42-.52-4.95-1.5l1.5-1.5c1.06.63 2.24.97 3.45.97 2.6 0 5.16-1.5 6.71-4a.63.63 0 0 0-.03-.05C15.16 7.5 12.6 6 10 6c-1.2 0-2.38.34-3.43.96L5.1 5.49A9.85 9.85 0 0 1 10 4Zm7.2 13.6a.75.75 0 0 1-1.06 0l-13-13a.75.75 0 1 1 1.06-1.06l13 13a.75.75 0 0 1 0 1.06ZM10 7.75c.7 0 1.33.32 1.75.83L8.58 11.75A2.25 2.25 0 0 1 10 7.75Z" />
                               </svg>
                             )}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              markVehicleAsSold(key);
-                              showSystemNotice(
-                                "success",
-                                "Unidad vendida",
-                                `${getPatent(item)} paso a historial y dejo de estar visible en inventario/catalogo.`,
-                              );
-                            }}
-                            className="ui-focus inline-flex h-7 w-7 items-center justify-center rounded border border-amber-300 bg-amber-50 text-amber-700 transition hover:bg-amber-100"
-                            aria-label={`Marcar vendida ${getPatent(item)}`}
-                            title="Marcar vendida"
+                          </AdminIconBtn>
+                          <AdminIconBtn
+                            label="Marcar vendida"
+                            tone="warn"
+                            onClick={() => markVehicleAsSold(key)}
                           >
-                            <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                            <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
                               <path fillRule="evenodd" d="M16.704 5.29a1 1 0 0 1 .006 1.414l-7.2 7.25a1 1 0 0 1-1.42.001l-3-3.015a1 1 0 1 1 1.418-1.41l2.29 2.3 6.49-6.534a1 1 0 0 1 1.416-.006Z" clipRule="evenodd" />
                             </svg>
-                          </button>
+                          </AdminIconBtn>
                         </div>
                       </article>
                     );
                   })}
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-300/40 pt-3">
-                  <p className="text-xs text-slate-600">
-                    Mostrando {paginatedEditorItems.length} de {filteredEditorItems.length}{" "}
-                    {editorGroupFilter === "home"
-                      ? "en stock del home"
-                      : editorGroupFilter === "unassigned"
-                        ? "sin asignar"
-                        : editorGroupFilter === "all"
-                          ? "del inventario maestro"
-                          : "en este grupo"}
-                    .
+                  <p className="text-[11px] tabular-nums text-slate-500">
+                    {paginatedEditorItems.length}/{filteredEditorItems.length}
+                    {editorPatentFilterActive ? " patentes" : ""}
                   </p>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
+                  <div className="flex items-center gap-1">
+                    <AdminIconBtn
+                      label="Pagina anterior"
                       onClick={() => setEditorPage((prev) => Math.max(1, prev - 1))}
                       disabled={currentEditorPage === 1}
-                      className="ui-focus rounded border border-slate-300 px-3 py-1 text-xs transition hover:bg-slate-50 disabled:opacity-50"
                     >
-                      Anterior
-                    </button>
-                    <span className="text-xs font-semibold text-slate-700">
-                      Pagina {currentEditorPage} / {totalEditorPages}
+                      <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                        <path fillRule="evenodd" d="M11.78 4.22a.75.75 0 0 1 0 1.06L8.06 9l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
+                      </svg>
+                    </AdminIconBtn>
+                    <span className="min-w-[3rem] text-center text-[11px] font-semibold tabular-nums text-slate-600">
+                      {currentEditorPage}/{totalEditorPages}
                     </span>
-                    <button
-                      type="button"
+                    <AdminIconBtn
+                      label="Pagina siguiente"
                       onClick={() => setEditorPage((prev) => Math.min(totalEditorPages, prev + 1))}
                       disabled={currentEditorPage >= totalEditorPages}
-                      className="ui-focus rounded border border-slate-300 px-3 py-1 text-xs transition hover:bg-slate-50 disabled:opacity-50"
                     >
-                      Siguiente
-                    </button>
+                      <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                        <path fillRule="evenodd" d="M8.22 4.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.94 11 8.22 7.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+                      </svg>
+                    </AdminIconBtn>
                   </div>
                 </div>
                   </>

@@ -1,5 +1,45 @@
 import type { CatalogItem } from "@/types/catalog";
 import type { EditorConfig } from "@/types/editor";
+import { normalizePatentToken } from "@/lib/patent-input";
+
+export function getPatentFromItem(item: CatalogItem): string {
+  const raw = item.raw as Record<string, unknown>;
+  const patent = [raw.patente, raw.PATENTE, raw.PPU, raw.stock_number].find(
+    (entry) => typeof entry === "string" && entry.trim().length > 0,
+  ) as string | undefined;
+  return patent?.trim() ?? "-";
+}
+
+export function buildItemsByKey(items: CatalogItem[]): Map<string, CatalogItem> {
+  const map = new Map<string, CatalogItem>();
+  for (const item of items) {
+    map.set(getVehicleKey(item), item);
+  }
+  return map;
+}
+
+export function resolveInventoryItemKey(
+  assignmentKey: string,
+  itemsByKey: Map<string, CatalogItem>,
+): string | null {
+  if (itemsByKey.has(assignmentKey)) return assignmentKey;
+  const normalized = normalizePatentToken(assignmentKey);
+  if (normalized && itemsByKey.has(normalized)) return normalized;
+  for (const [key, item] of itemsByKey) {
+    if (item.id === assignmentKey) return key;
+    const itemPatent = normalizePatentToken(getPatentFromItem(item));
+    if (itemPatent && itemPatent !== "-" && itemPatent === normalized) return key;
+  }
+  return null;
+}
+
+export function resolveInventoryItem(
+  assignmentKey: string,
+  itemsByKey: Map<string, CatalogItem>,
+): CatalogItem | undefined {
+  const key = resolveInventoryItemKey(assignmentKey, itemsByKey);
+  return key ? itemsByKey.get(key) : undefined;
+}
 
 export function getVehicleKey(item: CatalogItem): string {
   const raw = item.raw as Record<string, unknown>;
@@ -61,29 +101,49 @@ export function isVehicleInAssignmentList(ids: string[], vehicleKey: string): bo
   return ids.some((storedId) => assignmentKeysMatch(storedId, vehicleKey));
 }
 
+/** Igual que en el modal de alta: reconoce IDs antiguos, patentes e item.id. */
+export function isVehicleAssignedInSectionList(
+  sectionIds: string[],
+  vehicleKey: string,
+  itemsByKey?: Map<string, CatalogItem>,
+): boolean {
+  if (isVehicleInAssignmentList(sectionIds, vehicleKey)) return true;
+  if (!itemsByKey || itemsByKey.size === 0) return false;
+  const resolvedVehicleKey = resolveInventoryItemKey(vehicleKey, itemsByKey);
+  if (resolvedVehicleKey && isVehicleInAssignmentList(sectionIds, resolvedVehicleKey)) return true;
+  return sectionIds.some(
+    (assignedId) => resolveInventoryItemKey(assignedId, itemsByKey) === vehicleKey,
+  );
+}
+
 /** Un vehiculo asignado a alguna seccion o categoria gestionada del home. */
 export function isVehicleAssignedToHomeEditorChannels(
   config: EditorConfig,
   vehicleKey: string,
+  itemsByKey?: Map<string, CatalogItem>,
 ): boolean {
   for (const ids of Object.values(config.sectionVehicleIds)) {
-    if (isVehicleInAssignmentList(ids, vehicleKey)) return true;
+    if (isVehicleAssignedInSectionList(ids, vehicleKey, itemsByKey)) return true;
   }
   for (const category of config.managedCategories ?? []) {
-    if (isVehicleInAssignmentList(category.vehicleIds ?? [], vehicleKey)) return true;
+    if (isVehicleAssignedInSectionList(category.vehicleIds ?? [], vehicleKey, itemsByKey)) return true;
   }
   return false;
 }
 
-export function getHomeEditorChannelLabels(config: EditorConfig, vehicleKey: string): string[] {
+export function getHomeEditorChannelLabels(
+  config: EditorConfig,
+  vehicleKey: string,
+  itemsByKey?: Map<string, CatalogItem>,
+): string[] {
   const labels: string[] = [];
   for (const [sectionId, ids] of Object.entries(config.sectionVehicleIds)) {
-    if (isVehicleInAssignmentList(ids, vehicleKey)) {
+    if (isVehicleAssignedInSectionList(ids, vehicleKey, itemsByKey)) {
       labels.push(HOME_SECTION_LABELS[sectionId] ?? sectionId);
     }
   }
   for (const category of config.managedCategories ?? []) {
-    if (isVehicleInAssignmentList(category.vehicleIds ?? [], vehicleKey)) {
+    if (isVehicleAssignedInSectionList(category.vehicleIds ?? [], vehicleKey, itemsByKey)) {
       labels.push(category.name);
     }
   }
@@ -92,8 +152,9 @@ export function getHomeEditorChannelLabels(config: EditorConfig, vehicleKey: str
 
 /** Vehiculos visibles y asignados a alguna seccion del home (stock publicado). */
 export function getHomeEditorStockItems(items: CatalogItem[], config: EditorConfig): CatalogItem[] {
+  const itemsByKey = buildItemsByKey(items);
   return getVisibleCatalogItems(items, config).filter((item) =>
-    isVehicleAssignedToHomeEditorChannels(config, getVehicleKey(item)),
+    isVehicleAssignedToHomeEditorChannels(config, getVehicleKey(item), itemsByKey),
   );
 }
 

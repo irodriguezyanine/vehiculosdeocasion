@@ -44,8 +44,11 @@ import {
 import { COMMERCIAL_EMAIL } from "@/lib/site-content";
 import {
   getHomeEditorChannelLabels,
+  isVehicleAssignedInSectionList,
   isVehicleAssignedToHomeEditorChannels,
   isVehicleInAssignmentList,
+  resolveInventoryItem,
+  resolveInventoryItemKey,
 } from "@/lib/catalog-visibility";
 import {
   applyAutoredLookupToDraft,
@@ -551,39 +554,6 @@ function fuzzyMatches(source: string, query: string): boolean {
         isSubsequenceMatch(sourceToken, token),
     ),
   );
-}
-
-function resolveInventoryItemKey(
-  assignmentKey: string,
-  itemsByKey: Map<string, CatalogItem>,
-): string | null {
-  if (itemsByKey.has(assignmentKey)) return assignmentKey;
-  const normalized = normalizePatentToken(assignmentKey);
-  if (normalized && itemsByKey.has(normalized)) return normalized;
-  for (const [key, item] of itemsByKey) {
-    if (item.id === assignmentKey) return key;
-    if (normalizePatentToken(getPatent(item)) === normalized && normalized) return key;
-  }
-  return null;
-}
-
-function resolveInventoryItem(
-  assignmentKey: string,
-  itemsByKey: Map<string, CatalogItem>,
-): CatalogItem | undefined {
-  const key = resolveInventoryItemKey(assignmentKey, itemsByKey);
-  return key ? itemsByKey.get(key) : undefined;
-}
-
-function isVehicleAssignedToSection(
-  sectionIds: string[],
-  vehicleKey: string,
-  itemsByKey: Map<string, CatalogItem>,
-): boolean {
-  if (isVehicleInAssignmentList(sectionIds, vehicleKey)) return true;
-  const resolved = resolveInventoryItemKey(vehicleKey, itemsByKey);
-  if (resolved && isVehicleInAssignmentList(sectionIds, resolved)) return true;
-  return sectionIds.some((assignedId) => resolveInventoryItemKey(assignedId, itemsByKey) === vehicleKey);
 }
 
 function normalizeLookupKey(value: string): string {
@@ -4134,15 +4104,15 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     () =>
       activeInventoryItems.filter((item) => {
         const key = getVehicleKey(item);
-        return !mergedHiddenVehicleIds.has(key) && isVehicleAssignedToHomeEditorChannels(config, key);
+        return !mergedHiddenVehicleIds.has(key) && isVehicleAssignedToHomeEditorChannels(config, key, itemsByKey);
       }),
-    [activeInventoryItems, mergedHiddenVehicleIds, config],
+    [activeInventoryItems, mergedHiddenVehicleIds, config, itemsByKey],
   );
 
   const unassignedVisibleItems = useMemo(
     () =>
       visibleItems.filter(
-        (item) => !isVehicleAssignedToHomeEditorChannels(config, getVehicleKey(item)),
+        (item) => !isVehicleAssignedToHomeEditorChannels(config, getVehicleKey(item), itemsByKey),
       ),
     [visibleItems, config],
   );
@@ -5893,7 +5863,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
               const key = getVehicleKey(item);
               return (
                 !mergedHiddenVehicleIds.has(key) &&
-                isVehicleAssignedToHomeEditorChannels(config, key)
+                isVehicleAssignedToHomeEditorChannels(config, key, itemsByKey)
               );
             })
           : editorGroupFilter === "unassigned"
@@ -5901,7 +5871,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                 const key = getVehicleKey(item);
                 return (
                   !mergedHiddenVehicleIds.has(key) &&
-                  !isVehicleAssignedToHomeEditorChannels(config, key)
+                  !isVehicleAssignedToHomeEditorChannels(config, key, itemsByKey)
                 );
               })
             : editorGroupFilter === "proximos-remates"
@@ -5925,7 +5895,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                 EditorGroupFilter,
                 "all" | "home" | "unassigned" | `managed:${string}`
               >;
-              return isVehicleAssignedToSection(
+              return isVehicleAssignedInSectionList(
                 config.sectionVehicleIds[sectionGroup] ?? [],
                 getVehicleKey(item),
                 itemsByKey,
@@ -6682,7 +6652,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     } else {
       const sectionId = batchAssignTarget.sectionId;
       const alreadyAssigned = canonicalKeys.filter((vehicleKey) =>
-        isVehicleAssignedToSection(
+        isVehicleAssignedInSectionList(
           config.sectionVehicleIds[sectionId] ?? [],
           vehicleKey,
           itemsByKey,
@@ -6693,19 +6663,34 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       );
 
       if (newlyAdded.length === 0) {
-        const hiddenButAssigned = alreadyAssigned.filter((vehicleKey) =>
-          mergedHiddenVehicleIds.has(vehicleKey),
-        );
-        if (hiddenButAssigned.length > 0) {
+        if (alreadyAssigned.length > 0) {
+          const hiddenButAssigned = alreadyAssigned.filter((vehicleKey) =>
+            mergedHiddenVehicleIds.has(vehicleKey),
+          );
           setConfig((prev) => {
             const nextHidden = new Set(prev.hiddenVehicleIds);
-            for (const vehicleKey of hiddenButAssigned) nextHidden.delete(vehicleKey);
-            return { ...prev, hiddenVehicleIds: Array.from(nextHidden) };
+            for (const vehicleKey of alreadyAssigned) nextHidden.delete(vehicleKey);
+            const current = new Set(
+              (prev.sectionVehicleIds[sectionId] ?? [])
+                .map((id) => resolveInventoryItemKey(id, itemsByKey) ?? id)
+                .filter(Boolean),
+            );
+            for (const vehicleKey of alreadyAssigned) current.add(vehicleKey);
+            return {
+              ...prev,
+              hiddenVehicleIds: Array.from(nextHidden),
+              sectionVehicleIds: {
+                ...prev.sectionVehicleIds,
+                [sectionId]: Array.from(current),
+              },
+            };
           });
           showSystemNotice(
             "success",
-            "Unidades visibles de nuevo",
-            `${hiddenButAssigned.length} vehiculo(s) ya estaban en ${batchAssignTargetLabel} pero ocultos del home. Ahora vuelven a mostrarse.`,
+            "Unidades confirmadas",
+            hiddenButAssigned.length > 0
+              ? `${alreadyAssigned.length} vehiculo(s) ya estaban en ${batchAssignTargetLabel}. Se normalizo la asignacion y ${hiddenButAssigned.length} quedo visible en el home.`
+              : `${alreadyAssigned.length} vehiculo(s) ya estaban en ${batchAssignTargetLabel}. Se normalizo la asignacion para que aparezcan en el listado.`,
           );
           closeBatchAssignModal();
           return;
@@ -6714,9 +6699,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
         showSystemNotice(
           "info",
           "Sin cambios",
-          alreadyAssigned.length > 0
-            ? `Las ${alreadyAssigned.length} unidad(es) seleccionada(s) ya estaban en ${batchAssignTargetLabel}. Si no las ves en el listado, revisa filtros: "Solo ocultas" o "Inventario completo".`
-            : "No se pudo agregar ninguna unidad seleccionada.",
+          "No se pudo agregar ninguna unidad seleccionada.",
         );
         return;
       }
@@ -8580,15 +8563,10 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       </SiteHeader>
 
       {showAdminEditor ? (
-        <section className="relative z-10 mx-auto mt-6 max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="section-shell glass-soft space-y-4">
+        <section className="admin-editor-shell relative z-10 mx-auto mt-6 max-w-7xl space-y-4 overflow-visible px-4 pb-8 sm:px-6 lg:px-8">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-lg font-semibold text-slate-900">Modo editor administrador</h3>
-                <p className="text-xs text-slate-500">
-                  Gestiona el stock publicado en vehiculosdeocasion.cl (scope {SITE_EDITOR_SCOPE}). Ocultar o
-                  marcar vendido aqui no modifica TasacionesVedisa ni Catalogo Vedisa.
-                </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {shouldShowSaveIndicator ? (
@@ -8703,22 +8681,8 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                       ? ` · Otras ventas ${homeStockStats.bySection.managed}`
                       : ""}
                   </p>
-                  <p className="mt-1 text-slate-600">
-                    Inventario maestro: {homeStockStats.feedTotal} unidades
-                    {" · "}
-                    Sin asignar al home: {homeStockStats.unassignedVisible}
-                    {" · "}
-                    Ocultas: {homeStockStats.hiddenCount}
-                    {homeStockStats.sectionSlotTotal !== homeStockStats.uniqueOnHome ? (
-                      <>
-                        {" · "}
-                        Aviso: una unidad puede aparecer en mas de una seccion (
-                        {homeStockStats.sectionSlotTotal} publicaciones en total).
-                      </>
-                    ) : null}
-                  </p>
                 </div>
-                <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+                <div className="grid gap-2 overflow-visible sm:grid-cols-[1fr_auto_auto]">
                   <input
                     value={searchTerm}
                     onChange={(event) => {
@@ -8728,12 +8692,17 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                     placeholder="Buscar vehiculo para editar..."
                     className="ui-focus w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
                   />
-                  <div className="relative">
+                  <div className="relative z-30 overflow-visible">
                     <button
                       type="button"
                       onClick={() => setShowEditorFiltersMenu((prev) => !prev)}
-                      className="ui-focus inline-flex h-full min-h-10 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-slate-700 transition hover:bg-slate-50"
+                      className={`ui-focus inline-flex h-full min-h-10 items-center justify-center rounded-md border px-3 transition ${
+                        showEditorFiltersMenu
+                          ? "border-amber-400 bg-amber-50 text-amber-900"
+                          : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
                       aria-label="Abrir filtros del inventario"
+                      aria-expanded={showEditorFiltersMenu}
                       title="Filtros"
                     >
                       <svg
@@ -8748,11 +8717,12 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                       </svg>
                     </button>
                     {showEditorFiltersMenu ? (
-                      <div className="absolute right-0 z-20 mt-2 w-72 rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
+                      <div className="absolute right-0 z-[120] mt-2 w-[min(20rem,calc(100vw-2rem))] max-h-[min(70vh,28rem)] overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 shadow-2xl ring-1 ring-black/5">
                         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          Filtros
+                          Filtros del inventario
                         </p>
                         <div className="space-y-2">
+                          <label className="block text-[11px] font-semibold text-slate-600">Visibilidad</label>
                           <select
                             value={editorVisibilityFilter}
                             onChange={(event) => {
@@ -8767,6 +8737,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                             <option value="hidden">Solo ocultas</option>
                             <option value="all">Visibles y ocultas</option>
                           </select>
+                          <label className="block text-[11px] font-semibold text-slate-600">Tipo de vehiculo</label>
                           <select
                             value={editorVehicleCategoryFilter}
                             onChange={(event) => {
@@ -8784,6 +8755,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                             <option value="chatarra">Chatarra</option>
                             <option value="otros">Otros</option>
                           </select>
+                          <label className="block text-[11px] font-semibold text-slate-600">Remate</label>
                           <select
                             value={auctionFilterId}
                             onChange={(event) => {
@@ -8800,6 +8772,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                               </option>
                             ))}
                           </select>
+                          <label className="block text-[11px] font-semibold text-slate-600">Grupo / seccion</label>
                           <select
                             value={editorGroupFilter}
                             onChange={(event) => {
@@ -8874,7 +8847,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                   {paginatedEditorItems.map((item) => {
                     const key = getVehicleKey(item);
                     const hidden = mergedHiddenVehicleIds.has(key);
-                    const channelLabels = getHomeEditorChannelLabels(config, key);
+                    const channelLabels = getHomeEditorChannelLabels(config, key, itemsByKey);
                     const auctionLabel = upcomingAuctionByVehicleKey[key] ?? "Sin remate asignado";
                     return (
                       <article
@@ -10701,7 +10674,6 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                 </div>
               </div>
             ) : null}
-          </div>
         </section>
       ) : null}
 
@@ -12570,7 +12542,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                 const alreadyInTarget =
                   batchAssignTarget.type === "auction"
                     ? (config.vehicleUpcomingAuctionIds[key] ?? "") === batchAssignTarget.auctionId
-                    : isVehicleAssignedToSection(
+                    : isVehicleAssignedInSectionList(
                         config.sectionVehicleIds[batchAssignTarget.sectionId] ?? [],
                         key,
                         itemsByKey,

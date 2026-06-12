@@ -591,6 +591,10 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
   box-shadow: 0 14px 28px rgba(81, 52, 34, 0.12);
 }
 
+.admin-editor-shell {
+  overflow: visible;
+}
+
 .info-tile {
   border-radius: 0.85rem;
   border: 1px solid rgba(187, 152, 120, 0.58);

@@ -3583,18 +3583,6 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   }, [initialConfig, verifyServerPersistence]);
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      setHeroVisible(false);
-      if (typeof window !== "undefined" && window.location.hash === "#catalogo") {
-        window.requestAnimationFrame(() => {
-          document.getElementById("catalogo")?.scrollIntoView({ block: "start" });
-        });
-      }
-    }, 20_000);
-    return () => window.clearTimeout(timeout);
-  }, []);
-
-  useEffect(() => {
     if (typeof document === "undefined") return;
 
     const closeOpenMenus = (target: EventTarget | null) => {

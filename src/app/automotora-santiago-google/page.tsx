@@ -42,7 +42,7 @@ export default function AutomotoraGooglePage() {
       />
       <main className="mx-auto min-h-screen max-w-3xl px-4 py-8">
         <nav className="mb-6 text-sm text-neutral-500">
-          <Link href="/" className="hover:text-[#8a542f]">
+          <Link href="/" className="hover:text-[#33c7e3]">
             Inicio
           </Link>
           <span aria-hidden="true"> / </span>

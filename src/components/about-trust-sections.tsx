@@ -31,9 +31,9 @@ export function AboutTrustSections() {
           ))}
         </div>
         <div className="mt-4 rounded-lg border border-stone-300 bg-stone-100/70 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-900">Contacto comercial</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-cyan-900">Contacto comercial</p>
           <p className="mt-1 text-sm text-slate-700">
-            <a href={`mailto:${CONTACT_CHANNELS.email}`} className="ui-focus text-amber-800 underline">
+            <a href={`mailto:${CONTACT_CHANNELS.email}`} className="ui-focus text-cyan-800 underline">
               {CONTACT_CHANNELS.email}
             </a>
           </p>
@@ -44,7 +44,7 @@ export function AboutTrustSections() {
               href={CONTACT_CHANNELS.whatsappUrl}
               target="_blank"
               rel="noreferrer"
-              className="ui-focus text-amber-800 underline"
+              className="ui-focus text-cyan-800 underline"
             >
               {CONTACT_CHANNELS.phone}
             </a>
@@ -55,7 +55,7 @@ export function AboutTrustSections() {
               href={CONTACT_CHANNELS.instagramUrl}
               target="_blank"
               rel="noreferrer"
-              className="ui-focus text-amber-800 underline"
+              className="ui-focus text-cyan-800 underline"
             >
               {CONTACT_CHANNELS.instagramHandle}
             </a>

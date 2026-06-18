@@ -74,7 +74,7 @@ export function SeoHomeExtras() {
         </p>
         <p>
           Ubicación: {BUSINESS.address.street}, {BUSINESS.address.locality}. Teléfono/WhatsApp:{" "}
-          <a href={`tel:${BUSINESS.whatsapp}`} className="text-[#8a542f] underline-offset-2 hover:underline">
+          <a href={`tel:${BUSINESS.whatsapp}`} className="text-[#33c7e3] underline-offset-2 hover:underline">
             {BUSINESS.phone}
           </a>
           .
@@ -92,7 +92,7 @@ export function SeoHomeExtras() {
               <ul className="space-y-2">
                 {landingsBySlugs(group.slugs).map((page) => (
                   <li key={page.slug}>
-                    <Link href={`/${page.slug}`} className="text-[#8a542f] hover:underline">
+                    <Link href={`/${page.slug}`} className="text-[#33c7e3] hover:underline">
                       {page.h1}
                     </Link>
                   </li>
@@ -112,7 +112,7 @@ export function SeoHomeExtras() {
         <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {CHILE_CITY_SEO_TARGETS.map((city) => (
             <li key={city.slug}>
-              <Link href={`/${city.slug}`} className="text-[#8a542f] hover:underline">
+              <Link href={`/${city.slug}`} className="text-[#33c7e3] hover:underline">
                 Autos usados {city.city}
               </Link>
             </li>
@@ -149,7 +149,7 @@ export function SeoHomeExtras() {
               <li key={page.slug}>
                 <Link
                   href={`/${page.slug}`}
-                  className="block rounded-lg border border-neutral-200 bg-white/70 px-3 py-2 text-[#8a542f] transition hover:border-[#8a542f]/40 hover:bg-white"
+                  className="block rounded-lg border border-neutral-200 bg-white/70 px-3 py-2 text-[#33c7e3] transition hover:border-[#33c7e3]/40 hover:bg-white"
                 >
                   {page.h1}
                 </Link>

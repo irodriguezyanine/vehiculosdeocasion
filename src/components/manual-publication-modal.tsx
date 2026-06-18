@@ -121,16 +121,16 @@ export function ManualPublicationModal({
         role="dialog"
         aria-modal="true"
         aria-label={isEditMode ? "Editar publicacion" : "Crear nueva publicacion"}
-        className="manual-publication-modal flex max-h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-amber-200/50 bg-[#fffaf5] shadow-2xl"
+        className="manual-publication-modal flex max-h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-cyan-200/50 bg-[#fffaf5] shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
-        <header className="border-b border-amber-200/60 bg-gradient-to-r from-[#f8efe4] to-[#fff8f1] px-5 py-4">
+        <header className="border-b border-cyan-200/60 bg-gradient-to-r from-[#f8efe4] to-[#f0f9ff] px-5 py-4">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-900">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-900">
                 {isEditMode ? "Editar unidad" : "Nueva publicacion manual"}
               </p>
-              <h3 className="mt-1 text-xl font-bold text-[#2f1d12]">
+              <h3 className="mt-1 text-xl font-bold text-[#0f172a]">
                 {isEditMode ? "Gestionar ficha completa" : "Crear unidad sin GLO3D"}
               </h3>
               <p className="mt-1 max-w-2xl text-sm text-slate-600">
@@ -153,7 +153,7 @@ export function ManualPublicationModal({
             <button
               type="button"
               onClick={onClose}
-              className="ui-focus inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-amber-300/70 bg-white text-lg text-slate-600 transition hover:bg-amber-50"
+              className="ui-focus inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-cyan-200/70 bg-white text-lg text-slate-600 transition hover:bg-cyan-50"
               aria-label="Cerrar"
             >
               ×
@@ -167,8 +167,8 @@ export function ManualPublicationModal({
                 onClick={() => setTab(entry.id)}
                 className={`ui-focus rounded-full px-3 py-1.5 text-xs font-semibold transition ${
                   tab === entry.id
-                    ? "bg-amber-700 text-white shadow-sm"
-                    : "border border-amber-200 bg-white text-amber-900 hover:bg-amber-50"
+                    ? "bg-cyan-600 text-white shadow-sm"
+                    : "border border-cyan-200 bg-white text-cyan-900 hover:bg-cyan-50"
                 }`}
               >
                 {entry.label}
@@ -181,7 +181,7 @@ export function ManualPublicationModal({
           {tab === "general" ? (
             <div className="grid gap-4 lg:grid-cols-2">
               <section className="rounded-xl border border-slate-200 bg-white p-4">
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-amber-900">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-cyan-900">
                   Identificacion
                 </p>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -195,7 +195,7 @@ export function ManualPublicationModal({
                         placeholder="ABCD12"
                       />
                       {autoredLookupLoading ? (
-                        <span className="inline-flex items-center rounded-md border border-amber-200 bg-amber-50 px-2 text-xs font-medium text-amber-800">
+                        <span className="inline-flex items-center rounded-md border border-cyan-200 bg-cyan-50 px-2 text-xs font-medium text-cyan-800">
                           Autored...
                         </span>
                       ) : null}
@@ -242,7 +242,7 @@ export function ManualPublicationModal({
               </section>
 
               <section className="rounded-xl border border-slate-200 bg-white p-4">
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-amber-900">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-cyan-900">
                   Clasificacion comercial
                 </p>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -298,7 +298,7 @@ export function ManualPublicationModal({
               </section>
 
               <section className="rounded-xl border border-slate-200 bg-white p-4 lg:col-span-2">
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-amber-900">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-cyan-900">
                   Descripcion comercial
                 </p>
                 <div className="grid gap-3">
@@ -325,11 +325,11 @@ export function ManualPublicationModal({
             <div className="grid gap-4 lg:grid-cols-2">
               <section className="rounded-xl border border-slate-200 bg-white p-4">
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-900">Mecanica</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-cyan-900">Mecanica</p>
                   {onPatenteLookup ? (
                     <button
                       type="button"
-                      className="rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="rounded-md border border-cyan-200 bg-cyan-50 px-2.5 py-1 text-xs font-medium text-cyan-900 hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-60"
                       disabled={autoredLookupLoading || !(draft.patente ?? "").trim()}
                       onClick={() => onPatenteLookup(draft.patente ?? "")}
                     >
@@ -365,7 +365,7 @@ export function ManualPublicationModal({
               </section>
 
               <section className="rounded-xl border border-slate-200 bg-white p-4">
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-amber-900">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-cyan-900">
                   Operacion y documentacion
                 </p>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -416,7 +416,7 @@ export function ManualPublicationModal({
                   void onUploadFiles(Array.from(event.dataTransfer.files ?? []));
                 }}
                 className={`rounded-xl border-2 border-dashed p-5 text-center transition ${
-                  dropActive ? "border-amber-600 bg-amber-50" : "border-stone-300 bg-white"
+                  dropActive ? "border-amber-600 bg-cyan-50" : "border-stone-300 bg-white"
                 }`}
               >
                 <p className="text-sm font-semibold text-slate-800">Sube fotos desde tu equipo</p>
@@ -427,7 +427,7 @@ export function ManualPublicationModal({
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
-                  className="ui-focus mt-3 rounded-md bg-amber-700 px-4 py-2 text-xs font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60"
+                  className="ui-focus mt-3 rounded-md bg-cyan-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-cyan-500 disabled:opacity-60"
                 >
                   {uploading ? "Subiendo..." : "Seleccionar fotos"}
                 </button>
@@ -511,7 +511,7 @@ export function ManualPublicationModal({
           {tab === "publicacion" ? (
             <div className="grid gap-4 lg:grid-cols-2">
               <section className="rounded-xl border border-slate-200 bg-white p-4">
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-amber-900">Precios</p>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-cyan-900">Precios</p>
                 <div className="space-y-3">
                   <Field label="Precio normal (CLP)">
                     <input
@@ -520,7 +520,7 @@ export function ManualPublicationModal({
                       onChange={(event) => patch({ normalPrice: event.target.value })}
                     />
                   </Field>
-                  <label className="inline-flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
+                  <label className="inline-flex items-center gap-2 rounded-md border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs font-semibold text-cyan-900">
                     <input
                       type="checkbox"
                       checked={draft.promoEnabled}
@@ -531,7 +531,7 @@ export function ManualPublicationModal({
                   {draft.promoEnabled ? (
                     <Field label="Precio promocional (CLP)">
                       <input
-                        className={`${inputClass} font-semibold text-amber-900`}
+                        className={`${inputClass} font-semibold text-cyan-900`}
                         value={draft.promoPrice}
                         onChange={(event) => patch({ promoPrice: event.target.value })}
                       />
@@ -549,7 +549,7 @@ export function ManualPublicationModal({
               </section>
 
               <section className="rounded-xl border border-slate-200 bg-white p-4">
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-amber-900">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-cyan-900">
                   Canales y visibilidad
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -559,7 +559,7 @@ export function ManualPublicationModal({
                         key={`manual-section-${sectionId}`}
                         className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${
                           draft.sectionIds.includes(sectionId)
-                            ? "border-amber-400 bg-amber-100 text-amber-900"
+                            ? "border-cyan-300 bg-cyan-100 text-cyan-900"
                             : "border-stone-300 bg-white text-slate-700"
                         }`}
                       >
@@ -614,7 +614,7 @@ export function ManualPublicationModal({
           ) : null}
         </div>
 
-        <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-amber-200/60 bg-[#f8efe4] px-5 py-4">
+        <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-cyan-200/60 bg-[#f8efe4] px-5 py-4">
           <p className="text-xs text-slate-600">
             {isEditMode
               ? "Los cambios se guardan en la configuracion global del inventario."
@@ -625,7 +625,7 @@ export function ManualPublicationModal({
               <button
                 type="button"
                 onClick={onMarkSold}
-                className="ui-focus rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700 transition hover:bg-amber-100"
+                className="ui-focus rounded-md border border-cyan-200 bg-cyan-50 px-3 py-2 text-sm font-semibold text-cyan-700 transition hover:bg-cyan-100"
               >
                 Marcar como vendida
               </button>
@@ -649,7 +649,7 @@ export function ManualPublicationModal({
             <button
               type="button"
               onClick={onSubmit}
-              className="ui-focus rounded-md bg-amber-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-600"
+              className="ui-focus rounded-md bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500"
             >
               {isEditMode ? "Guardar cambios" : "Crear publicacion"}
             </button>

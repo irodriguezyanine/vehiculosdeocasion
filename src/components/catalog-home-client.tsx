@@ -15,6 +15,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CatalogCard } from "@/components/catalog-card";
+import { CatalogHeroBackgroundVideo } from "@/components/catalog-hero-background-video";
 import { InstagramSection } from "@/components/instagram-section";
 import { BulkManualPublicationsModal } from "@/components/bulk-manual-publications-modal";
 import { ManualPublicationModal } from "@/components/manual-publication-modal";
@@ -134,7 +135,7 @@ function AdminIconBtn({
     tone === "success"
       ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
       : tone === "warn"
-        ? "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
+        ? "border-cyan-200 bg-cyan-50 text-cyan-700 hover:bg-cyan-100"
         : tone === "danger"
           ? "border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100"
           : tone === "active"
@@ -290,7 +291,7 @@ function EditorAddVehicleMenu({
         className={
           compact
             ? "ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-emerald-300 bg-emerald-50 text-lg font-bold leading-none text-emerald-700 transition hover:bg-emerald-100"
-            : "ui-focus inline-flex h-full min-h-10 items-center justify-center rounded-md border border-amber-300 bg-amber-700 px-3 text-white transition hover:bg-amber-600"
+            : "ui-focus inline-flex h-full min-h-10 items-center justify-center rounded-md border border-cyan-200 bg-cyan-600 px-3 text-white transition hover:bg-cyan-500"
         }
         aria-label={menuLabel}
         aria-expanded={open}
@@ -305,10 +306,10 @@ function EditorAddVehicleMenu({
         )}
       </button>
       {open ? (
-        <div className="absolute right-0 top-[calc(100%+0.35rem)] z-[80] min-w-[15rem] overflow-hidden rounded-lg border border-amber-200 bg-white py-1 shadow-xl">
+        <div className="absolute right-0 top-[calc(100%+0.35rem)] z-[80] min-w-[15rem] overflow-hidden rounded-lg border border-cyan-200 bg-white py-1 shadow-xl">
           <button
             type="button"
-            className="ui-focus block w-full px-3 py-2 text-left text-sm text-slate-800 transition hover:bg-amber-50"
+            className="ui-focus block w-full px-3 py-2 text-left text-sm text-slate-800 transition hover:bg-cyan-50"
             onClick={() => {
               setOpen(false);
               onAddNew();
@@ -318,7 +319,7 @@ function EditorAddVehicleMenu({
           </button>
           <button
             type="button"
-            className="ui-focus block w-full px-3 py-2 text-left text-sm text-slate-800 transition hover:bg-amber-50"
+            className="ui-focus block w-full px-3 py-2 text-left text-sm text-slate-800 transition hover:bg-cyan-50"
             onClick={() => {
               setOpen(false);
               onAddFromStock();
@@ -329,7 +330,7 @@ function EditorAddVehicleMenu({
           {onAddBulk ? (
             <button
               type="button"
-              className="ui-focus block w-full px-3 py-2 text-left text-sm text-slate-800 transition hover:bg-amber-50"
+              className="ui-focus block w-full px-3 py-2 text-left text-sm text-slate-800 transition hover:bg-cyan-50"
               onClick={() => {
                 setOpen(false);
                 onAddBulk();
@@ -408,7 +409,7 @@ const OBSERVATIONS_TEMPLATE_STORAGE_KEY = "vehiculosdeocasion_observations_templ
 const DEFAULT_OBSERVATIONS_TEMPLATE_HTML = `<h3><strong>¿Te interesa esta unidad?</strong></h3>
 <p>En Vehiculos de Ocasion te acompanamos durante todo el proceso de compra.</p>
 <ul>
-  <li>Solicita detalles y apoyo comercial por WhatsApp al <a href="${WHATSAPP_WA_ME_BASE}" target="_blank" rel="noreferrer" style="color:#7c4a25"><strong>${CONTACT_PHONE}</strong></a>.</li>
+  <li>Solicita detalles y apoyo comercial por WhatsApp al <a href="${WHATSAPP_WA_ME_BASE}" target="_blank" rel="noreferrer" style="color:#0891b2"><strong>${CONTACT_PHONE}</strong></a>.</li>
   <li>Revisa fotos, ficha tecnica y visor 3D cuando este disponible.</li>
   <li>Coordinamos reserva, documentacion y cierre comercial de forma simple y segura.</li>
 </ul>`;
@@ -701,7 +702,7 @@ function fitDimensionsByAspect(
 }
 
 async function loadLogoForPdfAsDataUrl(): Promise<string | null> {
-  const candidates = ["/vehiculos-ocasion-logo.png", "https://vehiculosdeocasion.vercel.app/vehiculos-ocasion-logo.png"];
+  const candidates = ["/vehiculos-de-ocasion-logo.png", "https://vehiculosdeocasion.vercel.app/vehiculos-de-ocasion-logo.png"];
   for (const url of candidates) {
     try {
       const response = await fetch(url, { cache: "no-store" });
@@ -1164,7 +1165,7 @@ function getRawExpenseMeta(raw: Record<string, unknown>): {
 
 function getConditionBadgeClasses(condition?: string | null): string {
   const sample = normalizeText(condition ?? "");
-  if (!sample) return "border-amber-200 bg-[#f6ebe1] text-[#6f4a2e]";
+  if (!sample) return "border-cyan-200 bg-[#ecfeff] text-[#155e75]";
   if (/100% operativo|operativo/.test(sample)) {
     return "border-emerald-200 bg-emerald-50 text-emerald-800";
   }
@@ -1172,9 +1173,9 @@ function getConditionBadgeClasses(condition?: string | null): string {
     return "border-rose-200 bg-rose-50 text-rose-800";
   }
   if (/problema|recuperado|robo/.test(sample)) {
-    return "border-amber-200 bg-amber-50 text-amber-800";
+    return "border-cyan-200 bg-cyan-50 text-cyan-800";
   }
-  return "border-amber-300 bg-[#f4e2d2] text-[#6d3f1f]";
+  return "border-cyan-200 bg-[#e0f2fe] text-[#155e75]";
 }
 
 function normalizeVehicleCategoryValue(value?: string): string {
@@ -2303,7 +2304,7 @@ function FeaturedStrip({ items, onOpenVehicle }: FeaturedStripProps) {
         <button
           type="button"
           onClick={() => scrollByAmount("left")}
-          className={`ui-focus absolute left-2 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-amber-200/50 bg-[#4d301d]/70 text-amber-50 backdrop-blur-sm transition hover:bg-[#4d301d] md:inline-flex ${
+          className={`ui-focus absolute left-2 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-cyan-200/50 bg-[#164e63]/70 text-cyan-50 backdrop-blur-sm transition hover:bg-[#164e63] md:inline-flex ${
             canScrollLeft ? "opacity-100" : "pointer-events-none opacity-0"
           }`}
           aria-label="Desplazar vitrina hacia la izquierda"
@@ -2316,7 +2317,7 @@ function FeaturedStrip({ items, onOpenVehicle }: FeaturedStripProps) {
         <button
           type="button"
           onClick={() => scrollByAmount("right")}
-          className={`ui-focus absolute right-2 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-amber-200/50 bg-[#4d301d]/70 text-amber-50 backdrop-blur-sm transition hover:bg-[#4d301d] md:inline-flex ${
+          className={`ui-focus absolute right-2 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-cyan-200/50 bg-[#164e63]/70 text-cyan-50 backdrop-blur-sm transition hover:bg-[#164e63] md:inline-flex ${
             canScrollRight ? "opacity-100" : "pointer-events-none opacity-0"
           }`}
           aria-label="Desplazar vitrina hacia la derecha"
@@ -2365,7 +2366,7 @@ function FeaturedStrip({ items, onOpenVehicle }: FeaturedStripProps) {
                   {item.status ?? "Unidad disponible"}
                 </p>
                 <h3 className="line-clamp-2 text-xl font-bold text-white">{item.title}</h3>
-                <div className="mt-2 flex flex-wrap gap-2 text-xs text-amber-100">
+                <div className="mt-2 flex flex-wrap gap-2 text-xs text-cyan-100">
                   {item.subtitle ? <span className="featured-chip">{item.subtitle}</span> : null}
                 </div>
               </div>
@@ -2420,13 +2421,13 @@ function MinimizableSectionHeader({
         )}
       </div>
       <div className="flex shrink-0 flex-wrap items-center gap-2">
-        <span className="inline-flex w-fit rounded-full border border-amber-300/70 bg-[#f3e3d4] px-3 py-1 text-xs font-semibold text-[#6b3d1e]">
+        <span className="inline-flex w-fit rounded-full border border-cyan-200/70 bg-[#e0f2fe] px-3 py-1 text-xs font-semibold text-[#155e75]">
           {count} {countLabel}
         </span>
         <button
           type="button"
           onClick={onToggleMinimize}
-          className="ui-focus inline-flex rounded-full border border-amber-300/70 bg-white px-3 py-1 text-xs font-semibold text-[#6b3d1e] transition hover:bg-[#fff6ec]"
+          className="ui-focus inline-flex rounded-full border border-cyan-200/70 bg-white px-3 py-1 text-xs font-semibold text-[#155e75] transition hover:bg-[#f0f9ff]"
           aria-expanded={!isMinimized}
           aria-label={`${isMinimized ? "Expandir" : "Minimizar"} seccion ${title}`}
         >
@@ -2726,7 +2727,7 @@ function Section({
       />
 
       {isMinimized ? null : items.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-amber-300/70 bg-[#f9efe5] p-6 text-sm text-[#7a614d]">
+        <div className="rounded-2xl border border-dashed border-cyan-200/70 bg-[#f0f9ff] p-6 text-sm text-[#7a614d]">
           No encontramos unidades en esta seccion. Prueba limpiar filtros o cambiar el tipo de vehiculo.
         </div>
       ) : (
@@ -2821,9 +2822,9 @@ function UpcomingAuctionsSection({
       <div className="space-y-8">
         {visibleGroups.map(({ auction, items }) => (
           <div key={auction.id}>
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300/70 bg-[#f4e7da] px-3 py-2">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-cyan-200/70 bg-[#e0f2fe] px-3 py-2">
               <h3 className="text-base font-semibold text-[#62391f]">{auction.name}</h3>
-              <span className="rounded-full border border-amber-300/70 bg-[#fff8f1] px-3 py-1 text-xs font-semibold text-[#744322]">
+              <span className="rounded-full border border-cyan-200/70 bg-[#f0f9ff] px-3 py-1 text-xs font-semibold text-[#0e7490]">
                 {formatAuctionDateLabel(auction.date)}  ·  {items.length} vehiculos
               </span>
             </div>
@@ -3399,7 +3400,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   const heroToolbarIconButtonClass = useCallback((isActive: boolean) => (
     `ui-focus inline-flex h-8 w-8 items-center justify-center rounded border transition ${
       isActive
-        ? "border-amber-400 bg-stone-200 text-amber-900"
+        ? "border-cyan-300 bg-stone-200 text-cyan-900"
         : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
     }`
   ), []);
@@ -4398,15 +4399,15 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       });
       const totalRows = calendarPdfSections.reduce((acc, section) => acc + section.rows.length, 0);
       const BRAND = {
-        espresso: [44, 28, 19] as const,
-        cacao: [78, 49, 30] as const,
-        copper: [157, 98, 53] as const,
-        cream: [252, 247, 241] as const,
-        sand: [245, 236, 226] as const,
-        text: [61, 43, 30] as const,
-        muted: [115, 90, 71] as const,
-        border: [214, 191, 169] as const,
-        borderSoft: [233, 218, 201] as const,
+        espresso: [15, 23, 42] as const,
+        cacao: [8, 20, 32] as const,
+        copper: [51, 199, 227] as const,
+        cream: [248, 250, 252] as const,
+        sand: [225, 239, 248] as const,
+        text: [24, 36, 48] as const,
+        muted: [71, 122, 148] as const,
+        border: [186, 214, 229] as const,
+        borderSoft: [203, 226, 237] as const,
         white: [255, 255, 255] as const,
       };
       // Portada minimalista comercial
@@ -8909,10 +8910,10 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
         onLogout={logout}
       >
         {feed.warning ? (
-          <p className="rounded-md border border-amber-300/60 bg-amber-100 px-3 py-2 text-sm text-amber-900">{feed.warning}</p>
+          <p className="rounded-md border border-cyan-200/60 bg-cyan-100 px-3 py-2 text-sm text-cyan-900">{feed.warning}</p>
         ) : null}
         {isAdmin && serverSaveStatus === "offline" ? (
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-cyan-200 bg-cyan-50 px-3 py-2 text-xs font-semibold text-cyan-900">
             <span>{`Sincronizacion pendiente: ${serverSaveMessage || "servidor no disponible"}. Puedes seguir editando; los cambios se guardan en este navegador.`}</span>
             <button
               type="button"
@@ -8938,9 +8939,9 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                   <span
                     className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
                       serverSaveStatus === "offline" || autoSaveState === "error"
-                        ? "border border-amber-200 bg-amber-50 text-amber-800"
+                        ? "border border-cyan-200 bg-cyan-50 text-cyan-800"
                         : autoSaveState === "saving" || saving
-                          ? "border border-amber-200 bg-amber-50 text-amber-700"
+                          ? "border border-cyan-200 bg-cyan-50 text-cyan-700"
                           : "border border-emerald-200 bg-emerald-50 text-emerald-700"
                     }`}
                   >
@@ -8997,7 +8998,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                   onClick={() => setAdminTab(tabId)}
                   className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold transition ${
                     adminTab === tabId
-                      ? "bg-amber-700 text-white"
+                      ? "bg-cyan-600 text-white"
                       : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
                   }`}
                 >
@@ -9061,7 +9062,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                       onClick={() => setShowEditorFiltersMenu((prev) => !prev)}
                       className={`ui-focus inline-flex h-full min-h-10 items-center justify-center gap-1.5 rounded-md border px-3 text-xs font-semibold transition ${
                         showEditorFiltersMenu
-                          ? "border-amber-400 bg-amber-50 text-amber-900"
+                          ? "border-cyan-300 bg-cyan-50 text-cyan-900"
                           : "border-slate-300 bg-white/90 text-slate-700 hover:bg-slate-50"
                       }`}
                       aria-label="Abrir filtros del inventario"
@@ -9251,7 +9252,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                                   key={`bulk-group-${sectionId}`}
                                   type="button"
                                   onClick={() => applyBulkAssignToSection(sectionId)}
-                                  className="ui-focus flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs font-semibold text-slate-700 transition hover:bg-amber-50"
+                                  className="ui-focus flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs font-semibold text-slate-700 transition hover:bg-cyan-50"
                                   title={`Agregar a ${SECTION_LABELS[sectionId]}`}
                                 >
                                   <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded bg-slate-100 text-[10px] font-bold uppercase text-slate-600">
@@ -9346,7 +9347,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                 {filteredEditorItems.length === 0 &&
                 editorHiddenPatentMatches.length > 0 &&
                 editorVisibilityFilter === "visible" ? (
-                  <p className="rounded-md border border-amber-300/60 bg-amber-50/80 px-3 py-2 text-xs text-amber-900">
+                  <p className="rounded-md border border-cyan-200/60 bg-cyan-50/80 px-3 py-2 text-xs text-cyan-900">
                     {editorHiddenPatentMatches.length === 1
                       ? `${getPatent(editorHiddenPatentMatches[0]!)} esta en inventario pero oculta del home.`
                       : `${editorHiddenPatentMatches.length} unidades coinciden pero estan ocultas del home.`}{" "}
@@ -9367,7 +9368,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                         key={`editor-${key}`}
                         className={`grid grid-cols-1 items-center gap-2 rounded-lg border px-2 py-1.5 sm:grid-cols-[auto_1.5fr_auto_1fr_auto] ${
                           selected
-                            ? "border-amber-400 bg-amber-50/40"
+                            ? "border-cyan-300 bg-cyan-50/40"
                             : "border-slate-200/80 bg-slate-50/20"
                         }`}
                       >
@@ -9487,8 +9488,8 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                   </>
                 ) : null}
                 {inventorySubtab === "vendidas" ? (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+                  <div className="rounded-xl border border-cyan-200 bg-cyan-50/40 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-cyan-800">
                       Unidades vendidas (tabla dinamica)
                     </p>
                     <p className="mt-1 text-sm text-slate-600">
@@ -9643,7 +9644,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                                   <button
                                     type="button"
                                     onClick={() => setPendingRevertSale(entry)}
-                                    className="ui-focus inline-flex h-7 w-7 items-center justify-center rounded border border-amber-300 bg-stone-100 text-amber-800 transition hover:bg-stone-200"
+                                    className="ui-focus inline-flex h-7 w-7 items-center justify-center rounded border border-cyan-200 bg-stone-100 text-cyan-800 transition hover:bg-stone-200"
                                     aria-label={`Revertir venta ${entry.patent}`}
                                     title="Revertir venta"
                                   >
@@ -9677,7 +9678,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                   <button
                     type="button"
                     onClick={() => setShowCreateCategoryForm((prev) => !prev)}
-                    className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-700 text-lg font-bold leading-none text-white transition hover:bg-amber-600"
+                    className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded-full bg-cyan-600 text-lg font-bold leading-none text-white transition hover:bg-cyan-500"
                     aria-label={showCreateCategoryForm ? "Cerrar creacion de grupo" : "Abrir creacion de grupo"}
                     title={showCreateCategoryForm ? "Cerrar" : "Crear grupo"}
                   >
@@ -9702,14 +9703,14 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                     <button
                       type="button"
                       onClick={() => createManagedCategory(false)}
-                      className="ui-focus rounded-md border border-amber-300 bg-white px-3 py-2 text-sm font-semibold text-amber-800 transition hover:bg-stone-100"
+                      className="ui-focus rounded-md border border-cyan-200 bg-white px-3 py-2 text-sm font-semibold text-cyan-800 transition hover:bg-stone-100"
                     >
                       Guardar
                     </button>
                     <button
                       type="button"
                       onClick={() => createManagedCategory(true)}
-                      className="ui-focus rounded-md bg-amber-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-amber-600"
+                      className="ui-focus rounded-md bg-cyan-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500"
                     >
                       Agregar unidades
                     </button>
@@ -9848,7 +9849,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                               setEditorPage(1);
                               setAdminTab("vehiculos");
                             }}
-                            className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-amber-300 bg-stone-100 text-amber-800"
+                            className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-cyan-200 bg-stone-100 text-cyan-800"
                             aria-label={`Ver y gestionar ${SECTION_LABELS[sectionId]}`}
                             title="Ver y gestionar"
                           >
@@ -9938,7 +9939,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                                 setAssignCategoryId(category.id);
                                 setAssignSearchTerm("");
                               }}
-                              className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-amber-300 bg-stone-100 text-amber-800"
+                              className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded border border-cyan-200 bg-stone-100 text-cyan-800"
                               aria-label={`Asignar vehiculos a ${category.name}`}
                               title="Asignar vehiculos"
                             >
@@ -10161,7 +10162,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                                   ? "text-indigo-700"
                                   : config.homeLayout.heroTheme === "slate"
                                     ? "text-slate-700"
-                                    : "text-amber-800"
+                                    : "text-cyan-800"
                               }`}
                             />
                           </div>
@@ -10189,7 +10190,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                                 rememberHeroSelection();
                                 syncHeroToolbarState();
                               }}
-                              className="ui-focus w-full min-h-12 rounded-md border border-slate-300 bg-white px-3 py-2 text-3xl font-black leading-tight text-slate-900 md:text-[2.7rem] [&_a]:text-amber-800 [&_a]:underline [&_b]:font-black [&_strong]:font-black [&_em]:italic [&_i]:italic [&_u]:underline"
+                              className="ui-focus w-full min-h-12 rounded-md border border-slate-300 bg-white px-3 py-2 text-3xl font-black leading-tight text-slate-900 md:text-[2.7rem] [&_a]:text-cyan-800 [&_a]:underline [&_b]:font-black [&_strong]:font-black [&_em]:italic [&_i]:italic [&_u]:underline"
                             />
                           </div>
                           <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
@@ -10216,7 +10217,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                                 rememberHeroSelection();
                                 syncHeroToolbarState();
                               }}
-                              className="ui-focus w-full min-h-20 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm leading-relaxed text-slate-600 md:text-[15px] [&_a]:text-amber-800 [&_a]:underline [&_b]:font-bold [&_strong]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_p]:mb-2"
+                              className="ui-focus w-full min-h-20 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm leading-relaxed text-slate-600 md:text-[15px] [&_a]:text-cyan-800 [&_a]:underline [&_b]:font-bold [&_strong]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_p]:mb-2"
                             />
                           </div>
                         </div>
@@ -10250,7 +10251,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                               }}
                               className={`ui-focus flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition ${
                                 isDragging
-                                  ? "border-amber-400 bg-stone-200 text-cyan-900"
+                                  ? "border-cyan-300 bg-stone-200 text-cyan-900"
                                   : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
                               }`}
                             >
@@ -10291,7 +10292,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                           onClick={() => setAnalyticsRangeDays(days)}
                           className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold ${
                             analyticsRangeDays === days
-                              ? "bg-amber-700 text-white"
+                              ? "bg-cyan-600 text-white"
                               : "border border-slate-300 bg-white text-slate-700"
                           }`}
                         >
@@ -10305,7 +10306,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                       type="button"
                       onClick={() => setAnalyticsViewMode("simple")}
                       className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold ${
-                        analyticsViewMode === "simple" ? "bg-amber-700 text-white" : "text-slate-700"
+                        analyticsViewMode === "simple" ? "bg-cyan-600 text-white" : "text-slate-700"
                       }`}
                     >
                       Vista simple
@@ -10314,7 +10315,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                       type="button"
                       onClick={() => setAnalyticsViewMode("advanced")}
                       className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold ${
-                        analyticsViewMode === "advanced" ? "bg-amber-700 text-white" : "text-slate-700"
+                        analyticsViewMode === "advanced" ? "bg-cyan-600 text-white" : "text-slate-700"
                       }`}
                     >
                       Vista avanzada
@@ -10471,7 +10472,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                           onClick={() => setShowAnalyticsChartMenu((prev) => !prev)}
                           className={`ui-focus inline-flex h-9 w-9 items-center justify-center rounded-md border transition ${
                             showAnalyticsChartMenu
-                              ? "border-amber-400 bg-stone-100 text-amber-800"
+                              ? "border-cyan-300 bg-stone-100 text-cyan-800"
                               : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
                           }`}
                           aria-label="Opciones del grafico de actividad diaria"
@@ -10842,7 +10843,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                       </svg>
                       <span>Filtros</span>
                       {offersFiltersActiveCount > 0 ? (
-                        <span className="rounded-full bg-amber-700 px-1.5 py-0.5 text-[10px] text-white">
+                        <span className="rounded-full bg-cyan-600 px-1.5 py-0.5 text-[10px] text-white">
                           {offersFiltersActiveCount}
                         </span>
                       ) : null}
@@ -10976,7 +10977,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                               <td className="whitespace-nowrap px-3 py-2 text-slate-700">{row.customerName || "-"}</td>
                               <td className="whitespace-nowrap px-3 py-2 text-slate-700">{row.customerEmail || "-"}</td>
                               <td className="whitespace-nowrap px-3 py-2 text-slate-700">{row.customerPhone || "-"}</td>
-                              <td className="whitespace-nowrap px-3 py-2 font-semibold text-amber-800">
+                              <td className="whitespace-nowrap px-3 py-2 font-semibold text-cyan-800">
                                 {formatCurrencyAmount(row.offerAmount)}
                               </td>
                               <td className="whitespace-nowrap px-3 py-2 text-slate-700">
@@ -11006,7 +11007,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       {config.homeLayout.showSearchBar ? (
       <section className="relative z-50 mx-auto w-full max-w-7xl px-3 pt-3 pb-2 sm:px-6 lg:px-8">
         <div ref={homeSearchShellRef} className="inventory-search-shell overflow-visible rounded-2xl p-3 md:p-4">
-          <p className="mb-1 hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-100 md:block">
+          <p className="mb-1 hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-100 md:block">
             Busqueda de inventario
           </p>
           <div className="flex items-center gap-2">
@@ -11027,7 +11028,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                   trackEvent("home_search_change", { query: event.target.value });
                 }}
                 placeholder="Buscar marca, modelo o categoria..."
-                className="ui-focus w-full rounded-xl border border-amber-300/70 bg-[#4a3020] py-3 pl-10 pr-20 text-base font-medium text-amber-50 shadow-sm placeholder:text-amber-200/80 md:pr-24 md:text-sm"
+                className="ui-focus w-full rounded-xl border border-cyan-200/70 bg-[#4a3020] py-3 pl-10 pr-20 text-base font-medium text-cyan-50 shadow-sm placeholder:text-amber-200/80 md:pr-24 md:text-sm"
                 aria-label="Buscar vehiculos por marca, modelo o categoria"
                 type="search"
                 inputMode="search"
@@ -11041,7 +11042,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                     setHomeSearchTerm("");
                     trackEvent("home_search_clear");
                   }}
-                  className="ui-focus touch-target absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-amber-300/70 bg-[#5a3a25] px-2 py-1 text-[11px] font-semibold text-amber-50 hover:bg-[#6a452c] md:px-2.5 md:py-1.5 md:text-xs"
+                  className="ui-focus touch-target absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-cyan-200/70 bg-[#5a3a25] px-2 py-1 text-[11px] font-semibold text-cyan-50 hover:bg-[#6a452c] md:px-2.5 md:py-1.5 md:text-xs"
                 >
                   Limpiar
                 </button>
@@ -11055,8 +11056,8 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                 }}
                 className={`ui-focus shrink-0 flex h-11 w-11 items-center justify-center rounded-lg border transition ${
                   showHomeFiltersPanel || quickFilters.length > 0 || homeSort !== "recomendado"
-                    ? "border-amber-200 bg-amber-700 text-amber-50"
-                    : "border-amber-300/70 bg-[#5a3a25] text-amber-50 hover:bg-[#6a452c]"
+                    ? "border-cyan-200 bg-cyan-600 text-cyan-50"
+                    : "border-cyan-200/70 bg-[#5a3a25] text-cyan-50 hover:bg-[#6a452c]"
                 }`}
                 aria-label="Abrir filtros y orden"
                 aria-expanded={showHomeFiltersPanel}
@@ -11076,8 +11077,8 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                 disabled={isDownloadingCalendarPdf}
                 className={`ui-focus flex h-11 w-11 items-center justify-center rounded-lg border transition ${
                   isDownloadingCalendarPdf
-                    ? "cursor-wait border-amber-300/50 bg-[#5a3a25] text-amber-200/70"
-                    : "border-amber-200 bg-amber-700 text-amber-50 hover:bg-amber-600"
+                    ? "cursor-wait border-cyan-200/50 bg-[#5a3a25] text-amber-200/70"
+                    : "border-cyan-200 bg-cyan-600 text-cyan-50 hover:bg-cyan-500"
                 }`}
                 title="Descargar PDF del catalogo visible"
                 aria-label={isDownloadingCalendarPdf ? "Generando PDF del catalogo" : "Descargar PDF del catalogo"}
@@ -11099,8 +11100,8 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
             disabled={isDownloadingCalendarPdf}
             className={`ui-focus mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 text-xs font-semibold transition md:hidden ${
               isDownloadingCalendarPdf
-                ? "cursor-wait border-amber-300/50 bg-[#5a3a25] text-amber-200/70"
-                : "border-amber-200 bg-amber-700 text-amber-50 hover:bg-amber-600"
+                ? "cursor-wait border-cyan-200/50 bg-[#5a3a25] text-amber-200/70"
+                : "border-cyan-200 bg-cyan-600 text-cyan-50 hover:bg-cyan-500"
             }`}
             title="Descargar PDF profesional del calendario visible"
           >
@@ -11111,7 +11112,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
           </button>
           {showHomeFiltersPanel &&
           (config.homeLayout.showQuickFilters || config.homeLayout.showSortSelector) ? (
-          <div className="mt-3 border-t border-amber-300/40 pt-3">
+          <div className="mt-3 border-t border-cyan-200/40 pt-3">
             {config.homeLayout.showSortSelector ? (
               <>
                 <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-200/80">
@@ -11128,8 +11129,8 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                       }}
                       className={`ui-focus min-h-10 shrink-0 rounded-full border px-3 py-2 text-xs font-semibold transition ${
                         homeSort === value
-                          ? "border-amber-200 bg-amber-700 text-amber-50"
-                          : "border-amber-300/70 bg-[#5a3a25] text-amber-100 hover:bg-[#6a452c]"
+                          ? "border-cyan-200 bg-cyan-600 text-cyan-50"
+                          : "border-cyan-200/70 bg-[#5a3a25] text-cyan-100 hover:bg-[#6a452c]"
                       }`}
                     >
                       {label}
@@ -11151,8 +11152,8 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                       onClick={() => toggleQuickFilter(id as QuickFilterId)}
                       className={`ui-focus min-h-10 shrink-0 rounded-full border px-3 py-2 text-xs font-semibold transition ${
                         quickFilters.includes(id as QuickFilterId)
-                          ? "border-amber-200 bg-amber-700 text-amber-50"
-                          : "border-amber-300/70 bg-[#5a3a25] text-amber-100 hover:bg-[#6a452c]"
+                          ? "border-cyan-200 bg-cyan-600 text-cyan-50"
+                          : "border-cyan-200/70 bg-[#5a3a25] text-cyan-100 hover:bg-[#6a452c]"
                       }`}
                     >
                       {label}
@@ -11164,8 +11165,8 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
           </div>
           ) : null}
           {config.homeLayout.showQuickFilters && quickFilters.length > 0 ? (
-            <div className="mt-3 hidden items-center gap-2 overflow-x-auto border-t border-amber-300/40 pt-3 whitespace-nowrap md:flex">
-              <p className="text-xs font-semibold uppercase tracking-wide text-amber-100">
+            <div className="mt-3 hidden items-center gap-2 overflow-x-auto border-t border-cyan-200/40 pt-3 whitespace-nowrap md:flex">
+              <p className="text-xs font-semibold uppercase tracking-wide text-cyan-100">
                 Filtros activos
               </p>
               {quickFilters.map((filterId) => (
@@ -11173,7 +11174,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                   key={`active-${filterId}`}
                   type="button"
                   onClick={() => toggleQuickFilter(filterId)}
-                  className="ui-focus shrink-0 rounded-full border border-amber-200 bg-amber-700 px-3 py-1 text-xs font-semibold text-amber-50"
+                  className="ui-focus shrink-0 rounded-full border border-cyan-200 bg-cyan-600 px-3 py-1 text-xs font-semibold text-cyan-50"
                 >
                   {QUICK_FILTER_LABELS[filterId]} ×
                 </button>
@@ -11181,7 +11182,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
               <button
                 type="button"
                 onClick={() => setQuickFilters([])}
-                className="ui-focus rounded border border-amber-300/70 px-2 py-1 text-xs text-amber-100 hover:bg-[#5a3a25]"
+                className="ui-focus rounded border border-cyan-200/70 px-2 py-1 text-xs text-cyan-100 hover:bg-[#5a3a25]"
               >
                 Limpiar filtros
               </button>
@@ -11199,33 +11200,26 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       >
         <section className="relative z-10 mx-auto grid max-w-7xl gap-5 px-4 py-6 sm:px-6 md:py-7 lg:grid-cols-12 lg:px-8">
           <div
-            className={`${config.homeLayout.showCommercialPanel ? "lg:col-span-8" : "lg:col-span-12"} premium-panel premium-panel-hero ${
-              config.homeLayout.heroTheme === "indigo"
-                ? "border-amber-300/70 bg-[#f6e9dc]"
-                : config.homeLayout.heroTheme === "slate"
-                  ? "border-amber-300/70 bg-[#f6e9dc]"
-                  : "border-amber-300/60 bg-[#f7efe7]"
-            } ${config.homeLayout.heroAlignment === "center" ? "text-center" : "text-left"}`}
-          >
-            <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${
-              config.homeLayout.heroTheme === "indigo"
-                ? "text-[#89502a]"
-                : config.homeLayout.heroTheme === "slate"
-                  ? "text-[#7d4a27]"
-                  : "text-[#7d4a27]"
+            className={`${config.homeLayout.showCommercialPanel ? "lg:col-span-8" : "lg:col-span-12"} premium-panel premium-panel-hero premium-panel-hero--video ${
+              config.homeLayout.heroAlignment === "center" ? "text-center" : "text-left"
             }`}
+          >
+            <CatalogHeroBackgroundVideo />
+            <div className="hero-video-content">
+            <p
+              className="hero-video-kicker text-xs font-semibold uppercase tracking-[0.2em]"
               dangerouslySetInnerHTML={{
                 __html: formatHomeHeroHtml(config.homeLayout.heroKicker) || "Automotora y compraventa",
               }}
             />
             <h1
-              className="mt-2 text-3xl font-black leading-tight text-[#2f1d12] md:text-[2.7rem] [&_a]:text-[#8d542d] [&_a]:underline [&_b]:font-black [&_strong]:font-black [&_em]:italic [&_i]:italic [&_u]:underline"
+              className="hero-video-title mt-2 text-3xl font-black leading-tight md:text-[2.7rem] [&_a]:underline [&_b]:font-black [&_strong]:font-black [&_em]:italic [&_i]:italic [&_u]:underline"
               dangerouslySetInnerHTML={{
                 __html: formatHomeHeroHtml(config.homeLayout.heroTitle) || "Sin titulo",
               }}
             />
             <div
-              className={`mt-3 text-sm leading-relaxed text-[#644d3a] md:text-[15px] [&_a]:text-[#8d542d] [&_a]:underline [&_b]:font-bold [&_strong]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_p]:mb-2 ${
+              className={`hero-video-description mt-3 text-sm leading-relaxed md:text-[15px] [&_a]:underline [&_b]:font-bold [&_strong]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_p]:mb-2 ${
                 config.homeLayout.heroAlignment === "center"
                   ? config.homeLayout.heroMaxWidth === "xl"
                     ? "mx-auto max-w-xl"
@@ -11244,45 +11238,46 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
             />
             {config.homeLayout.showHeroChips ? (
             <div className={`mt-4 flex flex-wrap gap-2 ${config.homeLayout.heroAlignment === "center" ? "justify-center" : ""}`}>
-              <span className="rounded-full border border-amber-300/70 bg-[#f8ecdf] px-3 py-1 text-xs font-semibold text-[#6f4222]">Visor 3D</span>
-              <span className="rounded-full border border-amber-300/70 bg-[#f8ecdf] px-3 py-1 text-xs font-semibold text-[#6f4222]">Seleccion curada</span>
-              <span className="rounded-full border border-amber-300/70 bg-[#f8ecdf] px-3 py-1 text-xs font-semibold text-[#6f4222]">Trazabilidad tecnica</span>
+              <span className="hero-video-chip rounded-full border px-3 py-1 text-xs font-semibold">Visor 3D</span>
+              <span className="hero-video-chip rounded-full border px-3 py-1 text-xs font-semibold">Seleccion curada</span>
+              <span className="hero-video-chip rounded-full border px-3 py-1 text-xs font-semibold">Trazabilidad tecnica</span>
             </div>
             ) : null}
             {config.homeLayout.showHeroCtas ? (
-            <div className={`mt-4 flex flex-wrap gap-3 border-t border-amber-200/70 pt-4 ${config.homeLayout.heroAlignment === "center" ? "justify-center" : ""}`}>
+            <div className={`hero-video-cta-divider mt-4 flex flex-wrap gap-3 border-t pt-4 ${config.homeLayout.heroAlignment === "center" ? "justify-center" : ""}`}>
               <a href={config.homeLayout.heroPrimaryCtaHref || "#catalogo"} className="premium-btn-primary ui-focus">
                 {config.homeLayout.heroPrimaryCtaLabel || "Ver catalogo completo"}
               </a>
             </div>
             ) : null}
-            <div className={`mt-4 inline-flex w-fit flex-wrap items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 ${config.homeLayout.heroAlignment === "center" ? "mx-auto justify-center" : ""}`}>
+            <div className={`hero-video-countdown mt-4 inline-flex w-fit flex-wrap items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold ${config.homeLayout.heroAlignment === "center" ? "mx-auto justify-center" : ""}`}>
               <span>Atencion comercial activa</span>
-              <span className="text-amber-800">-</span>
+              <span className="text-amber-200/80">-</span>
               <span>Respuesta directa por WhatsApp</span>
-              <span className="text-amber-800">-</span>
+              <span className="text-amber-200/80">-</span>
               <span>{formatDateDash(new Date())}</span>
+            </div>
             </div>
           </div>
           {config.homeLayout.showCommercialPanel ? (
           <div className="premium-panel lg:col-span-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8b6546]">Informacion comercial</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Informacion comercial</p>
             <div className="mt-4 space-y-3">
               <div className="info-tile">
-                <p className="text-[11px] uppercase tracking-widest text-[#8b6546]">Canal principal</p>
-                <p className="mt-1 text-sm font-semibold text-[#2f1d12]">WhatsApp {CONTACT_PHONE}</p>
+                <p className="text-[11px] uppercase tracking-widest text-slate-500">Canal principal</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">WhatsApp {CONTACT_PHONE}</p>
               </div>
               <div className="info-tile">
-                <p className="text-[11px] uppercase tracking-widest text-[#8b6546]">Correo comercial</p>
-                <p className="mt-1 text-sm font-semibold text-[#2f1d12]">{CONTACT_EMAIL}</p>
+                <p className="text-[11px] uppercase tracking-widest text-slate-500">Correo comercial</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">{CONTACT_EMAIL}</p>
               </div>
               <div className="info-tile">
-                <p className="text-[11px] uppercase tracking-widest text-[#8b6546]">Soporte digital</p>
-                <p className="mt-1 text-sm font-semibold text-[#2f1d12]">Catalogo online + visor GLO3D para evaluar cada unidad</p>
+                <p className="text-[11px] uppercase tracking-widest text-slate-500">Soporte digital</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">Catalogo online + visor GLO3D para evaluar cada unidad</p>
               </div>
               <div className="info-tile">
-                <p className="text-[11px] uppercase tracking-widest text-[#8b6546]">Red social</p>
-                <p className="mt-1 text-sm font-semibold text-[#2f1d12]">{INSTAGRAM_HANDLE}</p>
+                <p className="text-[11px] uppercase tracking-widest text-slate-500">Red social</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">{INSTAGRAM_HANDLE}</p>
               </div>
             </div>
           </div>
@@ -11304,7 +11299,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                 <p className="premium-kicker">Guardados</p>
                 <h2 className="text-2xl font-bold text-slate-900">Tus favoritos</h2>
               </div>
-              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+              <span className="rounded-full bg-cyan-100 px-3 py-1 text-xs font-semibold text-cyan-800">
                 {favoritesItems.length} guardados
               </span>
             </header>
@@ -11499,7 +11494,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                       onClick={() => setActiveTypeTab(type)}
                       className={`ui-focus rounded-full px-3 py-1 text-xs font-semibold transition ${
                         activeTypeTab === type
-                          ? "bg-amber-700 text-white shadow-sm"
+                          ? "bg-cyan-600 text-white shadow-sm"
                           : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                       }`}
                     >
@@ -11575,7 +11570,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                         <input
                           value={inlineSummaryValue}
                           onChange={(event) => setInlineSummaryValue(event.target.value)}
-                          className="ui-focus w-full min-w-0 rounded border border-amber-300 bg-white px-2 py-1 text-sm font-semibold text-slate-900"
+                          className="ui-focus w-full min-w-0 rounded border border-cyan-200 bg-white px-2 py-1 text-sm font-semibold text-slate-900"
                         />
                         <button type="button" onClick={() => saveInlineSummaryFieldEdit("Titulo")} className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">Guardar</button>
                         <button type="button" onClick={cancelInlineSummaryFieldEdit} className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-600">Cancelar</button>
@@ -11589,7 +11584,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                           <button
                             type="button"
                             onClick={() => beginInlineSummaryFieldEdit("Titulo", selectedVehicle.title)}
-                            className="ui-focus inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-amber-300 bg-amber-50 text-amber-800"
+                            className="ui-focus inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-cyan-200 bg-cyan-50 text-cyan-800"
                             title="Editar titulo"
                             aria-label="Editar titulo"
                           >
@@ -11608,14 +11603,14 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                         <input
                           value={inlineSummaryValue}
                           onChange={(event) => setInlineSummaryValue(event.target.value)}
-                          className="ui-focus w-full min-w-0 rounded border border-amber-300 bg-white px-2 py-1 text-xs font-semibold text-amber-900"
+                          className="ui-focus w-full min-w-0 rounded border border-cyan-200 bg-white px-2 py-1 text-xs font-semibold text-cyan-900"
                         />
                         <button type="button" onClick={() => saveInlineSummaryFieldEdit("Subtitulo")} className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">Guardar</button>
                         <button type="button" onClick={cancelInlineSummaryFieldEdit} className="rounded border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600">Cancelar</button>
                       </div>
                     ) : (
                       <>
-                        <span className="vehicle-detail-chip inline-block w-full max-w-full rounded-lg border border-stone-300 bg-stone-100 px-2.5 py-1.5 text-xs font-semibold text-amber-900 md:w-auto md:rounded-full md:px-3 md:py-1">
+                        <span className="vehicle-detail-chip inline-block w-full max-w-full rounded-lg border border-stone-300 bg-stone-100 px-2.5 py-1.5 text-xs font-semibold text-cyan-900 md:w-auto md:rounded-full md:px-3 md:py-1">
                           {getPublicVehicleSubtitle(selectedVehicle, isAdmin) ||
                             (isAdmin ? getPatent(selectedVehicle) : getModel(selectedVehicle))}
                         </span>
@@ -11629,7 +11624,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                                   (isAdmin ? getPatent(selectedVehicle) : getModel(selectedVehicle)),
                               )
                             }
-                            className="ui-focus inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-amber-300 bg-amber-50 text-amber-800 md:ml-0"
+                            className="ui-focus inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-cyan-200 bg-cyan-50 text-cyan-800 md:ml-0"
                             title="Editar subtitulo"
                             aria-label="Editar subtitulo"
                           >
@@ -11655,7 +11650,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                     type="button"
                     onClick={openOfferModal}
                     disabled={selectedVehicleReferencePriceAmount <= 0}
-                    className="ui-focus inline-flex h-9 w-full shrink-0 items-center justify-center rounded-full border border-amber-300 bg-stone-100 px-2 text-xs font-semibold text-amber-800 transition hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-60 md:w-auto md:px-3"
+                    className="ui-focus inline-flex h-9 w-full shrink-0 items-center justify-center rounded-full border border-cyan-200 bg-stone-100 px-2 text-xs font-semibold text-cyan-800 transition hover:bg-stone-200 disabled:cursor-not-allowed disabled:opacity-60 md:w-auto md:px-3"
                     aria-label="Enviar mi precio"
                     title={
                       selectedVehicleReferencePriceAmount > 0
@@ -11734,7 +11729,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                         className={`ui-focus h-16 w-20 shrink-0 overflow-hidden rounded-lg border transition ${
                           selectedVehicleImageIndex === index
                             ? "border-amber-600 ring-2 ring-stone-300"
-                            : "border-slate-200 hover:border-amber-300"
+                            : "border-slate-200 hover:border-cyan-200"
                         }`}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -11763,7 +11758,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                           selectedVehicleTab === "tecnica" ? "tecnica" : "general",
                         )
                       }
-                      className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded-full border border-amber-300 bg-amber-50 text-amber-800 transition hover:bg-amber-100"
+                      className="ui-focus inline-flex h-8 w-8 items-center justify-center rounded-full border border-cyan-200 bg-cyan-50 text-cyan-800 transition hover:bg-cyan-100"
                       title="Editar ficha completa"
                       aria-label="Editar ficha completa"
                     >
@@ -11789,7 +11784,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                         onClick={() => setSelectedVehicleTab(tab.id)}
                         className={`vehicle-tab-pill vehicle-tab-rail-item ui-focus shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
                           selectedVehicleTab === tab.id
-                            ? "bg-amber-700 text-white"
+                            ? "bg-cyan-600 text-white"
                             : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
                         }`}
                       >
@@ -11865,7 +11860,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                             <button
                               type="button"
                               onClick={() => beginInlineSummaryFieldEdit(label, value)}
-                              className="ui-focus inline-flex h-6 w-6 items-center justify-center rounded-full border border-amber-300 bg-amber-50 text-amber-800 transition hover:bg-amber-100"
+                              className="ui-focus inline-flex h-6 w-6 items-center justify-center rounded-full border border-cyan-200 bg-cyan-50 text-cyan-800 transition hover:bg-cyan-100"
                               title={`Editar ${label.toLowerCase()}`}
                               aria-label={`Editar ${label.toLowerCase()}`}
                             >
@@ -11886,7 +11881,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                               <input
                                 value={inlineSummaryValue}
                                 onChange={(event) => setInlineSummaryValue(event.target.value)}
-                                className="ui-focus w-full rounded border border-amber-300 bg-white px-2 py-1 text-sm"
+                                className="ui-focus w-full rounded border border-cyan-200 bg-white px-2 py-1 text-sm"
                               />
                               <div className="flex gap-1">
                                 <button
@@ -11917,7 +11912,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                   <>
                     <div className="mt-2 rounded-md border border-stone-200 bg-stone-100/60 p-3">
                       <div className="flex items-start justify-between gap-2">
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-800 md:text-xs">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-cyan-800 md:text-xs">
                           <span className="md:hidden">Precio ref.</span>
                           <span className="hidden md:inline">Precio referencial</span>
                         </p>
@@ -11925,7 +11920,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                           <button
                             type="button"
                             onClick={startInlinePriceEdit}
-                            className="ui-focus inline-flex h-6 w-6 items-center justify-center rounded-full border border-amber-300 bg-white text-amber-800 transition hover:bg-amber-50"
+                            className="ui-focus inline-flex h-6 w-6 items-center justify-center rounded-full border border-cyan-200 bg-white text-cyan-800 transition hover:bg-cyan-50"
                             title="Editar precios y desglose"
                             aria-label="Editar precios y desglose"
                           >
@@ -11937,7 +11932,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                         ) : null}
                       </div>
                       {inlinePriceEditing ? (
-                        <div className="mt-2 space-y-2 rounded-md border border-amber-200 bg-white p-2">
+                        <div className="mt-2 space-y-2 rounded-md border border-cyan-200 bg-white p-2">
                           <input
                             value={inlinePriceDraft.referencePrice}
                             onChange={(event) =>
@@ -11949,7 +11944,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                             className="ui-focus w-full rounded border border-slate-300 px-2 py-1 text-sm"
                             placeholder="Precio referencial"
                           />
-                          <label className="inline-flex items-center gap-2 text-xs font-semibold text-amber-800">
+                          <label className="inline-flex items-center gap-2 text-xs font-semibold text-cyan-800">
                             <input
                               type="checkbox"
                               checked={inlinePriceDraft.promoEnabled}
@@ -12091,7 +12086,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                               selectedVehicleExpandedDescription ?? "",
                             )
                           }
-                          className="ui-focus inline-flex h-6 w-6 items-center justify-center rounded-full border border-amber-300 bg-amber-50 text-amber-800 transition hover:bg-amber-100"
+                          className="ui-focus inline-flex h-6 w-6 items-center justify-center rounded-full border border-cyan-200 bg-cyan-50 text-cyan-800 transition hover:bg-cyan-100"
                           title="Editar descripcion"
                           aria-label="Editar descripcion"
                         >
@@ -12108,7 +12103,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                           value={inlineSummaryValue}
                           onChange={(event) => setInlineSummaryValue(event.target.value)}
                           rows={6}
-                          className="ui-focus w-full rounded border border-amber-300 bg-white px-2 py-2 text-sm text-slate-700"
+                          className="ui-focus w-full rounded border border-cyan-200 bg-white px-2 py-2 text-sm text-slate-700"
                         />
                         <div className="flex gap-1">
                           <button
@@ -12129,7 +12124,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                       </div>
                     ) : (
                       <div
-                        className="mt-1 text-sm text-slate-700 [&_a]:text-amber-800 [&_a]:underline [&_b]:font-bold [&_strong]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_p]:mb-2"
+                        className="mt-1 text-sm text-slate-700 [&_a]:text-cyan-800 [&_a]:underline [&_b]:font-bold [&_strong]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline [&_li]:ml-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_p]:mb-2"
                         dangerouslySetInnerHTML={{
                           __html: formatExtendedDescriptionHtml(selectedVehicleExpandedDescription),
                         }}
@@ -12259,7 +12254,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                         key={`similar-${item.id}`}
                         type="button"
                         onClick={() => openVehicleDetail(item)}
-                        className="ui-focus rounded-lg border border-slate-200 bg-white p-2.5 text-left transition hover:border-amber-300 hover:bg-stone-100/30"
+                        className="ui-focus rounded-lg border border-slate-200 bg-white p-2.5 text-left transition hover:border-cyan-200 hover:bg-stone-100/30"
                       >
                         <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0">
@@ -12269,7 +12264,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                                 {item.subtitle ?? "Vehiculo relacionado"}
                               </p>
                               {similarPriceLabel ? (
-                                <span className="shrink-0 text-[11px] font-semibold text-amber-800">
+                                <span className="shrink-0 text-[11px] font-semibold text-cyan-800">
                                   {similarPriceLabel}
                                 </span>
                               ) : null}
@@ -12308,7 +12303,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
               type="button"
               onClick={openOfferModal}
               disabled={selectedVehicleReferencePriceAmount <= 0}
-              className="ui-focus inline-flex min-h-11 items-center justify-center rounded-lg border border-amber-300 bg-amber-50 px-3 text-xs font-semibold text-amber-800 disabled:opacity-50"
+              className="ui-focus inline-flex min-h-11 items-center justify-center rounded-lg border border-cyan-200 bg-cyan-50 px-3 text-xs font-semibold text-cyan-800 disabled:opacity-50"
             >
               Ofertar
             </button>
@@ -12440,7 +12435,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
             className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
-            <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Confirmacion</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-cyan-800">Confirmacion</p>
             <h3 className="mt-1 text-lg font-bold text-slate-900">¿Revertir esta venta?</h3>
             <p className="mt-2 text-sm text-slate-600">
               La unidad <span className="font-semibold text-slate-900">{pendingRevertSale.patent}</span>{" "}
@@ -12465,7 +12460,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                   );
                   setPendingRevertSale(null);
                 }}
-                className="ui-focus rounded-md bg-amber-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-amber-600"
+                className="ui-focus rounded-md bg-cyan-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500"
               >
                 Si, revertir
               </button>
@@ -12488,7 +12483,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
           >
             <div className="mb-3 flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Finalizar remate</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-cyan-700">Finalizar remate</p>
                 <h3 className="text-lg font-bold text-slate-900">{finalizeAuction.name}</h3>
                 <p className="text-xs text-slate-500">
                   Remate programado para {formatAuctionDateLabel(finalizeAuction.date)}
@@ -12503,7 +12498,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
               </button>
             </div>
             <div className="space-y-3">
-              <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-3">
+              <div className="rounded-xl border border-cyan-200 bg-cyan-50/40 p-3">
                 <p className="text-sm font-semibold text-slate-800">¿Que unidades fueron vendidas?</p>
                 <p className="mt-1 text-xs text-slate-600">
                   Las unidades marcadas como vendidas pasan a historial y salen del catalogo/inventario visible.
@@ -12688,7 +12683,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
           >
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Enviar mi precio</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-cyan-800">Enviar mi precio</p>
                 <h3 className="text-lg font-bold text-slate-900">{getModel(selectedVehicle)}</h3>
                 {isAdmin ? (
                   <p className="text-xs text-slate-500">Patente {getPatent(selectedVehicle)}</p>
@@ -12704,7 +12699,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
             </div>
 
             <div className="rounded-lg border border-stone-200 bg-stone-100/70 p-3">
-              <p className="text-xs uppercase tracking-wide text-amber-900">Precio referencial</p>
+              <p className="text-xs uppercase tracking-wide text-cyan-900">Precio referencial</p>
               <p className="mt-1 text-xl font-black text-slate-900">
                 {selectedVehicleReferencePriceDisplay || selectedVehiclePriceLabel || "No informado"}
               </p>
@@ -12778,7 +12773,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                   void submitOffer();
                 }}
                 disabled={offerSending}
-                className="ui-focus rounded-md bg-amber-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60"
+                className="ui-focus rounded-md bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500 disabled:opacity-60"
               >
                 {offerSending ? "Enviando..." : "Enviar oferta"}
               </button>
@@ -12801,7 +12796,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
           >
             <div className="mb-4 flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+                <p className="text-xs font-semibold uppercase tracking-wide text-cyan-800">
                   Agregar desde inventario
                 </p>
                 <label className="mt-2 block text-xs font-semibold text-slate-600" htmlFor="batch-assign-target">
@@ -12850,7 +12845,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                 {batchAssignCandidates.length} resultados  ·  {batchAssignSelectedKeys.length} seleccionados
               </p>
               {batchAssignMissingPatents.length > 0 ? (
-                <p className="text-xs font-medium text-amber-800">
+                <p className="text-xs font-medium text-cyan-800">
                   No encontradas en inventario activo: {batchAssignMissingPatents.join(", ")}
                 </p>
               ) : null}
@@ -12863,7 +12858,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                     return Array.from(set);
                   })
                 }
-                className="ui-focus rounded border border-amber-300 bg-stone-100 px-2.5 py-1 text-xs font-semibold text-amber-800"
+                className="ui-focus rounded border border-cyan-200 bg-stone-100 px-2.5 py-1 text-xs font-semibold text-cyan-800"
               >
                 Seleccionar resultados
               </button>
@@ -12886,7 +12881,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                   <label
                     key={`assign-batch-${key}`}
                     className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm ${
-                      checked ? "border-amber-300 bg-stone-100" : "border-slate-200 bg-white"
+                      checked ? "border-cyan-200 bg-stone-100" : "border-slate-200 bg-white"
                     }`}
                   >
                     <div>
@@ -12924,7 +12919,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
               <button
                 type="button"
                 onClick={addBatchVehiclesToTarget}
-                className="ui-focus rounded-md bg-amber-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-600"
+                className="ui-focus rounded-md bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500"
               >
                 Agregar seleccionados
               </button>
@@ -12947,7 +12942,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
           >
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+                <p className="text-xs font-semibold uppercase tracking-wide text-cyan-800">
                   Asignar vehiculos
                 </p>
                 <h3 className="text-lg font-bold text-slate-900">{activeManagedCategory.name}</h3>
@@ -12977,7 +12972,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                   <label
                     key={`assign-${activeManagedCategory.id}-${key}`}
                     className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm ${
-                      checked ? "border-amber-300 bg-stone-100" : "border-slate-200 bg-white"
+                      checked ? "border-cyan-200 bg-stone-100" : "border-slate-200 bg-white"
                     }`}
                   >
                     <div>
@@ -12999,7 +12994,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
               <button
                 type="button"
                 onClick={() => setAssignCategoryId(null)}
-                className="ui-focus rounded-md bg-amber-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-600"
+                className="ui-focus rounded-md bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500"
               >
                 Listo
               </button>
@@ -13020,7 +13015,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
             {loginError ? <p className="mt-2 text-xs text-red-600">{loginError}</p> : null}
             <div className="mt-4 flex justify-end gap-2">
               <button onClick={() => setShowLogin(false)} className="ui-focus rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-600 transition hover:bg-slate-50">Cancelar</button>
-              <button onClick={login} className="ui-focus rounded-md bg-amber-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-amber-600">Entrar</button>
+              <button onClick={login} className="ui-focus rounded-md bg-cyan-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500">Entrar</button>
             </div>
           </div>
         </div>

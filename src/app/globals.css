@@ -1,14 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f5f3f0;
-  --foreground: #1f1a17;
-  --brand-surface: #f6efe8;
-  --brand-border: rgba(137, 93, 57, 0.34);
-  --brand-shadow: rgba(57, 34, 21, 0.16);
-  --brand-accent: #8a542f;
-  --brand-accent-strong: #6e3f21;
-  --brand-text: #2b1f18;
+  --background: #f8fafc;
+  --foreground: #18181b;
+  --brand-surface: #f1f5f9;
+  --brand-border: rgba(51, 199, 227, 0.34);
+  --brand-shadow: rgba(41, 95, 127, 0.16);
+  --brand-accent: #33c7e3;
+  --brand-accent-strong: #0891b2;
+  --brand-text: #18181b;
   --header-height: 4.5rem;
   --mobile-bar-height: 3.75rem;
   --safe-top: env(safe-area-inset-top, 0px);
@@ -45,7 +45,7 @@ body {
   font-size: 0.68rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: rgba(122, 97, 77, 0.92);
+  color: rgba(100, 116, 139, 0.92);
 }
 
 .mobile-menu-backdrop {
@@ -118,7 +118,7 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
 }
 
 .compare-mobile-card {
-  border: 1px solid rgba(186, 151, 120, 0.28);
+  border: 1px solid rgba(186, 214, 229, 0.28);
   border-radius: 0.85rem;
   background: rgba(255, 252, 248, 0.98);
   padding: 0.75rem;
@@ -137,7 +137,7 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
   font-weight: 800;
   letter-spacing: 0.045em;
   text-transform: uppercase;
-  color: #3d281b;
+  color: #1e293b;
 }
 
 .front-public {
@@ -155,16 +155,16 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
 }
 
 ::selection {
-  background: rgba(146, 95, 54, 0.28);
-  color: #21150e;
+  background: rgba(51, 199, 227, 0.25);
+  color: #0b2230;
 }
 
 .premium-bg {
   position: relative;
   background:
-    radial-gradient(circle at 12% 18%, rgba(138, 93, 56, 0.22), transparent 36%),
-    radial-gradient(circle at 82% 12%, rgba(95, 73, 52, 0.2), transparent 34%),
-    linear-gradient(180deg, #f7f3ee 0%, #f9f5f0 35%, #f1e8df 100%);
+    radial-gradient(circle at 12% 18%, rgba(51, 199, 227, 0.2), transparent 36%),
+    radial-gradient(circle at 82% 12%, rgba(114, 224, 245, 0.2), transparent 34%),
+    linear-gradient(180deg, #eef5fb 0%, #f5f8fc 35%, #eef3f8 100%);
 }
 
 .premium-glow {
@@ -182,13 +182,13 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
 .premium-glow-cyan {
   top: -6rem;
   left: -8rem;
-  background: rgba(150, 102, 60, 0.62);
+  background: rgba(51, 199, 227, 0.7);
 }
 
 .premium-glow-gold {
   right: -7rem;
   top: 30%;
-  background: rgba(92, 70, 49, 0.62);
+  background: rgba(124, 217, 243, 0.62);
   animation-delay: 1.2s;
 }
 
@@ -201,30 +201,99 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.92), rgba(248, 241, 233, 0.95));
   box-shadow:
     0 22px 42px var(--brand-shadow),
-    0 5px 14px rgba(63, 38, 24, 0.08),
+    0 5px 14px rgba(41, 95, 127, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.78);
 }
 
 .premium-panel-hero {
-  border-color: rgba(132, 84, 47, 0.45);
+  border-color: rgba(51, 199, 227, 0.45);
+}
+
+.premium-panel-hero--video {
+  min-height: 18rem;
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgb(15 23 42);
+  color: rgb(248 250 252);
+}
+
+.premium-panel-hero--video::before {
+  display: none;
+}
+
+.hero-video-overlay {
+  background:
+    linear-gradient(120deg, rgba(8, 20, 32, 0.82) 0%, rgba(8, 20, 32, 0.58) 45%, rgba(8, 20, 32, 0.74) 100%),
+    linear-gradient(180deg, rgba(8, 20, 32, 0.35) 0%, rgba(8, 20, 32, 0.82) 100%);
+}
+
+.premium-panel-hero--video .hero-video-content {
+  position: relative;
+  z-index: 1;
+}
+
+.premium-panel-hero--video .hero-video-kicker {
+  color: rgb(165 243 252);
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.45);
+}
+
+.premium-panel-hero--video .hero-video-title {
+  color: rgb(248 250 252);
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.55);
+}
+
+.premium-panel-hero--video .hero-video-title a {
+  color: rgb(103 232 249);
+}
+
+.premium-panel-hero--video .hero-video-description {
+  color: rgb(226 232 240);
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.45);
+}
+
+.premium-panel-hero--video .hero-video-description a {
+  color: rgb(103 232 249);
+}
+
+.premium-panel-hero--video .hero-video-chip {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(15, 23, 42, 0.55);
+  color: rgb(241 245 249);
+  backdrop-filter: blur(4px);
+}
+
+.premium-panel-hero--video .hero-video-cta-divider {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.premium-panel-hero--video .hero-video-countdown {
+  border-color: rgba(251, 191, 36, 0.45);
+  background: rgba(69, 26, 3, 0.72);
+  color: rgb(254 243 199);
+  backdrop-filter: blur(4px);
+}
+
+.premium-panel-hero--video .premium-btn-secondary {
+  border-color: rgba(255, 255, 255, 0.42);
+  background: rgba(255, 255, 255, 0.94);
+  color: rgb(15 23 42);
+}
+
+.premium-panel-hero--video .premium-btn-secondary:hover {
+  border-color: rgba(255, 255, 255, 0.72);
+  background: rgb(255 255 255);
 }
 
 .premium-panel::before {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    120deg,
-    rgba(132, 84, 47, 0.1),
-    transparent 35%,
-    rgba(94, 74, 54, 0.13)
-  );
+  background: linear-gradient(120deg, rgba(51, 199, 227, 0.09), transparent 35%, rgba(114, 224, 245, 0.1));
   opacity: 1;
   pointer-events: none;
 }
 
 .premium-stat {
-  border: 1px solid rgba(166, 130, 101, 0.34);
+  border: 1px solid rgba(149, 189, 214, 0.34);
   border-radius: 1rem;
   padding: 1rem;
   background: rgba(255, 251, 246, 0.9);
@@ -235,8 +304,8 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
 
 .premium-stat:hover {
   transform: translateY(-2px);
-  border-color: rgba(134, 87, 53, 0.52);
-  box-shadow: 0 12px 24px rgba(89, 60, 40, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  border-color: rgba(90, 176, 214, 0.52);
+  box-shadow: 0 12px 24px rgba(84, 140, 170, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 .premium-kicker {
@@ -244,17 +313,17 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
   font-weight: 800;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: #8a522d;
+  color: rgb(71 122 148);
 }
 
 .section-shell {
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(153, 116, 87, 0.34);
+  border: 1px solid rgba(143, 183, 209, 0.34);
   border-radius: 1.25rem;
   padding: 1.3rem;
   background: linear-gradient(180deg, rgba(255, 252, 248, 0.93), rgba(247, 238, 230, 0.96));
-  box-shadow: 0 16px 34px rgba(76, 50, 31, 0.11);
+  box-shadow: 0 16px 34px rgba(71, 118, 145, 0.11);
 }
 
 .section-shell::after {
@@ -270,7 +339,7 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
   background:
     linear-gradient(180deg, rgba(255, 252, 247, 0.94), rgba(248, 240, 231, 0.9));
   box-shadow:
-    0 10px 26px rgba(70, 44, 28, 0.14),
+    0 10px 26px rgba(41, 95, 127, 0.14),
     inset 0 -1px 0 rgba(255, 255, 255, 0.45);
   backdrop-filter: blur(14px);
   top: var(--safe-top);
@@ -279,13 +348,13 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
 .inventory-search-shell {
   position: relative;
   overflow: visible;
-  border: 1px solid rgba(190, 145, 102, 0.5);
+  border: 1px solid rgba(51, 199, 227, 0.35);
   background:
-    radial-gradient(circle at 18% -45%, rgba(212, 160, 113, 0.2), transparent 45%),
-    linear-gradient(150deg, #2f1d12 0%, #402819 52%, #3f2919 100%);
+    radial-gradient(circle at 18% -45%, rgba(51, 199, 227, 0.18), transparent 45%),
+    linear-gradient(150deg, #0f172a 0%, #1e293b 52%, #1e293b 100%);
   box-shadow:
-    0 18px 34px rgba(34, 20, 11, 0.42),
-    inset 0 1px 0 rgba(255, 241, 226, 0.14);
+    0 18px 34px rgba(15, 23, 42, 0.42),
+    inset 0 1px 0 rgba(165, 243, 252, 0.14);
 }
 
 .inventory-search-shell::after {
@@ -297,19 +366,19 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
 }
 
 .vehicle-detail-shell {
-  border: 1px solid rgba(176, 136, 101, 0.38);
+  border: 1px solid rgba(171, 204, 223, 0.38);
   background:
     radial-gradient(circle at 8% -12%, rgba(206, 160, 118, 0.2), transparent 30%),
     linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(246, 238, 228, 0.95));
   box-shadow:
-    0 34px 56px rgba(38, 23, 14, 0.28),
-    0 9px 20px rgba(38, 23, 14, 0.14);
+    0 34px 56px rgba(15, 23, 42, 0.28),
+    0 9px 20px rgba(15, 23, 42, 0.14);
 }
 
 .vehicle-detail-hero {
-  border: 1px solid rgba(184, 147, 114, 0.3);
+  border: 1px solid rgba(171, 204, 223, 0.3);
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(249, 241, 232, 0.9));
-  box-shadow: 0 8px 22px rgba(57, 35, 22, 0.09);
+  box-shadow: 0 8px 22px rgba(41, 95, 127, 0.09);
   overflow: hidden;
 }
 
@@ -328,7 +397,7 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
 }
 
 .vehicle-detail-actions {
-  border: 1px solid rgba(185, 146, 110, 0.38);
+  border: 1px solid rgba(171, 204, 223, 0.38);
   border-radius: 999px;
   padding: 0.3rem 0.45rem;
   background: rgba(255, 252, 248, 0.9);
@@ -336,14 +405,14 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
 }
 
 .vehicle-detail-summary {
-  border: 1px solid rgba(186, 151, 120, 0.34);
+  border: 1px solid rgba(186, 214, 229, 0.34);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(250, 243, 235, 0.9));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
 }
 
 .vehicle-tab-pill {
   letter-spacing: 0.01em;
-  box-shadow: 0 3px 8px rgba(79, 49, 30, 0.08);
+  box-shadow: 0 3px 8px rgba(71, 118, 145, 0.08);
   white-space: nowrap;
 }
 
@@ -398,16 +467,16 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
 }
 
 .vehicle-field-card {
-  border: 1px solid rgba(186, 151, 120, 0.22);
+  border: 1px solid rgba(186, 214, 229, 0.22);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
 }
 
 .vehicle-detail-mobile-bar {
-  box-shadow: 0 -8px 24px rgba(38, 23, 14, 0.12);
+  box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.12);
 }
 
 .vehicle-detail-mobile-bar-fixed {
-  box-shadow: 0 -10px 28px rgba(38, 23, 14, 0.18);
+  box-shadow: 0 -10px 28px rgba(15, 23, 42, 0.18);
 }
 
 @media (max-width: 767px) {
@@ -520,26 +589,26 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
   }
 
   .premium-btn-secondary:hover {
-    border-color: rgba(125, 72, 38, 0.8);
+    border-color: rgba(42, 132, 173, 0.8);
     background: rgba(255, 245, 236, 0.8);
     transform: translateY(-1px);
   }
 
   .premium-link-pill:hover {
-    border-color: rgba(129, 78, 40, 0.7);
+    border-color: rgba(51, 199, 227, 0.7);
     color: rgb(111 63 27);
     transform: translateY(-1px);
-    box-shadow: 0 8px 16px rgba(84, 52, 30, 0.18);
+    box-shadow: 0 8px 16px rgba(51, 199, 227, 0.18);
   }
 
   .vehicle-card:hover {
-    border-color: rgba(154, 95, 48, 0.66);
-    box-shadow: 0 22px 34px rgba(72, 44, 25, 0.18), 0 7px 14px rgba(72, 44, 25, 0.1);
+    border-color: rgba(51, 199, 227, 0.66);
+    box-shadow: 0 22px 34px rgba(71, 118, 145, 0.18), 0 7px 14px rgba(71, 118, 145, 0.1);
   }
 
   .info-tile:hover {
-    border-color: rgba(127, 86, 53, 0.65);
-    box-shadow: 0 8px 18px rgba(94, 64, 42, 0.16);
+    border-color: rgba(95, 182, 215, 0.65);
+    box-shadow: 0 8px 18px rgba(95, 152, 182, 0.16);
   }
 }
 
@@ -552,43 +621,42 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
 
 .premium-btn-primary {
   border-radius: 9999px;
-  border: 1px solid rgba(120, 70, 36, 0.5);
-  background: linear-gradient(120deg, #774522, #9b5f33 62%, #b07445);
-  color: #fff;
+  background: linear-gradient(120deg, #33c7e3, #54def7);
+  color: #06111a;
   padding: 0.56rem 1.25rem;
   font-size: 0.86rem;
   font-weight: 800;
   letter-spacing: 0.01em;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-  box-shadow: 0 12px 26px rgba(103, 61, 32, 0.36);
+  box-shadow: 0 10px 24px rgba(51, 199, 227, 0.35);
 }
 
 .premium-btn-secondary {
   border-radius: 9999px;
-  border: 1px solid rgba(137, 99, 66, 0.5);
+  border: 1px solid rgba(113, 156, 184, 0.45);
   padding: 0.56rem 1.25rem;
   font-size: 0.86rem;
   font-weight: 700;
-  color: rgb(102 62 34);
+  color: rgb(36 74 98);
   transition: border-color 0.2s ease, transform 0.2s ease;
 }
 
 .premium-link-pill {
   border-radius: 9999px;
-  border: 1px solid rgba(173, 134, 100, 0.56);
-  background: rgba(255, 252, 248, 0.95);
+  border: 1px solid rgba(150, 185, 205, 0.45);
+  background: rgba(255, 255, 255, 0.92);
   padding: 0.42rem 0.9rem;
   font-size: 0.78rem;
   font-weight: 700;
-  color: rgb(96 64 40);
+  color: rgb(43 82 107);
   transition: border-color 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .glass-soft {
-  border: 1px solid rgba(164, 130, 101, 0.42);
+  border: 1px solid rgba(149, 189, 214, 0.42);
   background: linear-gradient(180deg, rgba(255, 252, 248, 0.93), rgba(247, 238, 230, 0.95));
   backdrop-filter: blur(6px);
-  box-shadow: 0 14px 28px rgba(81, 52, 34, 0.12);
+  box-shadow: 0 14px 28px rgba(75, 131, 162, 0.12);
 }
 
 .admin-editor-shell {
@@ -608,7 +676,7 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
 
 .admin-editor-mode .admin-editor-shell .rounded-xl.border.border-slate-200.bg-white {
   border: none;
-  border-top: 1px solid rgba(153, 116, 87, 0.22);
+  border-top: 1px solid rgba(143, 183, 209, 0.22);
   border-radius: 0;
   background: transparent;
   box-shadow: none;
@@ -618,14 +686,14 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
 
 .info-tile {
   border-radius: 0.85rem;
-  border: 1px solid rgba(187, 152, 120, 0.58);
+  border: 1px solid rgba(186, 214, 229, 0.58);
   background: rgba(255, 251, 247, 0.96);
   padding: 0.58rem 0.72rem;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .ui-focus:focus-visible {
-  outline: 2px solid rgba(154, 95, 48, 0.72);
+  outline: 2px solid rgba(51, 199, 227, 0.72);
   outline-offset: 2px;
 }
 
@@ -652,12 +720,12 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
 
 .featured-strip-shell::before {
   left: 0;
-  background: linear-gradient(90deg, rgba(245, 237, 229, 0.97) 12%, rgba(245, 237, 229, 0));
+  background: linear-gradient(90deg, rgba(243, 251, 255, 0.97) 12%, rgba(243, 251, 255, 0));
 }
 
 .featured-strip-shell::after {
   right: 0;
-  background: linear-gradient(270deg, rgba(245, 237, 229, 0.97) 12%, rgba(245, 237, 229, 0));
+  background: linear-gradient(270deg, rgba(243, 251, 255, 0.97) 12%, rgba(243, 251, 255, 0));
 }
 
 .featured-strip::-webkit-scrollbar {
@@ -665,7 +733,7 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
 }
 
 .featured-strip::-webkit-scrollbar-thumb {
-  background: rgba(119, 79, 49, 0.62);
+  background: rgba(85, 144, 173, 0.62);
   border-radius: 9999px;
 }
 
@@ -674,7 +742,7 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
   height: 208px;
   border-radius: 1rem;
   overflow: hidden;
-  border: 1px solid rgba(170, 135, 103, 0.68);
+  border: 1px solid rgba(171, 204, 223, 0.68);
   background: rgb(231 215 199);
   scroll-snap-align: start;
 }
@@ -707,7 +775,7 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
 .featured-chip {
   border-radius: 9999px;
   background: rgba(70, 43, 26, 0.78);
-  border: 1px solid rgba(227, 194, 166, 0.32);
+  border: 1px solid rgba(174, 225, 247, 0.32);
   padding: 0.22rem 0.58rem;
 }
 
@@ -726,7 +794,7 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
 }
 
 .catalog-rail::-webkit-scrollbar-thumb {
-  background: rgba(124, 85, 54, 0.66);
+  background: rgba(85, 144, 173, 0.66);
   border-radius: 9999px;
 }
 
@@ -755,18 +823,18 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
 
 .catalog-rail-shell::before {
   left: 0;
-  background: linear-gradient(90deg, rgba(245, 237, 229, 0.94) 10%, rgba(245, 237, 229, 0));
+  background: linear-gradient(90deg, rgba(243, 251, 255, 0.94) 10%, rgba(243, 251, 255, 0));
 }
 
 .catalog-rail-shell::after {
   right: 0;
-  background: linear-gradient(270deg, rgba(245, 237, 229, 0.94) 10%, rgba(245, 237, 229, 0));
+  background: linear-gradient(270deg, rgba(243, 251, 255, 0.94) 10%, rgba(243, 251, 255, 0));
 }
 
 .vehicle-card {
   border: 1px solid rgba(171, 134, 104, 0.44);
   background: linear-gradient(180deg, rgba(255, 252, 248, 0.97), rgba(246, 236, 226, 0.97));
-  box-shadow: 0 10px 22px rgba(84, 53, 32, 0.11);
+  box-shadow: 0 10px 22px rgba(75, 131, 162, 0.11);
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
@@ -864,10 +932,10 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
   flex-direction: column;
   width: min(88vw, 300px);
   scroll-snap-align: start;
-  border: 1px solid rgba(137, 93, 57, 0.24);
+  border: 1px solid rgba(51, 199, 227, 0.24);
   border-radius: 1rem;
   background: rgba(255, 252, 248, 0.98);
-  box-shadow: 0 8px 24px rgba(57, 34, 21, 0.08);
+  box-shadow: 0 8px 24px rgba(41, 95, 127, 0.08);
   overflow: hidden;
 }
 
@@ -883,9 +951,9 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
   width: 2.5rem;
   height: 2.5rem;
   border-radius: 9999px;
-  border: 1px solid rgba(137, 93, 57, 0.34);
-  background: #fff8f1;
-  color: #6b3d1e;
+  border: 1px solid rgba(51, 199, 227, 0.34);
+  background: #f0f9ff;
+  color: #155e75;
   font-size: 1.5rem;
   line-height: 1;
 }
@@ -895,7 +963,7 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
   align-items: center;
   justify-content: center;
   border-radius: 0.75rem;
-  background: #8a542f;
+  background: #33c7e3;
   color: white;
   padding: 0.625rem 0.875rem;
   font-size: 0.875rem;
@@ -908,9 +976,9 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
   align-items: center;
   justify-content: center;
   border-radius: 0.75rem;
-  border: 1px solid rgba(137, 93, 57, 0.34);
+  border: 1px solid rgba(51, 199, 227, 0.34);
   background: white;
-  color: #6b3d1e;
+  color: #155e75;
   padding: 0.625rem 0.875rem;
   font-size: 0.875rem;
   font-weight: 500;
@@ -919,10 +987,10 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
 
 .instagram-section .instagram-panel {
   border-radius: 1.1rem;
-  border: 1px solid rgba(187, 152, 120, 0.55);
+  border: 1px solid rgba(186, 214, 229, 0.55);
   background: linear-gradient(180deg, rgba(255, 252, 248, 0.98), rgba(250, 242, 234, 0.96));
   padding: 1.15rem;
-  box-shadow: 0 14px 28px rgba(81, 52, 34, 0.1);
+  box-shadow: 0 14px 28px rgba(75, 131, 162, 0.1);
 }
 
 .instagram-profile-row {
@@ -951,7 +1019,7 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
   height: 76px;
   border-radius: 9999px;
   overflow: hidden;
-  border: 3px solid #fff8f1;
+  border: 3px solid #f0f9ff;
   background: #f6e8db;
 }
 
@@ -971,7 +1039,7 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
 .instagram-stat-value {
   font-size: 1.05rem;
   font-weight: 800;
-  color: #2f1e13;
+  color: #0f172a;
   line-height: 1.1;
 }
 
@@ -987,8 +1055,8 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
   align-items: center;
   justify-content: center;
   border-radius: 9999px;
-  border: 1px solid rgba(154, 95, 48, 0.55);
-  background: linear-gradient(120deg, #774522, #9b5f33);
+  border: 1px solid rgba(51, 199, 227, 0.55);
+  background: linear-gradient(120deg, #33c7e3, #54def7);
   color: white;
   padding: 0.35rem 0.95rem;
   font-size: 0.78rem;
@@ -999,7 +1067,7 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
 @media (hover: hover) and (pointer: fine) {
   .instagram-follow-btn:hover {
     transform: translateY(-1px);
-    box-shadow: 0 8px 16px rgba(103, 61, 32, 0.28);
+    box-shadow: 0 8px 16px rgba(51, 199, 227, 0.28);
   }
 
   .instagram-media-tile:hover .instagram-media-image {
@@ -1035,12 +1103,12 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
   aspect-ratio: 1 / 1;
   overflow: hidden;
   border-radius: 0.85rem;
-  border: 1px solid rgba(170, 135, 103, 0.55);
+  border: 1px solid rgba(171, 204, 223, 0.55);
   background: rgb(231 215 199);
 }
 
 .instagram-media-tile--placeholder {
-  background: linear-gradient(135deg, #8b5a33 0%, #5c3820 45%, #3d2415 100%);
+  background: linear-gradient(135deg, #0891b2 0%, #164e63 45%, #0f172a 100%);
 }
 
 .instagram-media-image {
@@ -1114,16 +1182,16 @@ body[data-compare-open="true"] .whatsapp-floating-btn {
 }
 
 .site-footer-link {
-  color: #7c4a25;
+  color: #0e7490;
   font-weight: 600;
   text-decoration: underline;
-  text-decoration-color: rgba(180, 120, 60, 0.45);
+  text-decoration-color: rgba(51, 199, 227, 0.45);
   text-underline-offset: 3px;
   transition: color 0.15s ease;
 }
 
 .site-footer-link:hover {
-  color: #5c3218;
+  color: #164e63;
 }
 
 .site-map-modal {

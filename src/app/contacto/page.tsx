@@ -33,7 +33,7 @@ export default function ContactoPage() {
           }),
         ]}
       />
-      <main className="premium-bg min-h-screen overflow-x-hidden text-[#2d2118]">
+      <main className="premium-bg min-h-screen overflow-x-hidden text-[#18181b]">
         <SiteHeader />
         <div className="relative z-10 mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <header className="section-shell mb-8">
@@ -51,35 +51,35 @@ export default function ContactoPage() {
               <h2 className="text-2xl font-bold text-slate-900">Hablemos hoy</h2>
               <dl className="mt-4 space-y-4 text-sm text-slate-700">
                 <div>
-                  <dt className="text-xs font-semibold uppercase tracking-wide text-amber-900">WhatsApp</dt>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-cyan-900">WhatsApp</dt>
                   <dd className="mt-1">
-                    <a href={CONTACT_CHANNELS.whatsappUrl} target="_blank" rel="noreferrer" className="font-semibold text-amber-800 underline">
+                    <a href={CONTACT_CHANNELS.whatsappUrl} target="_blank" rel="noreferrer" className="font-semibold text-cyan-800 underline">
                       {CONTACT_CHANNELS.phone}
                     </a>
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-semibold uppercase tracking-wide text-amber-900">Correo comercial</dt>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-cyan-900">Correo comercial</dt>
                   <dd className="mt-1">
-                    <a href={`mailto:${CONTACT_CHANNELS.email}`} className="font-semibold text-amber-800 underline">
+                    <a href={`mailto:${CONTACT_CHANNELS.email}`} className="font-semibold text-cyan-800 underline">
                       {CONTACT_CHANNELS.email}
                     </a>
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-semibold uppercase tracking-wide text-amber-900">Instagram</dt>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-cyan-900">Instagram</dt>
                   <dd className="mt-1">
-                    <a href={CONTACT_CHANNELS.instagramUrl} target="_blank" rel="noreferrer" className="font-semibold text-amber-800 underline">
+                    <a href={CONTACT_CHANNELS.instagramUrl} target="_blank" rel="noreferrer" className="font-semibold text-cyan-800 underline">
                       {CONTACT_CHANNELS.instagramHandle}
                     </a>
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-semibold uppercase tracking-wide text-amber-900">Dirección</dt>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-cyan-900">Dirección</dt>
                   <dd className="mt-1 font-semibold text-slate-900">{CONTACT_CHANNELS.address}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-semibold uppercase tracking-wide text-amber-900">Horario</dt>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-cyan-900">Horario</dt>
                   <dd className="mt-1">{CONTACT_CHANNELS.openingHours}</dd>
                 </div>
               </dl>
@@ -113,11 +113,11 @@ export default function ContactoPage() {
           <ContactLeadForm />
 
           <p className="mt-10 text-center text-sm text-slate-600">
-            <Link href="/nosotros" className="text-amber-800 hover:underline">
+            <Link href="/nosotros" className="text-cyan-800 hover:underline">
               Conoce más sobre nosotros
             </Link>
             {" · "}
-            <Link href="/" className="text-amber-800 hover:underline">
+            <Link href="/" className="text-cyan-800 hover:underline">
               Volver al inicio
             </Link>
           </p>

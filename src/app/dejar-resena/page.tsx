@@ -36,7 +36,7 @@ export default function DejarResenaPage() {
       />
       <main className="mx-auto min-h-screen max-w-3xl px-4 py-8">
         <nav className="mb-6 text-sm text-neutral-500">
-          <Link href="/" className="hover:text-[#8a542f]">
+          <Link href="/" className="hover:text-[#33c7e3]">
             Inicio
           </Link>
           <span aria-hidden="true"> / </span>
@@ -51,7 +51,7 @@ export default function DejarResenaPage() {
           </p>
         </header>
 
-        <section className="mb-8 rounded-2xl bg-[#8a542f] p-6 text-white">
+        <section className="mb-8 rounded-2xl bg-[#33c7e3] p-6 text-white">
           <h2 className="mb-2 text-xl font-semibold">Dejar reseña en Google</h2>
           <p className="mb-4 opacity-95">
             {gbp.reviewUrl
@@ -62,7 +62,7 @@ export default function DejarResenaPage() {
             href={reviewLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex rounded-lg bg-white px-5 py-3 font-semibold text-[#8a542f] transition hover:bg-neutral-100"
+            className="inline-flex rounded-lg bg-white px-5 py-3 font-semibold text-[#33c7e3] transition hover:bg-neutral-100"
           >
             {gbp.reviewUrl ? "Escribir reseña en Google" : "Abrir Google Maps"}
           </a>
@@ -73,7 +73,7 @@ export default function DejarResenaPage() {
         <ReviewCampaignTemplates reviewUrl={reviewLink} />
 
         <p className="text-center text-sm text-neutral-500">
-          <Link href="/" className="text-[#8a542f] hover:underline">
+          <Link href="/" className="text-[#33c7e3] hover:underline">
             ← Volver al catálogo de autos usados
           </Link>
         </p>

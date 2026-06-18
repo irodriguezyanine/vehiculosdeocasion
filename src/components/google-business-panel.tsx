@@ -17,7 +17,7 @@ export function GoogleBusinessPanel() {
   return (
     <section
       aria-labelledby="google-business-heading"
-      className="mb-10 rounded-2xl border border-[#8a542f]/30 bg-gradient-to-br from-[#fff8f1] to-white p-6 shadow-sm"
+      className="mb-10 rounded-2xl border border-[#33c7e3]/30 bg-gradient-to-br from-[#f0f9ff] to-white p-6 shadow-sm"
     >
       <h2 id="google-business-heading" className="mb-2 text-xl font-semibold text-neutral-900">
         Encuéntranos en Google Maps — {SITE_NAME}
@@ -25,7 +25,7 @@ export function GoogleBusinessPanel() {
       <p className="mb-4 text-sm leading-relaxed text-neutral-700">
         Automotora en <strong>{BUSINESS.address.street}, {BUSINESS.address.locality}</strong>. Atendemos compradores
         de autos usados y seminuevos en todo Chile. Teléfono/WhatsApp:{" "}
-        <a href={`tel:${BUSINESS.whatsapp}`} className="text-[#8a542f] hover:underline">
+        <a href={`tel:${BUSINESS.whatsapp}`} className="text-[#33c7e3] hover:underline">
           {BUSINESS.phone}
         </a>
         .
@@ -50,7 +50,7 @@ export function GoogleBusinessPanel() {
         >
           Ver en Google Maps
         </a>
-        <Link href="/dejar-resena" className="premium-link-pill ui-focus inline-flex border-[#8a542f] bg-[#8a542f] text-white">
+        <Link href="/dejar-resena" className="premium-link-pill ui-focus inline-flex border-[#33c7e3] bg-[#33c7e3] text-white">
           Dejar reseña en Google
         </Link>
         <a
@@ -66,7 +66,7 @@ export function GoogleBusinessPanel() {
       <p className="mt-4 text-xs text-neutral-500">
         ¿Compraste con nosotros? Tu reseña en Google ayuda a que más personas encuentren autos usados de confianza
         en Chile.{" "}
-        <Link href="/dejar-resena" className="text-[#8a542f] hover:underline">
+        <Link href="/dejar-resena" className="text-[#33c7e3] hover:underline">
           Dejar reseña →
         </Link>
       </p>

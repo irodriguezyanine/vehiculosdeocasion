@@ -18,7 +18,7 @@ type SiteHeaderProps = {
 };
 
 function navLinkClass(isActive: boolean) {
-  return `premium-link-pill ui-focus ${isActive ? "border-amber-400 bg-amber-700 text-white" : ""}`;
+  return `premium-link-pill ui-focus ${isActive ? "border-cyan-300 bg-cyan-600 text-white" : ""}`;
 }
 
 export function SiteHeader({
@@ -38,7 +38,7 @@ export function SiteHeader({
     onLoginClick != null ? (
       <button
         type="button"
-        className="ui-focus rounded-full bg-amber-700 px-3 py-1 text-xs text-white transition hover:-translate-y-0.5 hover:bg-amber-600"
+        className="ui-focus rounded-full bg-cyan-600 px-3 py-1 text-xs text-white transition hover:-translate-y-0.5 hover:bg-cyan-500"
         onClick={onLoginClick}
       >
         Login
@@ -46,7 +46,7 @@ export function SiteHeader({
     ) : (
       <Link
         href="/?login=1"
-        className="ui-focus rounded-full bg-amber-700 px-3 py-1 text-xs text-white transition hover:-translate-y-0.5 hover:bg-amber-600"
+        className="ui-focus rounded-full bg-cyan-600 px-3 py-1 text-xs text-white transition hover:-translate-y-0.5 hover:bg-cyan-500"
         onClick={() => setMobileMenuOpen(false)}
       >
         Login
@@ -69,7 +69,7 @@ export function SiteHeader({
       ) : (
         <button
           type="button"
-          className="ui-focus rounded-full border border-amber-300 bg-stone-100 px-3 py-1 text-xs text-amber-800 transition hover:-translate-y-0.5 hover:bg-stone-200"
+          className="ui-focus rounded-full border border-cyan-200 bg-stone-100 px-3 py-1 text-xs text-cyan-800 transition hover:-translate-y-0.5 hover:bg-stone-200"
           onClick={() => {
             onOpenEditor?.();
             setMobileMenuOpen(false);
@@ -99,21 +99,19 @@ export function SiteHeader({
         <div className="flex items-center justify-between gap-3 md:gap-4">
           <Link href="/" className="inline-flex items-center gap-2" onClick={onLogoClick}>
             <Image
-              src="/vehiculos-ocasion-logo.png"
+              src="/vehiculos-de-ocasion-logo.png"
               alt="Logo Vehículos de Ocasión"
-              width={72}
-              height={72}
+              width={220}
+              height={56}
               priority
-              className="h-14 w-14 rounded-full object-cover sm:h-16 sm:w-16"
+              className="h-11 w-auto max-w-[220px] object-contain sm:h-12"
             />
-            <span className="brand-wordmark hidden text-xl text-[#4d2f1d] sm:inline-block">
-              Vehiculos de Ocasion
-            </span>
+            <span className="sr-only">Vehiculos de Ocasion</span>
           </Link>
           <button
             type="button"
             onClick={() => setMobileMenuOpen((prev) => !prev)}
-            className="ui-focus touch-target inline-flex items-center justify-center rounded-lg border border-amber-300/70 bg-[#fff8f1] text-[#6b3d1e] md:hidden"
+            className="ui-focus touch-target inline-flex items-center justify-center rounded-lg border border-cyan-200/70 bg-[#f0f9ff] text-[#155e75] md:hidden"
             aria-label={mobileMenuOpen ? "Cerrar menu" : "Abrir menu"}
             aria-expanded={mobileMenuOpen}
             aria-controls="mobile-main-menu"

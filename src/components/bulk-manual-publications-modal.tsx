@@ -174,7 +174,7 @@ export function BulkManualPublicationsModal({
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+            <p className="text-xs font-semibold uppercase tracking-wide text-cyan-800">
               Alta masiva
             </p>
             <h3 className="text-lg font-bold text-slate-900">Agregar vehiculos nuevos por patente</h3>
@@ -214,7 +214,7 @@ export function BulkManualPublicationsModal({
             Nuevas: {newPreview.length}
           </span>
           {skippedPreview.length > 0 ? (
-            <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-800">
+            <span className="rounded-full bg-cyan-50 px-2.5 py-1 text-cyan-800">
               Ya existentes: {skippedPreview.length}
             </span>
           ) : null}
@@ -235,7 +235,7 @@ export function BulkManualPublicationsModal({
                   onClick={() => toggleSection(id)}
                   className={`ui-focus rounded-full border px-3 py-1 text-xs font-semibold transition ${
                     active
-                      ? "border-amber-400 bg-amber-50 text-amber-900"
+                      ? "border-cyan-300 bg-cyan-50 text-cyan-900"
                       : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
                   }`}
                 >
@@ -247,7 +247,7 @@ export function BulkManualPublicationsModal({
         </div>
 
         {progress ? (
-          <p className="mb-3 text-sm font-medium text-amber-800">{progress}</p>
+          <p className="mb-3 text-sm font-medium text-cyan-800">{progress}</p>
         ) : null}
 
         {results.length > 0 ? (
@@ -292,7 +292,7 @@ export function BulkManualPublicationsModal({
             type="button"
             onClick={() => void runBulkCreate()}
             disabled={processing || newPreview.length === 0}
-            className="ui-focus rounded-md bg-amber-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60"
+            className="ui-focus rounded-md bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {processing ? "Procesando..." : `Crear ${newPreview.length} unidad(es)`}
           </button>

@@ -94,7 +94,7 @@ function MediaTile({ item }: { item: InstagramMediaItem }) {
           <p className="line-clamp-2 text-sm font-semibold text-white">
             {item.caption?.trim() || "Ver publicación"}
           </p>
-          <span className="text-xs text-amber-100">Abrir en Instagram</span>
+          <span className="text-xs text-cyan-100">Abrir en Instagram</span>
         </div>
       </div>
     </a>
@@ -189,10 +189,10 @@ export function InstagramSection() {
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="premium-kicker">Instagram</p>
-          <h2 id="instagram-section-title" className="text-2xl font-bold text-[#2f1e13]">
+          <h2 id="instagram-section-title" className="text-2xl font-bold text-[#0f172a]">
             Galería social
           </h2>
-          <p className="mt-1 max-w-xl text-sm text-[#6f583f]">
+          <p className="mt-1 max-w-xl text-sm text-[#475569]">
             Sigue nuestro día a día: unidades nuevas, behind the scenes y novedades del catálogo.
           </p>
         </div>
@@ -215,7 +215,7 @@ export function InstagramSection() {
             <ProfileAvatar profile={profile} loading={false} />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                <h3 className="text-lg font-bold text-[#2f1e13] sm:text-xl">{INSTAGRAM_HANDLE}</h3>
+                <h3 className="text-lg font-bold text-[#0f172a] sm:text-xl">{INSTAGRAM_HANDLE}</h3>
                 <a
                   href={INSTAGRAM_PROFILE_URL}
                   target="_blank"
@@ -234,7 +234,7 @@ export function InstagramSection() {
               </div>
 
               {profile.biography ? (
-                <p className="mt-3 max-w-2xl whitespace-pre-line text-sm leading-relaxed text-[#6f583f]">
+                <p className="mt-3 max-w-2xl whitespace-pre-line text-sm leading-relaxed text-[#475569]">
                   {profile.biography}
                 </p>
               ) : null}
@@ -249,14 +249,14 @@ export function InstagramSection() {
             </div>
           ) : (
             <div className="mt-5">
-              <p className="mb-3 text-sm text-[#6f583f]">
+              <p className="mb-3 text-sm text-[#475569]">
                 Explora el perfil y descubre las últimas publicaciones en Instagram.
               </p>
               <PlaceholderGrid />
             </div>
           )}
 
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-amber-200/70 pt-4">
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-cyan-200/70 pt-4">
             <p className="text-xs text-[#8b6546]">
               {feed?.source === "graph_api" || feed?.source === "web_profile"
                 ? "Contenido actualizado desde Instagram"
@@ -266,7 +266,7 @@ export function InstagramSection() {
               href={INSTAGRAM_PROFILE_URL}
               target="_blank"
               rel="noreferrer"
-              className="ui-focus text-sm font-semibold text-amber-800 underline decoration-amber-300 underline-offset-2 hover:text-amber-900"
+              className="ui-focus text-sm font-semibold text-cyan-800 underline decoration-amber-300 underline-offset-2 hover:text-cyan-900"
             >
               Ver todo en Instagram →
             </a>

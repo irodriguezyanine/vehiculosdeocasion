@@ -34,18 +34,18 @@ function MapModal({ location, onClose }: { location: SiteLocation; onClose: () =
         role="dialog"
         aria-modal="true"
         aria-label={`Mapa — ${location.label}`}
-        className="site-map-modal w-full max-w-3xl overflow-hidden rounded-2xl border border-amber-200/40 bg-[#fffaf5] shadow-2xl"
+        className="site-map-modal w-full max-w-3xl overflow-hidden rounded-2xl border border-cyan-200/40 bg-[#fffaf5] shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-3 border-b border-amber-200/60 bg-[#f8efe4] px-4 py-3 sm:px-5">
+        <div className="flex items-start justify-between gap-3 border-b border-cyan-200/60 bg-[#f8efe4] px-4 py-3 sm:px-5">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-amber-900">{location.label}</p>
-            <p className="mt-0.5 text-sm font-semibold text-[#2f1d12]">{location.addressLine}</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-cyan-900">{location.label}</p>
+            <p className="mt-0.5 text-sm font-semibold text-[#0f172a]">{location.addressLine}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="ui-focus inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-amber-300/70 bg-white text-[#5c3a22] transition hover:bg-amber-50"
+            className="ui-focus inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-cyan-200/70 bg-white text-[#5c3a22] transition hover:bg-cyan-50"
             aria-label="Cerrar mapa"
           >
             ×
@@ -61,13 +61,13 @@ function MapModal({ location, onClose }: { location: SiteLocation; onClose: () =
             allowFullScreen
           />
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-amber-200/60 px-4 py-3 sm:px-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-cyan-200/60 px-4 py-3 sm:px-5">
           <p className="text-xs text-slate-600">Haz clic en la dirección para volver a abrir el mapa cuando lo necesites.</p>
           <a
             href={buildMapExternalUrl(location.mapsQuery)}
             target="_blank"
             rel="noopener noreferrer"
-            className="ui-focus rounded-full bg-amber-700 px-4 py-2 text-xs font-semibold text-white transition hover:bg-amber-600"
+            className="ui-focus rounded-full bg-cyan-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-cyan-500"
           >
             Abrir en Google Maps
           </a>
@@ -97,7 +97,7 @@ function FooterClock() {
   }, []);
 
   return (
-    <p className="site-footer-clock text-sm font-medium capitalize text-amber-900" suppressHydrationWarning>
+    <p className="site-footer-clock text-sm font-medium capitalize text-cyan-900" suppressHydrationWarning>
       {label || "Actualizando hora…"}
     </p>
   );
@@ -109,13 +109,13 @@ export function SiteFooter() {
 
   return (
     <>
-      <footer className="site-footer relative z-10 mt-auto border-t border-amber-200/70 bg-[#f3ebe2] text-[#2f1d12]">
+      <footer className="site-footer relative z-10 mt-auto border-t border-cyan-200/70 bg-[#e0f2fe] text-[#0f172a]">
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-          <div className="site-footer-disclaimer rounded-xl border border-[#c9b29a] bg-[#faf6f1] px-4 py-4 text-center text-sm leading-relaxed text-[#4a3428] sm:px-6">
+          <div className="site-footer-disclaimer rounded-xl border border-[#c9b29a] bg-[#f8fafc] px-4 py-4 text-center text-sm leading-relaxed text-[#4a3428] sm:px-6">
             {FOOTER_DISCLAIMER}
           </div>
 
-          <div className="mt-6 flex flex-col gap-4 border-b border-amber-200/60 pb-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-6 flex flex-col gap-4 border-b border-cyan-200/60 pb-6 sm:flex-row sm:items-center sm:justify-between">
             <FooterClock />
             <nav className="flex flex-wrap gap-x-4 gap-y-2 text-sm" aria-label="Enlaces legales y utilidades">
               <Link href="/contacto" className="site-footer-link ui-focus">
@@ -147,16 +147,16 @@ export function SiteFooter() {
             <div>
               <div className="flex items-center gap-3">
                 <Image
-                  src="/vehiculos-ocasion-logo.png"
+                  src="/vehiculos-de-ocasion-logo.png"
                   alt=""
-                  width={52}
-                  height={52}
-                  className="h-12 w-12 rounded-full object-cover"
+                  width={180}
+                  height={48}
+                  className="h-10 w-auto max-w-[180px] object-contain"
                   aria-hidden="true"
                 />
                 <div>
-                  <p className="text-base font-bold text-[#2f1d12]">{SITE_NAME}</p>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-900">VEDISA REMATES</p>
+                  <p className="text-base font-bold text-[#0f172a]">{SITE_NAME}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-cyan-900">VEDISA REMATES</p>
                 </div>
               </div>
               <p className="mt-4 text-sm leading-relaxed text-slate-700">
@@ -174,12 +174,12 @@ export function SiteFooter() {
 
             <div className="space-y-4">
               {SITE_LOCATIONS.map((location) => (
-                <div key={location.id} className="site-footer-location rounded-xl border border-amber-200/70 bg-white/80 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-900">{location.label}</p>
+                <div key={location.id} className="site-footer-location rounded-xl border border-cyan-200/70 bg-white/80 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-cyan-900">{location.label}</p>
                   <button
                     type="button"
                     onClick={() => setMapLocation(location)}
-                    className="ui-focus mt-1 inline-flex items-start gap-2 text-left text-sm font-semibold text-[#5c3218] underline decoration-amber-400/70 underline-offset-2 transition hover:text-amber-800"
+                    className="ui-focus mt-1 inline-flex items-start gap-2 text-left text-sm font-semibold text-[#164e63] underline decoration-amber-400/70 underline-offset-2 transition hover:text-cyan-800"
                   >
                     <span aria-hidden="true" className="mt-0.5 text-base">📍</span>
                     <span>{location.addressLine}</span>
@@ -189,32 +189,32 @@ export function SiteFooter() {
               ))}
             </div>
 
-            <div className="site-footer-contact rounded-xl border border-amber-200/70 bg-white/80 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-amber-900">Contacto comercial</p>
+            <div className="site-footer-contact rounded-xl border border-cyan-200/70 bg-white/80 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-cyan-900">Contacto comercial</p>
               <ul className="mt-3 space-y-3 text-sm text-slate-700">
                 <li>
-                  <span className="font-semibold text-[#2f1d12]">WhatsApp:</span>
+                  <span className="font-semibold text-[#0f172a]">WhatsApp:</span>
                   {" "}
                   <a href={CONTACT_CHANNELS.whatsappUrl} target="_blank" rel="noreferrer" className="site-footer-link ui-focus">
                     {CONTACT_CHANNELS.phone}
                   </a>
                 </li>
                 <li>
-                  <span className="font-semibold text-[#2f1d12]">Correo:</span>
+                  <span className="font-semibold text-[#0f172a]">Correo:</span>
                   {" "}
                   <a href={`mailto:${CONTACT_CHANNELS.email}`} className="site-footer-link ui-focus">
                     {CONTACT_CHANNELS.email}
                   </a>
                 </li>
                 <li>
-                  <span className="font-semibold text-[#2f1d12]">Instagram:</span>
+                  <span className="font-semibold text-[#0f172a]">Instagram:</span>
                   {" "}
                   <a href={CONTACT_CHANNELS.instagramUrl} target="_blank" rel="noreferrer" className="site-footer-link ui-focus">
                     {CONTACT_CHANNELS.instagramHandle}
                   </a>
                 </li>
                 <li>
-                  <span className="font-semibold text-[#2f1d12]">Horario:</span>
+                  <span className="font-semibold text-[#0f172a]">Horario:</span>
                   {" "}
                   {FOOTER_HOURS}
                 </li>
@@ -223,7 +223,7 @@ export function SiteFooter() {
           </div>
         </div>
 
-        <div className="border-t border-[#3d2818]/20 bg-[#2f1d12] px-4 py-4 text-center text-xs leading-relaxed text-stone-300 sm:px-6">
+        <div className="border-t border-[#3d2818]/20 bg-[#0f172a] px-4 py-4 text-center text-xs leading-relaxed text-stone-300 sm:px-6">
           <p>
             © Copyright {year} {SITE_LEGAL_NAME}. All Rights Reserved.
           </p>

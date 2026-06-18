@@ -46,20 +46,18 @@ export function SeoLandingPageClient({ page, feed, config }: SeoLandingPageClien
 
   return (
     <div className="seo-landing-page min-h-screen bg-[var(--background)] text-[var(--brand-text)]">
-      <header className="top-nav-shell sticky top-0 z-30 border-b border-[var(--brand-border)] bg-[#f6efe8]/95 backdrop-blur">
+      <header className="top-nav-shell sticky top-0 z-30 border-b border-[var(--brand-border)] bg-[#f8fafc]/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <Link href="/" className="inline-flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/vehiculos-ocasion-logo.png"
+              src="/vehiculos-de-ocasion-logo.png"
               alt={`Logo ${SITE_NAME}`}
-              width={64}
-              height={64}
-              className="h-14 w-14 rounded-full object-cover"
+              width={200}
+              height={52}
+              className="h-11 w-auto max-w-[200px] object-contain"
             />
-            <span className="brand-wordmark hidden text-lg text-[#4d2f1d] sm:inline-block">
-              Vehículos de Ocasión
-            </span>
+            <span className="sr-only">Vehículos de Ocasión</span>
           </Link>
           <Link href="/" className="premium-link-pill ui-focus text-sm font-medium">
             Ver catálogo completo
@@ -69,7 +67,7 @@ export function SeoLandingPageClient({ page, feed, config }: SeoLandingPageClien
 
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
         <nav aria-label="Breadcrumb" className="mb-4 text-sm text-neutral-500">
-          <Link href="/" className="hover:text-[#8a542f]">
+          <Link href="/" className="hover:text-[#33c7e3]">
             Inicio
           </Link>
           <span aria-hidden="true"> / </span>
@@ -77,7 +75,7 @@ export function SeoLandingPageClient({ page, feed, config }: SeoLandingPageClien
         </nav>
 
         <section className="mb-8 rounded-2xl border border-[var(--brand-border)] bg-white/80 p-5 shadow-sm sm:p-6">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#8a542f]">{SITE_NAME}</p>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#33c7e3]">{SITE_NAME}</p>
           <h1 className="mb-3 text-2xl font-bold text-neutral-900 sm:text-3xl">{page.h1}</h1>
           <p className="mb-4 max-w-3xl text-base leading-relaxed text-neutral-700">{page.intro}</p>
           <div className="flex flex-wrap gap-2">
@@ -175,7 +173,7 @@ export function SeoLandingPageClient({ page, feed, config }: SeoLandingPageClien
                         ) : null}
                         <div className="flex justify-between gap-2">
                           <dt className="text-neutral-500">Precio</dt>
-                          <dd className="font-semibold text-[#8a542f]">{price ?? "Consultar"}</dd>
+                          <dd className="font-semibold text-[#33c7e3]">{price ?? "Consultar"}</dd>
                         </div>
                       </dl>
                       <div className="mt-auto flex flex-col gap-2 pt-4">
@@ -196,13 +194,13 @@ export function SeoLandingPageClient({ page, feed, config }: SeoLandingPageClien
           <p className="mobile-scroll-hint mt-2 md:hidden">Desliza horizontalmente para ver más vehículos</p>
         </section>
 
-        <section className="mb-8 rounded-2xl bg-[#8a542f] p-6 text-white">
+        <section className="mb-8 rounded-2xl bg-[#33c7e3] p-6 text-white">
           <h2 className="mb-2 text-xl font-semibold">¿Quieres el catálogo completo con búsqueda y visor 3D?</h2>
           <p className="mb-4 opacity-95">
             En el home puedes filtrar por marca y modelo, comparar precios y contactar por WhatsApp al {BUSINESS.phone}.
           </p>
           <div className="flex flex-wrap gap-3">
-            <Link href="/" className="inline-flex rounded-lg bg-white px-4 py-2 font-medium text-[#8a542f] transition hover:bg-neutral-100">
+            <Link href="/" className="inline-flex rounded-lg bg-white px-4 py-2 font-medium text-[#33c7e3] transition hover:bg-neutral-100">
               Abrir catálogo completo
             </Link>
             <a
@@ -240,7 +238,7 @@ export function SeoLandingPageClient({ page, feed, config }: SeoLandingPageClien
                 if (!related) return null;
                 return (
                   <li key={slug}>
-                    <Link href={`/${slug}`} className="text-[#8a542f] hover:underline">
+                    <Link href={`/${slug}`} className="text-[#33c7e3] hover:underline">
                       {related.h1}
                     </Link>
                   </li>

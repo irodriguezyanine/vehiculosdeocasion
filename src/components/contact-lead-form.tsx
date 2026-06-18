@@ -63,12 +63,12 @@ export function ContactLeadForm() {
         <button
           type="button"
           onClick={submit}
-          className="ui-focus min-h-11 rounded-md bg-amber-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600"
+          className="ui-focus min-h-11 rounded-md bg-cyan-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-cyan-500"
         >
           Solicitar asesoría
         </button>
       </div>
-      {message ? <p className="mt-2 text-xs font-semibold text-amber-800">{message}</p> : null}
+      {message ? <p className="mt-2 text-xs font-semibold text-cyan-800">{message}</p> : null}
     </div>
   );
 }

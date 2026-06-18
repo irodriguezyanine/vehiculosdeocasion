@@ -96,13 +96,13 @@ export default async function VehicleSeoPage({ params }: PageProps) {
   return (
     <>
       <StructuredData data={buildVehicleOfferJsonLd(item, priceLabel)} />
-      <div className="min-h-screen bg-[#f6efe8] text-[#2d2118]">
+      <div className="min-h-screen bg-[#f6efe8] text-[#18181b]">
         <header className="border-b border-[#e8ddd2] bg-[#f6efe8]/95">
           <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3">
-            <Link href="/" className="font-semibold text-[#8a542f]">
+            <Link href="/" className="font-semibold text-[#33c7e3]">
               {SITE_NAME}
             </Link>
-            <Link href="/autos-usados-chile" className="text-sm text-[#8a542f] hover:underline">
+            <Link href="/autos-usados-chile" className="text-sm text-[#33c7e3] hover:underline">
               Autos usados Chile
             </Link>
           </div>
@@ -158,13 +158,13 @@ export default async function VehicleSeoPage({ params }: PageProps) {
           <div className="flex flex-wrap gap-3">
             <Link
               href={catalogLink}
-              className="inline-flex rounded-lg bg-[#8a542f] px-4 py-2 font-medium text-white hover:bg-[#744628]"
+              className="inline-flex rounded-lg bg-[#33c7e3] px-4 py-2 font-medium text-white hover:bg-[#744628]"
             >
               Ver ficha completa en catálogo
             </Link>
             <a
               href={`https://wa.me/${BUSINESS.whatsapp.replace(/\D/g, "")}`}
-              className="inline-flex rounded-lg border border-[#8a542f] px-4 py-2 font-medium text-[#8a542f] hover:bg-[#8a542f]/5"
+              className="inline-flex rounded-lg border border-[#33c7e3] px-4 py-2 font-medium text-[#33c7e3] hover:bg-[#33c7e3]/5"
               rel="noopener noreferrer"
               target="_blank"
             >

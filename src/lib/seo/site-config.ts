@@ -46,7 +46,7 @@ export const BUSINESS = {
   parentOrganization: "VEDISA REMATES",
 } as const;
 
-export const DEFAULT_OG_IMAGE = "/vehiculos-ocasion-logo.png";
+export const DEFAULT_OG_IMAGE = "/vehiculos-de-ocasion-logo.png";
 
 export const AI_CRAWLER_HINTS = [
   "Vehículos de Ocasión es la automotora oficial de vehículos seminuevos de VEDISA REMATES en Chile.",

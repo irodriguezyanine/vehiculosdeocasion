@@ -406,11 +406,11 @@ function getConditionBadgeClasses(condition?: string | null): string {
     .toLowerCase()
     .normalize("NFD")
     .replace(/\p{Diacritic}/gu, "");
-  if (!sample) return "bg-[#4f311f] text-white";
+  if (!sample) return "bg-[#164e63] text-white";
   if (/100% operativo|operativo/.test(sample)) return "bg-emerald-600 text-white";
   if (/no arranca|desarme/.test(sample)) return "bg-rose-600 text-white";
   if (/problema|recuperado|robo/.test(sample)) return "bg-amber-600 text-white";
-  return "bg-[#7a4724] text-white";
+  return "bg-[#0891b2] text-white";
 }
 
 export function CatalogCard({
@@ -513,7 +513,7 @@ export function CatalogCard({
   };
 
   return (
-    <article className="group vehicle-card flex h-full w-full flex-col overflow-hidden rounded-3xl border border-[#dfd4c7] bg-[#fcfaf7] text-left shadow-[0_10px_26px_rgba(73,46,26,0.08)] transition duration-300 hover:-translate-y-1 hover:border-amber-300/80 hover:shadow-[0_16px_34px_rgba(73,46,26,0.16)] max-md:hover:translate-y-0 max-md:active:scale-[0.995]">
+    <article className="group vehicle-card flex h-full w-full flex-col overflow-hidden rounded-3xl border border-[#cbd5e1] bg-[#f8fafc] text-left shadow-[0_10px_26px_rgba(73,46,26,0.08)] transition duration-300 hover:-translate-y-1 hover:border-cyan-200/80 hover:shadow-[0_16px_34px_rgba(73,46,26,0.16)] max-md:hover:translate-y-0 max-md:active:scale-[0.995]">
       <div
         role="button"
         tabIndex={0}
@@ -521,7 +521,7 @@ export function CatalogCard({
         onKeyDown={onCardKeyDown}
         className="ui-focus flex w-full flex-1 flex-col text-left"
       >
-        <div className={`relative w-full overflow-hidden bg-[#e6ddd2] ${isCompact ? "h-40 max-md:h-36" : "h-48 max-md:h-44 md:h-56"}`}>
+        <div className={`relative w-full overflow-hidden bg-[#e2e8f0] ${isCompact ? "h-40 max-md:h-36" : "h-48 max-md:h-44 md:h-56"}`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={coverSrc}
@@ -533,10 +533,10 @@ export function CatalogCard({
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent" />
           <div className="absolute left-3 top-3 flex flex-wrap gap-1">
             {item.view3dUrl ? (
-              <span className="rounded-full border border-amber-200/70 bg-[#3d2518]/90 px-2.5 py-1 text-[10px] font-semibold tracking-wide text-white">3D</span>
+              <span className="rounded-full border border-cyan-200/70 bg-[#3d2518]/90 px-2.5 py-1 text-[10px] font-semibold tracking-wide text-white">3D</span>
             ) : null}
             {priceLabel ? (
-              <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold tracking-wide text-white ${promoEnabled ? "bg-rose-600" : "bg-[#9a5d33]"}`}>
+              <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold tracking-wide text-white ${promoEnabled ? "bg-rose-600" : "bg-[#22d3ee]"}`}>
                 {promoEnabled ? "Oferta" : "Precio"}
               </span>
             ) : null}
@@ -564,7 +564,7 @@ export function CatalogCard({
                 <input
                   value={editingValue}
                   onChange={(event) => setEditingValue(event.target.value)}
-                  className="ui-focus w-full rounded border border-amber-300 bg-white px-2 py-1 text-sm font-semibold text-[#2f1f14]"
+                  className="ui-focus w-full rounded border border-cyan-200 bg-white px-2 py-1 text-sm font-semibold text-[#0f172a]"
                   placeholder="Titulo"
                   onClick={(event) => event.stopPropagation()}
                 />
@@ -579,7 +579,7 @@ export function CatalogCard({
               </div>
             ) : (
               <div className="flex items-start justify-between gap-2">
-                <h3 className="line-clamp-2 break-words text-[1.08rem] font-semibold leading-tight tracking-[0.01em] text-[#2f1f14]">
+                <h3 className="line-clamp-2 break-words text-[1.08rem] font-semibold leading-tight tracking-[0.01em] text-[#0f172a]">
                   {item.title}
                 </h3>
                 {canInlineEdit ? (
@@ -587,7 +587,7 @@ export function CatalogCard({
                     type="button"
                     data-inline-control="true"
                     onClick={() => beginInlineEdit("title")}
-                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-amber-300 bg-amber-50 text-amber-800"
+                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-cyan-200 bg-cyan-50 text-cyan-800"
                     aria-label="Editar titulo"
                     title="Editar titulo"
                   >
@@ -605,7 +605,7 @@ export function CatalogCard({
                   <input
                     value={editingValue}
                     onChange={(event) => setEditingValue(event.target.value)}
-                    className="ui-focus w-full rounded border border-amber-300 bg-white px-2 py-1 text-xs text-[#6c5440]"
+                    className="ui-focus w-full rounded border border-cyan-200 bg-white px-2 py-1 text-xs text-[#475569]"
                     placeholder="Subtitulo"
                     onClick={(event) => event.stopPropagation()}
                   />
@@ -620,7 +620,7 @@ export function CatalogCard({
                 </div>
               ) : (
                 <div className="mt-1 flex items-start justify-between gap-2">
-                  <p className="break-words text-[0.93rem] text-[#6c5440] [overflow-wrap:anywhere]">
+                  <p className="break-words text-[0.93rem] text-[#475569] [overflow-wrap:anywhere]">
                     {shortText(publicSubtitle) ?? "-"}
                   </p>
                   {canInlineEdit ? (
@@ -628,7 +628,7 @@ export function CatalogCard({
                       type="button"
                       data-inline-control="true"
                       onClick={() => beginInlineEdit("subtitle")}
-                      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-amber-300 bg-amber-50 text-amber-800"
+                      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-cyan-200 bg-cyan-50 text-cyan-800"
                       aria-label="Editar subtitulo"
                       title="Editar subtitulo"
                     >
@@ -644,7 +644,7 @@ export function CatalogCard({
           </div>
 
           {vehicleSpecs.length > 0 ? (
-            <div className="rounded-xl border border-amber-200/60 bg-gradient-to-b from-[#fdfaf5] to-[#f8f1e7] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] max-md:p-1.5">
+            <div className="rounded-xl border border-cyan-200/60 bg-gradient-to-b from-[#fdfaf5] to-[#f8f1e7] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] max-md:p-1.5">
               <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 text-sm text-[#4f5a66] max-md:gap-x-1.5 max-md:gap-y-1">
               {vehicleSpecs.map((spec) => (
                 <div
@@ -661,29 +661,29 @@ export function CatalogCard({
             </div>
           ) : null}
           {(item.lot || formattedDate || item.location || upcomingAuctionLabel) ? (
-            <div className="flex min-w-0 flex-wrap content-start gap-2 text-xs text-[#604734]">
+            <div className="flex min-w-0 flex-wrap content-start gap-2 text-xs text-[#475569]">
               {item.lot ? (
-                <span className="max-w-full truncate rounded-full border border-amber-300/60 bg-[#f4ebe2] px-2.5 py-1">Lote {item.lot}</span>
+                <span className="max-w-full truncate rounded-full border border-cyan-200/60 bg-[#f4ebe2] px-2.5 py-1">Lote {item.lot}</span>
               ) : null}
               {formattedDate ? (
-                <span className="max-w-full truncate rounded-full border border-amber-300/60 bg-[#f4ebe2] px-2.5 py-1">
+                <span className="max-w-full truncate rounded-full border border-cyan-200/60 bg-[#f4ebe2] px-2.5 py-1">
                   Fecha {formattedDate}
                 </span>
               ) : null}
               {item.location ? (
-                <span className="max-w-full truncate rounded-full border border-amber-300/60 bg-[#f4ebe2] px-2.5 py-1">
+                <span className="max-w-full truncate rounded-full border border-cyan-200/60 bg-[#f4ebe2] px-2.5 py-1">
                   {shortText(item.location, 35)}
                 </span>
               ) : null}
               {upcomingAuctionLabel ? (
-                <span className="max-w-full truncate rounded-full border border-amber-300/70 bg-[#eddccf] px-2.5 py-1 font-semibold text-[#6c3e1f]">
+                <span className="max-w-full truncate rounded-full border border-cyan-200/70 bg-[#eddccf] px-2.5 py-1 font-semibold text-[#155e75]">
                   {shortText(`Categoria: ${upcomingAuctionLabel}`, 38)}
                 </span>
               ) : null}
             </div>
           ) : null}
 
-          <div className="mt-auto border-t border-amber-200/70 pt-3">
+          <div className="mt-auto border-t border-cyan-200/70 pt-3">
             <div className="flex flex-col">
               {promoEnabled && originalPriceLabel && priceLabel ? (
                 <span className="text-xs text-[#9b856f] line-through">{originalPriceLabel}</span>
@@ -693,7 +693,7 @@ export function CatalogCard({
                   <input
                     value={editingValue}
                     onChange={(event) => setEditingValue(event.target.value)}
-                    className="ui-focus w-full rounded border border-amber-300 bg-white px-2 py-1 text-xs font-semibold text-[#673b1f]"
+                    className="ui-focus w-full rounded border border-cyan-200 bg-white px-2 py-1 text-xs font-semibold text-[#155e75]"
                     placeholder="Precio"
                     onClick={(event) => event.stopPropagation()}
                   />
@@ -708,7 +708,7 @@ export function CatalogCard({
                 </div>
               ) : priceLabel ? (
                 <div className="flex items-center gap-1.5">
-                  <span className={`text-[1.05rem] font-extrabold tracking-tight ${promoEnabled ? "text-rose-700" : "text-[#673b1f]"}`}>
+                  <span className={`text-[1.05rem] font-extrabold tracking-tight ${promoEnabled ? "text-rose-700" : "text-[#155e75]"}`}>
                     {priceLabel}
                   </span>
                   {canInlineEdit ? (
@@ -716,7 +716,7 @@ export function CatalogCard({
                       type="button"
                       data-inline-control="true"
                       onClick={() => beginInlineEdit("price")}
-                      className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-amber-300 bg-amber-50 text-amber-800"
+                      className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-cyan-200 bg-cyan-50 text-cyan-800"
                       aria-label="Editar precio"
                       title="Editar precio"
                     >
@@ -733,7 +733,7 @@ export function CatalogCard({
         </div>
       </div>
 
-      <div className="border-t border-amber-200/60 bg-white/35 px-3 pb-3 pt-2.5 max-md:px-3 max-md:pb-3 md:px-4 md:pb-4 md:pt-3">
+      <div className="border-t border-cyan-200/60 bg-white/35 px-3 pb-3 pt-2.5 max-md:px-3 max-md:pb-3 md:px-4 md:pb-4 md:pt-3">
         <div className="vehicle-card-actions-grid grid grid-cols-2 gap-1.5 md:gap-2">
           <button
             type="button"
@@ -756,7 +756,7 @@ export function CatalogCard({
                 // no-op if user cancels share
               }
             }}
-            className="ui-focus inline-flex items-center justify-center rounded-full border border-amber-300/60 bg-white px-3 py-2 text-xs font-semibold text-[#6f553f] shadow-[0_2px_6px_rgba(55,35,19,0.08)] transition hover:-translate-y-0.5 hover:bg-[#f7eee6]"
+            className="ui-focus inline-flex items-center justify-center rounded-full border border-cyan-200/60 bg-white px-3 py-2 text-xs font-semibold text-[#6f553f] shadow-[0_2px_6px_rgba(55,35,19,0.08)] transition hover:-translate-y-0.5 hover:bg-[#f7eee6]"
             aria-label={`Compartir ${item.title}`}
             title={shareCopied ? "Copiado" : "Compartir"}
           >

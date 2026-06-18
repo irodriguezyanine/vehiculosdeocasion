@@ -34,7 +34,7 @@ export default function NosotrosPage() {
           }),
         ]}
       />
-      <main className="premium-bg min-h-screen overflow-x-hidden text-[#2d2118]">
+      <main className="premium-bg min-h-screen overflow-x-hidden text-[#18181b]">
         <SiteHeader />
         <div className="relative z-10 mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <header className="section-shell mb-8">
@@ -85,11 +85,11 @@ export default function NosotrosPage() {
           <AboutTrustSections />
 
           <p className="mt-10 text-center text-sm text-slate-600">
-            <Link href="/" className="text-amber-800 hover:underline">
+            <Link href="/" className="text-cyan-800 hover:underline">
               ← Volver al catálogo
             </Link>
             {" · "}
-            <a href={CONTACT_CHANNELS.whatsappUrl} target="_blank" rel="noreferrer" className="text-amber-800 hover:underline">
+            <a href={CONTACT_CHANNELS.whatsappUrl} target="_blank" rel="noreferrer" className="text-cyan-800 hover:underline">
               WhatsApp {CONTACT_CHANNELS.phone}
             </a>
           </p>

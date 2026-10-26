@@ -254,6 +254,7 @@ async function fetchFromTasacionesApi(): Promise<CatalogItem[] | null> {
     "incluir_historicos",
     process.env.CATALOG_SOURCE_API_INCLUIR_HISTORICOS ?? "true",
   );
+  endpoint.searchParams.set("linea_negocio", "vehiculos_de_ocasion");
 
   const response = await fetch(endpoint.toString(), {
     method: "GET",
@@ -295,7 +296,12 @@ async function fetchFromSupabase(): Promise<CatalogItem[]> {
     },
   });
 
-  let query = supabase.from(DEFAULT_TABLE).select(DEFAULT_SELECT).limit(DEFAULT_LIMIT);
+  let query = supabase
+    .from(DEFAULT_TABLE)
+    .select(DEFAULT_SELECT)
+    .eq("linea_negocio", "vehiculos_de_ocasion")
+    .eq("estado_retiro", "en_bodega_a_ocasion")
+    .limit(DEFAULT_LIMIT);
 
   if (DEFAULT_ORDER_BY) {
     query = query.order(DEFAULT_ORDER_BY, { ascending: false });

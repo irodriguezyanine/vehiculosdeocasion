@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 import { getCatalogFeed } from "@/lib/catalog";
 
-import { getVehicleKey, getVisibleCatalogItems } from "@/lib/catalog-visibility";
+import { getVisibleCatalogItems } from "@/lib/catalog-visibility";
 
 import { getEditorConfig } from "@/lib/editor-config";
 
@@ -12,7 +12,7 @@ import { SEO_LANDING_PAGES } from "@/lib/seo/landing-pages";
 
 import { getSiteUrl } from "@/lib/seo/site-config";
 
-import { buildVehicleSeoPath, normalizeVehicleSeoKey } from "@/lib/seo/vehicle-seo";
+import { buildPublicVehicleSeoPath } from "@/lib/seo/vehicle-seo";
 
 
 
@@ -63,12 +63,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
 
   const vehicles: MetadataRoute.Sitemap = visibleItems.map((item) => {
-
-    const key = normalizeVehicleSeoKey(getVehicleKey(item));
-
     return {
 
-      url: `${siteUrl}${buildVehicleSeoPath(key)}`,
+      url: `${siteUrl}${buildPublicVehicleSeoPath(item)}`,
 
       lastModified: now,
 

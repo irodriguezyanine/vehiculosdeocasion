@@ -3,6 +3,7 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, ScanCommand } from "@aws-sdk/lib-dynamodb";
 import { cache } from "react";
 import type { CatalogFeed, CatalogItem, CatalogSource } from "@/types/catalog";
+import { toPublicCatalogId } from "@/lib/public-patent-policy";
 import { fetchAutoredPatentData, mapAutoredToDraftPartial, AutoredLookupError } from "@/lib/autored-lookup";
 import { extractGlo3dTechnicalRawFromRecord } from "@/lib/glo3d-custom-specs";
 
@@ -107,9 +108,9 @@ function extractPatentFromText(value?: string): string | undefined {
 }
 
 function normalizeRow(row: Record<string, unknown>): CatalogItem | null {
-  const id =
-    getStringFromKeys(row, ["id", "uuid", "vehicle_id", "inventario_id"]) ??
-    crypto.randomUUID();
+  const rawId = getStringFromKeys(row, ["id", "uuid", "vehicle_id", "inventario_id"]);
+  const patentHint = getStringFromKeys(row, ["patente", "PPU", "ppu", "plate", "stock_number"]);
+  const id = toPublicCatalogId(rawId, patentHint) || crypto.randomUUID();
 
   const title =
     getStringFromKeys(row, [
@@ -300,8 +301,8 @@ async function fetchFromSupabase(): Promise<CatalogItem[]> {
     .from(DEFAULT_TABLE)
     .select(DEFAULT_SELECT)
     .eq("linea_negocio", "vehiculos_de_ocasion")
-    .eq("estado_retiro", "en_bodega_a_ocasion")
-    .limit(DEFAULT_LIMIT);
+    .neq("estado_retiro", "vendido_fuera_bodega")
+    .limit(Math.max(DEFAULT_LIMIT, 500));
 
   if (DEFAULT_ORDER_BY) {
     query = query.order(DEFAULT_ORDER_BY, { ascending: false });
@@ -448,7 +449,10 @@ function mapAwsItem(item: Record<string, unknown>): AwsVehicle {
   ].filter(Boolean) as string[];
 
   return {
-    id: pickString(merged, ["id", "product_id", "uuid", "stock_number", "sku"]),
+    id: toPublicCatalogId(
+      pickString(merged, ["id", "product_id", "uuid"]),
+      patente,
+    ) || undefined,
     patente,
     marca: pickString(merged, ["brand", "brand_name", "make", "marca", "original_brand_name"]),
     modelo: pickString(merged, ["model", "modelo", "showName", "original_model_name"]),

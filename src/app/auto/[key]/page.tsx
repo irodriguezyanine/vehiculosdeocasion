@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { StructuredData } from "@/components/structured-data";
 import { getCatalogFeed, resolveCatalogItemThumbnail } from "@/lib/catalog";
 import {
@@ -12,19 +12,21 @@ import { getEditorConfig } from "@/lib/editor-config";
 import { buildPageMetadata } from "@/lib/seo/metadata";
 import {
   buildPublicVehicleCatalogDeepLink,
+  buildPublicVehicleSeoPath,
   buildVehicleSeoKeywords,
-  buildVehicleSeoPath,
   extractVehicleBrandModel,
   extractPublicVehicleSeoDescription,
   extractVehicleSeoTitle,
-  normalizeVehicleSeoKey,
+  getPublicVehicleSeoKey,
+  vehicleKeysMatch,
 } from "@/lib/seo/vehicle-seo";
 import { getPublicVehicleSubtitle } from "@/lib/public-patent-policy";
 import { buildVehicleOfferJsonLd } from "@/lib/seo/json-ld";
 import { BUSINESS, SITE_NAME } from "@/lib/seo/site-config";
 import type { CatalogItem } from "@/types/catalog";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
+export const dynamicParams = true;
 
 type PageProps = {
   params: Promise<{ key: string }>;
@@ -35,14 +37,19 @@ async function findVehicleByKey(key: string): Promise<{
   vehicleKey: string;
   priceLabel: string | null;
 } | null> {
-  const normalized = normalizeVehicleSeoKey(decodeURIComponent(key));
+  const decoded = decodeURIComponent(key);
   const [feed, editorConfigResult] = await Promise.all([getCatalogFeed(), getEditorConfig()]);
   const visibleItems = getVisibleCatalogItems(feed.items, editorConfigResult.config);
   const priceLabels = buildPriceLabelMap(editorConfigResult.config);
 
   for (const item of visibleItems) {
     const vehicleKey = getVehicleKey(item);
-    if (normalizeVehicleSeoKey(vehicleKey) === normalized) {
+    const publicKey = getPublicVehicleSeoKey(item);
+    if (
+      vehicleKeysMatch(publicKey, decoded) ||
+      vehicleKeysMatch(item.id, decoded) ||
+      vehicleKeysMatch(vehicleKey, decoded)
+    ) {
       return {
         item,
         vehicleKey,
@@ -57,7 +64,7 @@ export async function generateStaticParams() {
   const [feed, editorConfigResult] = await Promise.all([getCatalogFeed(), getEditorConfig()]);
   const visibleItems = getVisibleCatalogItems(feed.items, editorConfigResult.config);
   return visibleItems.map((item) => ({
-    key: normalizeVehicleSeoKey(getVehicleKey(item)),
+    key: getPublicVehicleSeoKey(item),
   }));
 }
 
@@ -66,11 +73,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const found = await findVehicleByKey(key);
   if (!found) return { robots: { index: false, follow: false } };
 
-  const { item, vehicleKey, priceLabel } = found;
+  const { item, priceLabel } = found;
   const title = `${extractVehicleSeoTitle(item)} | Autos usados Chile — ${SITE_NAME}`;
   const description = `${extractPublicVehicleSeoDescription(item, priceLabel)} Compra auto usado en Chile con VEDISA REMATES. WhatsApp ${BUSINESS.phone}.`;
   const image = resolveCatalogItemThumbnail(item) ?? item.images[0];
-  const path = buildVehicleSeoPath(vehicleKey).replace(/^\//, "");
+  const path = buildPublicVehicleSeoPath(item).replace(/^\//, "");
 
   return buildPageMetadata({
     path,
@@ -88,6 +95,11 @@ export default async function VehicleSeoPage({ params }: PageProps) {
   if (!found) notFound();
 
   const { item, priceLabel } = found;
+  const publicKey = getPublicVehicleSeoKey(item);
+  if (!vehicleKeysMatch(decodeURIComponent(key), publicKey)) {
+    redirect(buildPublicVehicleSeoPath(item));
+  }
+
   const { brand, model, year } = extractVehicleBrandModel(item);
   const image = resolveCatalogItemThumbnail(item) ?? item.images[0];
   const catalogLink = buildPublicVehicleCatalogDeepLink(item);

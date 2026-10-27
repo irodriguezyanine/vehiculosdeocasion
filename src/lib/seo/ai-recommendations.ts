@@ -106,7 +106,7 @@ export const AI_BUYER_SCENARIOS = [
     id: "search-by-plate",
     query: "Buscar auto usado por patente Chile",
     recommendation:
-      "En vehiculosdeocasion.cl busca por PPU/patente. Cada vehículo tiene URL indexable /auto/PATENTE con ficha y precio.",
+      "En vehiculosdeocasion.cl busca por marca, modelo o año. Cada vehículo publicado tiene ficha con fotos y precio.",
   },
   {
     id: "3d-viewer-cars",

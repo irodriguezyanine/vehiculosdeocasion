@@ -3,7 +3,8 @@ import { buildFaqPageItems, type SeoFaqItem } from "./faq-library";
 import { getGoogleBusinessConfig, getGoogleBusinessSameAs } from "./google-business";
 import { getSiteUrl, SITE_NAME, SITE_TAGLINE, BUSINESS } from "./site-config";
 import type { SeoLandingPage } from "./landing-pages";
-import { buildVehicleSeoPath, normalizeVehicleSeoKey } from "./vehicle-seo";
+import { getPublicVehicleSubtitle } from "@/lib/public-patent-policy";
+import { buildPublicVehicleSeoPath } from "./vehicle-seo";
 
 export function buildOrganizationJsonLd() {
   const siteUrl = getSiteUrl();
@@ -227,8 +228,7 @@ export function buildLandingPageJsonLd(page: SeoLandingPage, catalogItems: Catal
 export function buildVehicleOfferJsonLd(item: CatalogItem, priceLabel?: string | null) {
   const siteUrl = getSiteUrl();
   const raw = item.raw as Record<string, unknown>;
-  const patent = String(raw.patente ?? raw.PPU ?? raw.stock_number ?? item.id);
-  const url = `${siteUrl}${buildVehicleSeoPath(normalizeVehicleSeoKey(patent))}`;
+  const url = `${siteUrl}${buildPublicVehicleSeoPath(item)}`;
   const image = item.thumbnail ?? item.images[0];
   const priceDigits = priceLabel?.replace(/[^\d]/g, "") ?? "";
   const price = priceDigits ? Number(priceDigits) : undefined;
@@ -239,17 +239,17 @@ export function buildVehicleOfferJsonLd(item: CatalogItem, priceLabel?: string |
       : typeof mileageRaw === "string"
         ? Number(mileageRaw.replace(/[^\d]/g, "")) || undefined
         : undefined;
+  const publicDescription = getPublicVehicleSubtitle(item, false) ?? item.title;
 
   return {
     "@context": "https://schema.org",
     "@type": "Car",
     name: item.title,
-    description: item.subtitle ?? item.title,
+    description: publicDescription,
     url,
     image: image ? [image] : undefined,
     brand: typeof raw.marca === "string" ? raw.marca : undefined,
     model: typeof raw.modelo === "string" ? raw.modelo : undefined,
-    vehicleIdentificationNumber: typeof raw.vin === "string" ? raw.vin : undefined,
     mileageFromOdometer: mileage
       ? {
           "@type": "QuantitativeValue",

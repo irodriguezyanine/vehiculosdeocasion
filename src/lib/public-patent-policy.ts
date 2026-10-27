@@ -24,6 +24,30 @@ export function looksLikePatentToken(value: string): boolean {
   return /^[A-Z0-9]+$/.test(normalized) && /\d/.test(normalized) && /[A-Z]/.test(normalized);
 }
 
+export function opaquePublicIdFromSeed(seed: string): string {
+  const normalized = seed.trim().toUpperCase().replace(/[\s-]/g, "");
+  let h1 = 2166136261;
+  let h2 = 1597334677;
+  for (let i = 0; i < normalized.length; i += 1) {
+    const code = normalized.charCodeAt(i);
+    h1 ^= code;
+    h1 = Math.imul(h1, 16777619);
+    h2 = Math.imul(h2 ^ code, 2246822519);
+  }
+  const a = (h1 >>> 0).toString(16).padStart(8, "0");
+  const b = (h2 >>> 0).toString(16).padStart(8, "0");
+  return `vh${a}${b}`;
+}
+
+export function toPublicCatalogId(rawId?: string | null, patent?: string | null): string {
+  const id = (rawId ?? "").trim();
+  if (id && !looksLikePatentToken(id)) return id;
+  const seed = id || (patent ?? "").trim();
+  if (!seed) return "";
+  if (!looksLikePatentToken(seed)) return seed;
+  return opaquePublicIdFromSeed(seed);
+}
+
 export function stripPatentFromPublicText(
   text: string | undefined | null,
   patent: string,
@@ -52,5 +76,6 @@ export function getPublicVehicleSubtitle(
 }
 
 export function getPublicShareKey(item: CatalogItem, vehicleKey: string, isAdmin: boolean): string {
-  return isAdmin ? vehicleKey : item.id;
+  if (isAdmin) return vehicleKey;
+  return toPublicCatalogId(item.id, resolvePatentFromCatalogItem(item)) || item.id;
 }

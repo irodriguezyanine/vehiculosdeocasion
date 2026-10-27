@@ -58,6 +58,7 @@ import {
 import {
   getPublicShareKey,
   getPublicVehicleSubtitle,
+  looksLikePatentToken,
   PUBLIC_PATENT_FIELD_LABELS,
   shouldExposePatentToViewer,
   stripPatentFromPublicText,
@@ -3884,13 +3885,20 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     if (selectedVehicle) return;
     const requestedKey = new URLSearchParams(window.location.search).get("vehiculo");
     if (!requestedKey) return;
-    const directMatch = itemsByKey.get(requestedKey);
-    const normalizedMatch =
-      directMatch ??
+    const match =
+      resolveInventoryItem(requestedKey, itemsByKey) ??
+      itemsByKey.get(requestedKey) ??
       itemsByKey.get(requestedKey.toUpperCase()) ??
       itemsByKey.get(requestedKey.toLowerCase());
-    if (normalizedMatch) setSelectedVehicle(normalizedMatch);
-  }, [itemsByKey, selectedVehicle]);
+    if (!match) return;
+    setSelectedVehicle(match);
+    if (!isAdmin) {
+      const publicKey = getPublicShareKey(match, getVehicleKey(match), false);
+      if (publicKey !== requestedKey || looksLikePatentToken(requestedKey)) {
+        updateVehicleUrlParam(publicKey);
+      }
+    }
+  }, [itemsByKey, selectedVehicle, isAdmin, updateVehicleUrlParam]);
 
   const mergedHiddenVehicleIds = useMemo(() => {
     const set = new Set<string>();

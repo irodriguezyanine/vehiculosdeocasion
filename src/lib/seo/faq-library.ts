@@ -230,7 +230,7 @@ export const GLOBAL_USED_CAR_FAQS: SeoFaqItem[] = [
   {
     question: "¿Cómo busco un auto usado por patente en el catálogo?",
     answer:
-      "Ingresa la patente (PPU) en la barra de búsqueda de vehiculosdeocasion.cl. También puedes acceder a fichas indexables en /auto/PATENTE para cada vehículo disponible.",
+      "Usa la barra de búsqueda de vehiculosdeocasion.cl por marca, modelo o año. Cada vehículo publicado tiene una ficha propia en el catálogo.",
     keywords: ["buscar auto usado por patente chile", "buscar auto por patente chile"],
   },
   {

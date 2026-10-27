@@ -1,9 +1,9 @@
 import { SEO_LANDING_PAGES } from "@/lib/seo/landing-pages";
 import { GOOGLE_INDEXNOW_KEY_PATH, GOOGLE_PRIORITY_SLUGS } from "@/lib/seo/google-seo";
 import { getSiteUrl } from "@/lib/seo/site-config";
-import { buildVehicleSeoPath, normalizeVehicleSeoKey } from "@/lib/seo/vehicle-seo";
+import { buildPublicVehicleSeoPath } from "@/lib/seo/vehicle-seo";
 import { getCatalogFeed } from "@/lib/catalog";
-import { getVehicleKey, getVisibleCatalogItems } from "@/lib/catalog-visibility";
+import { getVisibleCatalogItems } from "@/lib/catalog-visibility";
 import { getEditorConfig } from "@/lib/editor-config";
 
 const INDEXNOW_ENDPOINTS = [
@@ -48,7 +48,7 @@ async function buildAllUrls(): Promise<string[]> {
   const [feed, editorConfigResult] = await Promise.all([getCatalogFeed(), getEditorConfig()]);
   const visibleItems = getVisibleCatalogItems(feed.items, editorConfigResult.config);
   const vehicleUrls = visibleItems.map(
-    (item) => `${siteUrl}${buildVehicleSeoPath(normalizeVehicleSeoKey(getVehicleKey(item)))}`,
+    (item) => `${siteUrl}${buildPublicVehicleSeoPath(item)}`,
   );
   return Array.from(new Set([...base, ...vehicleUrls]));
 }

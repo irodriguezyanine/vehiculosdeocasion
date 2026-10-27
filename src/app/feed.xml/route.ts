@@ -1,8 +1,9 @@
 import { getCatalogFeed } from "@/lib/catalog";
-import { getVisibleCatalogItems, getVehicleKey } from "@/lib/catalog-visibility";
+import { getVisibleCatalogItems } from "@/lib/catalog-visibility";
 import { getEditorConfig } from "@/lib/editor-config";
+import { getPublicVehicleSubtitle } from "@/lib/public-patent-policy";
 import { getSiteUrl, SITE_NAME } from "@/lib/seo/site-config";
-import { buildVehicleSeoUrl, normalizeVehicleSeoKey } from "@/lib/seo/vehicle-seo";
+import { buildPublicVehicleSeoUrl } from "@/lib/seo/vehicle-seo";
 
 export const revalidate = 300;
 
@@ -23,14 +24,13 @@ export async function GET() {
 
   const itemXml = items
     .map((item) => {
-      const key = normalizeVehicleSeoKey(getVehicleKey(item));
-      const link = buildVehicleSeoUrl(key);
+      const link = buildPublicVehicleSeoUrl(item);
       return [
         "<item>",
         `<title>${escapeXml(item.title)}</title>`,
         `<link>${escapeXml(link)}</link>`,
         `<guid isPermaLink="true">${escapeXml(link)}</guid>`,
-        `<description>${escapeXml(item.subtitle ?? item.title)}</description>`,
+        `<description>${escapeXml(getPublicVehicleSubtitle(item, false) ?? item.title)}</description>`,
         `<pubDate>${now}</pubDate>`,
         "</item>",
       ].join("");

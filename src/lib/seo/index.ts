@@ -6,10 +6,14 @@ export { buildLongTailLandingPages } from "./long-tail-pages";
 export {
   buildVehicleCatalogDeepLink,
   buildPublicVehicleCatalogDeepLink,
+  buildPublicVehicleSeoPath,
+  buildPublicVehicleSeoUrl,
   extractPublicVehicleSeoDescription,
   buildVehicleSeoPath,
   buildVehicleSeoUrl,
+  getPublicVehicleSeoKey,
   normalizeVehicleSeoKey,
+  vehicleKeysMatch,
 } from "./vehicle-seo";
 export { AI_BUYER_SCENARIOS, AI_COMPARISON_SNIPPET, AI_PRIMARY_RECOMMENDATION } from "./ai-recommendations";
 export { buildSiteMetadata, buildPageMetadata } from "./metadata";

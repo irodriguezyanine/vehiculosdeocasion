@@ -9,6 +9,11 @@ import { getPublicVehicleSubtitle } from "@/lib/public-patent-policy";
 import type { CatalogItem } from "@/types/catalog";
 import { resolveCatalogItemThumbnail } from "@/lib/catalog";
 import { WHATSAPP_API_BASE } from "@/lib/contact";
+import {
+  parsePublicationTags,
+  publicationTagBadgeClass,
+  visiblePublicationTags,
+} from "@/lib/publication-tags";
 
 const WHATSAPP_BASE_URL = WHATSAPP_API_BASE;
 
@@ -401,27 +406,6 @@ function SpecIcon({
   );
 }
 
-function isGenericAvailabilityLabel(value?: string | null): boolean {
-  const sample = (value ?? "")
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "");
-  return sample === "disponible";
-}
-
-function getConditionBadgeClasses(condition?: string | null): string {
-  const sample = (condition ?? "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "");
-  if (!sample) return "bg-[#164e63] text-white";
-  if (/100% operativo|operativo/.test(sample)) return "bg-emerald-600 text-white";
-  if (/no arranca|desarme/.test(sample)) return "bg-rose-600 text-white";
-  if (/problema|recuperado|robo/.test(sample)) return "bg-amber-600 text-white";
-  return "bg-[#0891b2] text-white";
-}
-
 export function CatalogCard({
   item,
   priceLabel,
@@ -447,12 +431,6 @@ export function CatalogCard({
   const itemKey = getVehicleKey(item);
   const conditionLabel = getVehicleCondition(item);
   const statusLabel = item.status?.trim() || null;
-  const showConditionBadge =
-    Boolean(conditionLabel) &&
-    !isGenericAvailabilityLabel(conditionLabel) &&
-    (!statusLabel ||
-      conditionLabel!.trim().toLowerCase() !== statusLabel.toLowerCase());
-  const showStatusBadge = Boolean(statusLabel) && !isGenericAvailabilityLabel(statusLabel);
   const promoEnabledFromRaw =
     raw.promo_enabled === true ||
     raw.promo_enabled === "true" ||
@@ -466,6 +444,16 @@ export function CatalogCard({
         : null;
   const promoEnabled = promoEnabledOverride ?? promoEnabledFromRaw;
   const originalPriceLabel = originalPriceLabelOverride ?? originalPriceLabelFromRaw;
+  const publicationTags = visiblePublicationTags(
+    parsePublicationTags({
+      tags: raw.publication_tags,
+      publication_tags: raw.publication_tags,
+      tagsCsv: raw.tagsCsv ?? raw.tags_csv,
+      status: statusLabel,
+      vehicleCondition: conditionLabel,
+    }),
+    { hideOferta: Boolean(priceLabel && promoEnabled) },
+  );
   const [shareCopied, setShareCopied] = useState(false);
   const [editingField, setEditingField] = useState<"title" | "subtitle" | "price" | null>(null);
   const [editingValue, setEditingValue] = useState("");
@@ -547,7 +535,7 @@ export function CatalogCard({
             onError={() => setCoverSrc("/placeholder-car.svg")}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent" />
-          <div className="absolute left-3 top-3 flex flex-wrap gap-1">
+          <div className="absolute left-3 top-3 flex max-w-[calc(100%-1.5rem)] flex-wrap gap-1">
             {item.view3dUrl ? (
               <span className="rounded-full border border-cyan-200/70 bg-[#3d2518]/90 px-2.5 py-1 text-[10px] font-semibold tracking-wide text-white">3D</span>
             ) : null}
@@ -556,21 +544,15 @@ export function CatalogCard({
                 Oferta
               </span>
             ) : null}
-            {showConditionBadge && conditionLabel ? (
+            {publicationTags.map((tag) => (
               <span
-                className={`max-w-[12rem] truncate rounded-full px-2.5 py-1 text-[10px] font-semibold ${getConditionBadgeClasses(
-                  conditionLabel,
-                )}`}
+                key={tag}
+                className={`max-w-[12rem] truncate rounded-full px-2.5 py-1 text-[10px] font-semibold ${publicationTagBadgeClass(tag)}`}
               >
-                {shortText(conditionLabel, 32)}
+                {shortText(tag, 32)}
               </span>
-            ) : null}
+            ))}
           </div>
-          {showStatusBadge && statusLabel ? (
-            <span className="absolute right-3 top-3 max-w-[12rem] truncate rounded-full border border-emerald-200 bg-emerald-600 px-3 py-1 text-[11px] font-semibold text-white">
-              {shortText(statusLabel, 30)}
-            </span>
-          ) : null}
         </div>
 
         <div className={`flex flex-1 flex-col ${isCompact ? "space-y-2 p-3 max-md:space-y-1.5" : "space-y-3 p-3.5 max-md:space-y-2 md:p-5 md:space-y-3.5"}`}>

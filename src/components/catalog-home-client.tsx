@@ -43,6 +43,7 @@ import {
   syncManualPublicationsWithCatalog,
 } from "@/lib/manual-publication-sync";
 import { COMMERCIAL_EMAIL } from "@/lib/site-content";
+import { parsePublicationTags, visiblePublicationTags } from "@/lib/publication-tags";
 import {
   filterHiddenVehicleIdsForVehicle,
   getHomeEditorChannelLabels,
@@ -1759,6 +1760,11 @@ function buildDetailsDraft(item: CatalogItem, override?: EditorVehicleDetails): 
           "",
       ),
     status: override?.status ?? (item.status ?? ""),
+    tags: parsePublicationTags({
+      tags: override?.tags,
+      status: override?.status ?? item.status,
+      vehicleCondition: override?.vehicleCondition,
+    }),
     location: override?.location ?? (item.location ?? ""),
     ubicacionFisica: pickOp("ubicacionFisica", [
       "ubicacion_fisica",
@@ -2032,6 +2038,9 @@ function sanitizeDetails(details: EditorVehicleDetails): EditorVehicleDetails | 
     tipoVehiculo: cleanOptional(details.tipoVehiculo),
     vehicleCondition: cleanOptional(details.vehicleCondition),
     status: cleanOptional(details.status),
+    tags: Array.isArray(details.tags)
+      ? details.tags.map((item) => String(item ?? "").trim()).filter(Boolean)
+      : undefined,
     location: cleanOptional(details.location),
     ubicacionFisica: cleanOptional(details.ubicacionFisica),
     transportista: cleanOptional(details.transportista),
@@ -2125,6 +2134,12 @@ function applyDetailsOverride(item: CatalogItem, override?: EditorVehicleDetails
             condicion: override.vehicleCondition,
             condicion_vehiculo: override.vehicleCondition,
             estado_vehiculo: override.vehicleCondition,
+          }
+        : {}),
+      ...(override.tags?.length
+        ? {
+            publication_tags: override.tags,
+            tagsCsv: override.tags.join("|"),
           }
         : {}),
       ...(override.description ? { descripcion: override.description, description: override.description } : {}),
@@ -5172,6 +5187,19 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     ]);
     return hasValue(rawValue) ? String(rawValue) : null;
   }, [selectedVehicle, selectedVehicleLookup, selectedVehicleOverride]);
+
+  const selectedVehicleTags = useMemo(() => {
+    if (!selectedVehicle) return [];
+    return visiblePublicationTags(
+      parsePublicationTags({
+        tags: selectedVehicleOverride?.tags ?? selectedVehicle.raw.publication_tags,
+        publication_tags: selectedVehicle.raw.publication_tags,
+        tagsCsv: selectedVehicle.raw.tagsCsv ?? selectedVehicle.raw.tags_csv,
+        status: selectedVehicleOverride?.status ?? selectedVehicle.status,
+        vehicleCondition: selectedVehicleConditionLabel,
+      }),
+    );
+  }, [selectedVehicle, selectedVehicleOverride, selectedVehicleConditionLabel]);
 
   const selectedVehicleConditionClasses = useMemo(
     () => getConditionBadgeClasses(selectedVehicleConditionLabel),
@@ -11635,7 +11663,16 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                         ) : null}
                       </>
                     )}
-                    {selectedVehicleConditionLabel ? (
+                    {selectedVehicleTags.length
+                      ? selectedVehicleTags.map((tag) => (
+                          <span
+                            key={tag}
+                            className={`vehicle-detail-chip inline-block w-full max-w-full rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold leading-snug md:w-auto md:rounded-full md:px-3 md:py-1 md:text-xs ${getConditionBadgeClasses(tag)}`}
+                          >
+                            {tag}
+                          </span>
+                        ))
+                      : selectedVehicleConditionLabel ? (
                       <span
                         className={`vehicle-detail-chip inline-block w-full max-w-full rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold leading-snug md:w-auto md:rounded-full md:px-3 md:py-1 md:text-xs ${selectedVehicleConditionClasses}`}
                       >

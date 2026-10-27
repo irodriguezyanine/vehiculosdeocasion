@@ -100,6 +100,7 @@ export type EditorVehicleDetails = {
   tipoVehiculo?: string;
   vehicleCondition?: string;
   status?: string;
+  tags?: string[];
   location?: string;
   ubicacionFisica?: string;
   transportista?: string;
@@ -152,6 +153,7 @@ export type EditorConfig = {
   soldVehicleHistory: SoldVehicleRecord[];
   vehiclePrices: Record<string, string>;
   vehicleDetails: Record<string, EditorVehicleDetails>;
+  publicationTags?: string[];
   upcomingAuctions: UpcomingAuction[];
   vehicleUpcomingAuctionIds: Record<string, string>;
   sectionTexts: Record<SectionId, SectionTextConfig>;
@@ -173,6 +175,7 @@ export const DEFAULT_EDITOR_CONFIG: EditorConfig = {
   soldVehicleHistory: [],
   vehiclePrices: {},
   vehicleDetails: {},
+  publicationTags: [],
   upcomingAuctions: [],
   vehicleUpcomingAuctionIds: {},
   sectionTexts: {

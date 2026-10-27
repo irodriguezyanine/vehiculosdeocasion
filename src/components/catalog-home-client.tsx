@@ -49,6 +49,7 @@ import {
   isVehicleAssignedInSectionList,
   isVehicleAssignedToHomeEditorChannels,
   isVehicleInAssignmentList,
+  mergeUnassignedIntoVentasDirectas,
   registerHiddenKeyAliases,
   resolveInventoryItem,
   resolveInventoryItemKey,
@@ -4056,6 +4057,13 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     () => new Set(config.hiddenCategoryIds ?? []),
     [config.hiddenCategoryIds],
   );
+  const unassignedVisibleItems = useMemo(
+    () =>
+      visibleItems.filter(
+        (item) => !isVehicleAssignedToHomeEditorChannels(config, getVehicleKey(item), itemsByKey),
+      ),
+    [visibleItems, config, itemsByKey],
+  );
 
   const getAssignedSectionItems = useCallback(
     (sectionId: SectionId, options?: { visibleOnly?: boolean }): CatalogItem[] => {
@@ -4136,7 +4144,10 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
       ? sectionItems.filter((item) => homeVisibleKeys.has(getVehicleKey(item)))
       : sectionItems;
   const proximosRemates = filterSectionByHomeVisibility(proximosRematesAll);
-  const ventasDirectas = filterSectionByHomeVisibility(ventasDirectasAll);
+  const ventasDirectas = mergeUnassignedIntoVentasDirectas(
+    filterSectionByHomeVisibility(ventasDirectasAll),
+    filterSectionByHomeVisibility(unassignedVisibleItems),
+  );
   const novedades = filterSectionByHomeVisibility(novedadesAll);
   const filteredCatalogItems = hasHomePreFilter
     ? filterSectionByHomeVisibility(catalogoItemsAll)
@@ -4166,14 +4177,6 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
         return !mergedHiddenVehicleIds.has(key) && isVehicleAssignedToHomeEditorChannels(config, key, itemsByKey);
       }),
     [activeInventoryItems, mergedHiddenVehicleIds, config, itemsByKey],
-  );
-
-  const unassignedVisibleItems = useMemo(
-    () =>
-      visibleItems.filter(
-        (item) => !isVehicleAssignedToHomeEditorChannels(config, getVehicleKey(item), itemsByKey),
-      ),
-    [visibleItems, config],
   );
 
   const homeStockStats = useMemo(() => {

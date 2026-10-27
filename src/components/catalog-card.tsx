@@ -401,6 +401,15 @@ function SpecIcon({
   );
 }
 
+function isGenericAvailabilityLabel(value?: string | null): boolean {
+  const sample = (value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "");
+  return sample === "disponible";
+}
+
 function getConditionBadgeClasses(condition?: string | null): string {
   const sample = (condition ?? "")
     .toLowerCase()
@@ -437,6 +446,13 @@ export function CatalogCard({
   const brandModel = getBrandModel(item);
   const itemKey = getVehicleKey(item);
   const conditionLabel = getVehicleCondition(item);
+  const statusLabel = item.status?.trim() || null;
+  const showConditionBadge =
+    Boolean(conditionLabel) &&
+    !isGenericAvailabilityLabel(conditionLabel) &&
+    (!statusLabel ||
+      conditionLabel!.trim().toLowerCase() !== statusLabel.toLowerCase());
+  const showStatusBadge = Boolean(statusLabel) && !isGenericAvailabilityLabel(statusLabel);
   const promoEnabledFromRaw =
     raw.promo_enabled === true ||
     raw.promo_enabled === "true" ||
@@ -535,12 +551,12 @@ export function CatalogCard({
             {item.view3dUrl ? (
               <span className="rounded-full border border-cyan-200/70 bg-[#3d2518]/90 px-2.5 py-1 text-[10px] font-semibold tracking-wide text-white">3D</span>
             ) : null}
-            {priceLabel ? (
-              <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold tracking-wide text-white ${promoEnabled ? "bg-rose-600" : "bg-[#22d3ee]"}`}>
-                {promoEnabled ? "Oferta" : "Precio"}
+            {priceLabel && promoEnabled ? (
+              <span className="rounded-full bg-rose-600 px-2.5 py-1 text-[10px] font-semibold tracking-wide text-white">
+                Oferta
               </span>
             ) : null}
-            {conditionLabel ? (
+            {showConditionBadge && conditionLabel ? (
               <span
                 className={`max-w-[12rem] truncate rounded-full px-2.5 py-1 text-[10px] font-semibold ${getConditionBadgeClasses(
                   conditionLabel,
@@ -550,9 +566,9 @@ export function CatalogCard({
               </span>
             ) : null}
           </div>
-          {item.status ? (
+          {showStatusBadge && statusLabel ? (
             <span className="absolute right-3 top-3 max-w-[12rem] truncate rounded-full border border-emerald-200 bg-emerald-600 px-3 py-1 text-[11px] font-semibold text-white">
-              {shortText(item.status, 30)}
+              {shortText(statusLabel, 30)}
             </span>
           ) : null}
         </div>
@@ -756,18 +772,19 @@ export function CatalogCard({
                 // no-op if user cancels share
               }
             }}
-            className="ui-focus inline-flex items-center justify-center rounded-full border border-cyan-200/60 bg-white px-3 py-2 text-xs font-semibold text-[#6f553f] shadow-[0_2px_6px_rgba(55,35,19,0.08)] transition hover:-translate-y-0.5 hover:bg-[#f7eee6]"
+            className="ui-focus inline-flex items-center justify-center rounded-full border border-cyan-200/70 bg-white px-3 py-2 text-xs font-semibold text-[#155e75] shadow-[0_2px_6px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:bg-cyan-50"
             aria-label={`Compartir ${item.title}`}
             title={shareCopied ? "Copiado" : "Compartir"}
           >
-            <svg viewBox="0 0 20 20" className="h-[18px] w-[18px]" fill="none" aria-hidden="true">
+            <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" aria-hidden="true">
               {shareCopied ? (
-                <path d="M4.5 10.5l3.1 3.1L15.5 5.8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               ) : (
                 <>
-                  <path d="M11.5 4h4.5v4.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-                  <path d="M15.8 4.2l-6.7 6.7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-                  <rect x="4" y="8.5" width="8.5" height="7.5" rx="1.8" stroke="currentColor" strokeWidth="1.5" />
+                  <circle cx="18" cy="5" r="3" stroke="currentColor" strokeWidth="1.75" />
+                  <circle cx="6" cy="12" r="3" stroke="currentColor" strokeWidth="1.75" />
+                  <circle cx="18" cy="19" r="3" stroke="currentColor" strokeWidth="1.75" />
+                  <path d="M8.59 13.51 15.42 17.49M15.41 6.51 8.59 10.49" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
                 </>
               )}
             </svg>

@@ -221,6 +221,17 @@ export function getHomeEditorStockItems(items: CatalogItem[], config: EditorConf
   );
 }
 
+/** Publica en Ventas Directas el stock visible que todavía no tiene sección/categoría. */
+export function mergeUnassignedIntoVentasDirectas(
+  assigned: CatalogItem[],
+  unassignedVisible: CatalogItem[],
+): CatalogItem[] {
+  if (unassignedVisible.length === 0) return assigned;
+  const seen = new Set(assigned.map((item) => getVehicleKey(item)));
+  const extras = unassignedVisible.filter((item) => !seen.has(getVehicleKey(item)));
+  return extras.length === 0 ? assigned : [...assigned, ...extras];
+}
+
 export function buildPriceLabelMap(config: EditorConfig): Record<string, string | null> {
   const map: Record<string, string | null> = {};
   for (const [key, value] of Object.entries(config.vehiclePrices ?? {})) {

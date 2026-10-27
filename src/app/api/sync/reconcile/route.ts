@@ -20,8 +20,9 @@ export async function POST(req: Request) {
     return Response.json({ ok: false, error: "No autorizado." }, { status: 401 });
   }
 
-  revalidatePath("/");
+  revalidatePath("/", "layout");
   revalidatePath("/api/catalogo");
+  revalidatePath("/auto", "layout");
 
   return Response.json({
     ok: true,

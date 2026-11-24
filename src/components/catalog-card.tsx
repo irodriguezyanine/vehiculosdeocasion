@@ -1,4 +1,4 @@
-﻿import {
+import {
   useEffect,
   useMemo,
   useState,
@@ -47,6 +47,21 @@ function formatDate(date?: string): string {
     month: "2-digit",
     year: "numeric",
   });
+}
+
+function formatClp(value: unknown): string | null {
+  const amount =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number(value.replace(/[^\d]/g, ""))
+        : Number.NaN;
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  return new Intl.NumberFormat("es-CL", {
+    style: "currency",
+    currency: "CLP",
+    maximumFractionDigits: 0,
+  }).format(amount);
 }
 
 function shortText(value?: string, max = 90): string | undefined {
@@ -178,10 +193,25 @@ function getVehicleSpecs(
     | "airConditioning"
     | "keys"
     | "traction"
-    | "airbags";
+    | "airbags"
+    | "point";
   wide?: boolean;
 }> {
   const raw = item.raw as Record<string, unknown>;
+  const customHighlights = Array.isArray(raw.highlights)
+    ? raw.highlights
+    : Array.isArray(raw.publication_highlights)
+      ? raw.publication_highlights
+      : [];
+  const customLabels = customHighlights.map((value) => String(value ?? "").trim()).filter(Boolean);
+  if (customLabels.length > 0) {
+    return customLabels.slice(0, 20).map((label, index) => ({
+      key: `point-${index}`,
+      label,
+      icon: "point" as const,
+      wide: label.length > 18,
+    }));
+  }
   const mileage = normalizeMileage(
     getFirstRawValue(raw, [
       "kilometraje",
@@ -249,7 +279,8 @@ function getVehicleSpecs(
       | "airConditioning"
       | "keys"
       | "traction"
-      | "airbags";
+      | "airbags"
+      | "point";
     wide?: boolean;
   }> = [];
   if (mileage) specs.push({ key: "km", label: mileage, icon: "km" });
@@ -306,8 +337,16 @@ function SpecIcon({
     | "airConditioning"
     | "keys"
     | "traction"
-    | "airbags";
+    | "airbags"
+    | "point";
 }) {
+  if (icon === "point") {
+    return (
+      <svg viewBox="0 0 20 20" className="h-4 w-4 text-[#7a624f]" aria-hidden="true">
+        <circle cx="10" cy="10" r="2.2" fill="currentColor" />
+      </svg>
+    );
+  }
   if (icon === "km") {
     return (
       <svg viewBox="0 0 20 20" className="h-4 w-4 text-[#7a624f]" fill="none" aria-hidden="true">
@@ -444,6 +483,27 @@ export function CatalogCard({
         : null;
   const promoEnabled = promoEnabledOverride ?? promoEnabledFromRaw;
   const originalPriceLabel = originalPriceLabelOverride ?? originalPriceLabelFromRaw;
+  const promoPriceFromRaw =
+    typeof raw.precio_promocional === "string" && raw.precio_promocional.trim()
+      ? raw.precio_promocional.trim()
+      : typeof raw.promo_price === "string" && raw.promo_price.trim()
+        ? raw.promo_price.trim()
+        : null;
+  const inventoryPriceLabel = formatClp(raw.valor_venta ?? raw.precio);
+  const priceHidden = raw.precio_visible === false || raw.precio_visible === "false";
+  const basePriceLabel = priceLabel || inventoryPriceLabel;
+  const shownPriceLabel = priceHidden ? null : promoEnabled && promoPriceFromRaw ? promoPriceFromRaw : basePriceLabel;
+  const strikeSource = originalPriceLabel || basePriceLabel;
+  const strikePriceLabel =
+    !priceHidden && promoEnabled && shownPriceLabel && strikeSource && strikeSource !== shownPriceLabel
+      ? strikeSource
+      : null;
+  const publicationDescription =
+    typeof raw.descripcion === "string" && raw.descripcion.trim()
+      ? raw.descripcion.trim()
+      : typeof raw.description === "string" && raw.description.trim()
+        ? raw.description.trim()
+        : "";
   const publicationTags = visiblePublicationTags(
     parsePublicationTags({
       tags: raw.publication_tags,
@@ -618,9 +678,17 @@ export function CatalogCard({
                 </div>
               ) : (
                 <div className="mt-1 flex items-start justify-between gap-2">
-                  <p className="break-words text-[0.93rem] text-[#475569] [overflow-wrap:anywhere]">
-                    {shortText(publicSubtitle) ?? "-"}
-                  </p>
+                  <div className="min-w-0">
+                    {publicationDescription ? (
+                      <p className="line-clamp-4 whitespace-pre-line break-words text-[0.93rem] text-[#475569] [overflow-wrap:anywhere]">
+                        {publicationDescription}
+                      </p>
+                    ) : (
+                      <p className="break-words text-[0.93rem] text-[#475569] [overflow-wrap:anywhere]">
+                        {shortText(publicSubtitle) ?? "-"}
+                      </p>
+                    )}
+                  </div>
                   {canInlineEdit ? (
                     <button
                       type="button"
@@ -650,7 +718,7 @@ export function CatalogCard({
                   className={`flex items-center gap-2 ${spec.wide ? "col-span-2" : ""}`}
                 >
                   <SpecIcon icon={spec.icon} />
-                  <span className={`${spec.wide ? "text-[10px] font-semibold uppercase tracking-[0.012em] max-md:leading-tight md:text-xs" : "truncate text-xs max-md:text-[11px]"} text-[#5a616d]`}>
+                  <span className={`${spec.icon === "point" ? "text-xs font-semibold leading-tight" : spec.wide ? "text-[10px] font-semibold uppercase tracking-[0.012em] max-md:leading-tight md:text-xs" : "truncate text-xs max-md:text-[11px]"} text-[#5a616d]`}>
                     {spec.label}
                   </span>
                 </div>
@@ -681,52 +749,52 @@ export function CatalogCard({
             </div>
           ) : null}
 
-          <div className="mt-auto border-t border-cyan-200/70 pt-3">
-            <div className="flex flex-col">
-              {promoEnabled && originalPriceLabel && priceLabel ? (
-                <span className="text-xs text-[#9b856f] line-through">{originalPriceLabel}</span>
-              ) : null}
-              {editingField === "price" ? (
-                <div data-inline-control="true" className="space-y-1">
-                  <input
-                    value={editingValue}
-                    onChange={(event) => setEditingValue(event.target.value)}
-                    className="ui-focus w-full rounded border border-cyan-200 bg-white px-2 py-1 text-xs font-semibold text-[#155e75]"
-                    placeholder="Precio"
-                    onClick={(event) => event.stopPropagation()}
-                  />
-                  <div className="flex gap-1">
-                    <button type="button" onClick={submitInlineEdit} className="rounded border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
-                      Guardar
-                    </button>
-                    <button type="button" onClick={cancelInlineEdit} className="rounded border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                      Cancelar
-                    </button>
-                  </div>
+          <div className="mt-auto">
+            {editingField === "price" ? (
+              <div data-inline-control="true" className="space-y-1">
+                <input
+                  value={editingValue}
+                  onChange={(event) => setEditingValue(event.target.value)}
+                  className="ui-focus w-full rounded border border-cyan-200 bg-white px-2 py-1 text-xs font-semibold text-[#155e75]"
+                  placeholder="Precio"
+                  onClick={(event) => event.stopPropagation()}
+                />
+                <div className="flex gap-1">
+                  <button type="button" onClick={submitInlineEdit} className="rounded border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                    Guardar
+                  </button>
+                  <button type="button" onClick={cancelInlineEdit} className="rounded border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                    Cancelar
+                  </button>
                 </div>
-              ) : priceLabel ? (
-                <div className="flex items-center gap-1.5">
-                  <span className={`text-[1.05rem] font-extrabold tracking-tight ${promoEnabled ? "text-rose-700" : "text-[#155e75]"}`}>
-                    {priceLabel}
-                  </span>
-                  {canInlineEdit ? (
-                    <button
-                      type="button"
-                      data-inline-control="true"
-                      onClick={() => beginInlineEdit("price")}
-                      className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-cyan-200 bg-cyan-50 text-cyan-800"
-                      aria-label="Editar precio"
-                      title="Editar precio"
-                    >
-                      <svg viewBox="0 0 20 20" className="h-3 w-3" fill="none" aria-hidden="true">
-                        <path d="M13.9 3.6a1.8 1.8 0 0 1 2.5 2.5l-8.6 8.6-3.3.8.8-3.3 8.6-8.6Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                        <path d="m12.4 5.1 2.5 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
+              </div>
+            ) : shownPriceLabel ? (
+              <div className="flex items-end justify-between gap-2 rounded-2xl bg-white px-3.5 py-3 shadow-[0_8px_20px_rgba(15,76,92,0.06)] ring-1 ring-[#d5e8ee]">
+                <div className="min-w-0">
+                  {strikePriceLabel ? (
+                    <p className="text-xs font-semibold tabular-nums text-slate-400 line-through">{strikePriceLabel}</p>
                   ) : null}
+                  <p className={`text-[1.45rem] font-extrabold leading-none tabular-nums tracking-tight ${promoEnabled && promoPriceFromRaw ? "text-rose-700" : "text-[#0f4c5c]"}`}>
+                    {shownPriceLabel}
+                  </p>
                 </div>
-              ) : null}
-            </div>
+                {canInlineEdit ? (
+                  <button
+                    type="button"
+                    data-inline-control="true"
+                    onClick={() => beginInlineEdit("price")}
+                    className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-cyan-200 bg-cyan-50 text-cyan-800"
+                    aria-label="Editar precio"
+                    title="Editar precio"
+                  >
+                    <svg viewBox="0 0 20 20" className="h-3 w-3" fill="none" aria-hidden="true">
+                      <path d="M13.9 3.6a1.8 1.8 0 0 1 2.5 2.5l-8.6 8.6-3.3.8.8-3.3 8.6-8.6Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="m12.4 5.1 2.5 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

@@ -143,6 +143,8 @@ export type EditorVehicleDetails = {
   promoEnabled?: boolean;
   taxFee?: string;
   transferFee?: string;
+  highlights?: string[];
+  priceVisible?: boolean;
 };
 
 export type EditorConfig = {

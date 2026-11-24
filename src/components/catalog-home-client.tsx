@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import {
   useCallback,
@@ -2083,6 +2083,13 @@ function sanitizeDetails(details: EditorVehicleDetails): EditorVehicleDetails | 
     promoEnabled: typeof details.promoEnabled === "boolean" ? details.promoEnabled : undefined,
     taxFee: cleanOptional(details.taxFee),
     transferFee: cleanOptional(details.transferFee),
+    highlights: (() => {
+      const items = Array.isArray(details.highlights)
+        ? details.highlights.map((item) => String(item ?? "").trim()).filter(Boolean)
+        : [];
+      return items.length ? items : undefined;
+    })(),
+    priceVisible: details.priceVisible === false ? false : undefined,
   };
 
   if (Object.values(clean).every((value) => !value)) return undefined;
@@ -2143,6 +2150,22 @@ function applyDetailsOverride(item: CatalogItem, override?: EditorVehicleDetails
           }
         : {}),
       ...(override.description ? { descripcion: override.description, description: override.description } : {}),
+      ...(Array.isArray(override.highlights) && override.highlights.length
+        ? { highlights: override.highlights, publication_highlights: override.highlights }
+        : {}),
+      ...(override.promoEnabled
+        ? {
+            promo_enabled: true,
+            precio_promocional: override.promoPrice,
+            promo_price: override.promoPrice,
+            ...(override.originalPrice
+              ? { precio_normal: override.originalPrice, original_price: override.originalPrice }
+              : {}),
+          }
+          : override.promoEnabled === false
+          ? { promo_enabled: false }
+          : {}),
+      ...(override.priceVisible === false ? { precio_visible: false } : { precio_visible: true }),
       ...(override.extendedDescription
         ? { descripcion_ampliada: override.extendedDescription, observaciones: override.extendedDescription }
         : {}),
@@ -5081,10 +5104,15 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
     [config.vehicleDetails, selectedVehicleKey],
   );
 
-  const selectedVehiclePriceLabel = useMemo(
-    () => (selectedVehicleKey ? formatPrice(config.vehiclePrices[selectedVehicleKey]) : null),
-    [config.vehiclePrices, selectedVehicleKey],
-  );
+  const selectedVehiclePriceLabel = useMemo(() => {
+    if (selectedVehicleOverride?.priceVisible === false) return null;
+    const configured = selectedVehicleKey ? formatPrice(config.vehiclePrices[selectedVehicleKey]) : null;
+    if (configured) return configured;
+    if (!selectedVehicle) return null;
+    const raw = selectedVehicle.raw as Record<string, unknown>;
+    const amount = raw.valor_venta ?? raw.precio;
+    return typeof amount === "number" || typeof amount === "string" ? formatPrice(String(amount)) : null;
+  }, [config.vehiclePrices, selectedVehicle, selectedVehicleKey, selectedVehicleOverride?.priceVisible]);
   const selectedVehicleReferencePriceAmount = useMemo(
     () => parseCurrencyAmount(selectedVehiclePriceLabel),
     [selectedVehiclePriceLabel],
@@ -5258,8 +5286,10 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   const selectedVehicleExpandedDescription = useMemo(() => {
     if (!selectedVehicle) return null;
     const overrideText =
-      selectedVehicleOverride?.extendedDescription ?? selectedVehicleOverride?.description;
-    if (overrideText?.trim()) return overrideText.trim();
+      selectedVehicleOverride?.description?.trim() ||
+      selectedVehicleOverride?.extendedDescription?.trim() ||
+      "";
+    if (overrideText) return overrideText;
     const rawText = getLookupValue(selectedVehicleLookup, [
       "descripcion_ampliada",
       "observaciones",
@@ -11624,6 +11654,11 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                       </>
                     )}
                   </div>
+                  {selectedVehicleExpandedDescription && !selectedVehicleExpandedDescription.includes("<") ? (
+                    <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-600">
+                      {selectedVehicleExpandedDescription}
+                    </p>
+                  ) : null}
                   <div className="mt-2 flex w-full min-w-0 flex-col items-stretch gap-1.5 md:flex-row md:flex-wrap md:items-center md:gap-2">
                     {inlineSummaryField === "hero:Subtitulo" ? (
                       <div className="flex w-full flex-wrap items-center gap-1">
@@ -11804,6 +11839,35 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                       </svg>
                     </button>
                   ) : null}
+                </div>
+                <div className="mb-3">
+                  {selectedVehiclePriceLabel ? (
+                    <>
+                      {selectedVehiclePromoMeta.promoEnabled && selectedVehicleOverride?.promoPrice?.trim() ? (
+                        <p className="text-sm font-semibold tabular-nums text-slate-400 line-through">{selectedVehiclePriceLabel}</p>
+                      ) : null}
+                      <p
+                        className={`text-3xl font-extrabold tabular-nums tracking-tight ${
+                          selectedVehiclePromoMeta.promoEnabled && selectedVehicleOverride?.promoPrice?.trim()
+                            ? "text-rose-700"
+                            : "text-[#0f4c5c]"
+                        }`}
+                      >
+                        {(selectedVehiclePromoMeta.promoEnabled && selectedVehicleOverride?.promoPrice?.trim()) ||
+                          selectedVehiclePriceLabel}
+                      </p>
+                    </>
+                  ) : null}
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Impuesto</p>
+                      <p className="font-semibold text-slate-800">{selectedVehiclePromoMeta.taxFeeLabel || "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Transferencia</p>
+                      <p className="font-semibold text-slate-800">{selectedVehiclePromoMeta.transferFeeLabel || "—"}</p>
+                    </div>
+                  </div>
                 </div>
                 <div className="vehicle-tab-rail-shell sticky top-0 z-10 -mx-1 mb-3 bg-gradient-to-b from-[#faf6f1] via-[#faf6f1]/95 to-transparent pb-1 pt-0.5 backdrop-blur-sm md:static md:mx-0 md:bg-transparent md:backdrop-blur-none">
                   <div className="vehicle-tab-rail" role="tablist" aria-label="Secciones del vehiculo">

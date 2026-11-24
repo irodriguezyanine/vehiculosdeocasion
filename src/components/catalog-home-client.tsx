@@ -11654,11 +11654,6 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                       </>
                     )}
                   </div>
-                  {selectedVehicleExpandedDescription && !selectedVehicleExpandedDescription.includes("<") ? (
-                    <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-600">
-                      {selectedVehicleExpandedDescription}
-                    </p>
-                  ) : null}
                   <div className="mt-2 flex w-full min-w-0 flex-col items-stretch gap-1.5 md:flex-row md:flex-wrap md:items-center md:gap-2">
                     {inlineSummaryField === "hero:Subtitulo" ? (
                       <div className="flex w-full flex-wrap items-center gap-1">
@@ -11716,7 +11711,8 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                     ) : null}
                   </div>
                 </div>
-                <div className="vehicle-detail-actions hidden max-w-full items-center gap-1.5 overflow-x-auto md:flex md:flex-wrap md:gap-2">
+                <div className="flex w-full flex-col gap-2 md:w-auto md:items-end">
+                <div className="vehicle-detail-actions hidden max-w-full items-center gap-1.5 overflow-x-auto md:flex md:flex-wrap md:justify-end md:gap-2">
                   <button
                     type="button"
                     onClick={openOfferModal}
@@ -11769,6 +11765,34 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                     </svg>
                   </button>
                 </div>
+                {selectedVehiclePriceLabel ? (
+                  <div className="md:text-right">
+                    {selectedVehiclePromoMeta.promoEnabled && selectedVehicleOverride?.promoPrice?.trim() ? (
+                      <p className="text-sm font-semibold tabular-nums text-slate-400 line-through">{selectedVehiclePriceLabel}</p>
+                    ) : null}
+                    <p
+                      className={`text-[1.65rem] font-extrabold leading-none tabular-nums tracking-tight ${
+                        selectedVehiclePromoMeta.promoEnabled && selectedVehicleOverride?.promoPrice?.trim()
+                          ? "text-rose-700"
+                          : "text-[#0f4c5c]"
+                      }`}
+                    >
+                      {(selectedVehiclePromoMeta.promoEnabled && selectedVehicleOverride?.promoPrice?.trim()) ||
+                        selectedVehiclePriceLabel}
+                    </p>
+                    <div className="mt-1.5 flex gap-4 text-xs md:justify-end">
+                      <p>
+                        <span className="font-semibold uppercase tracking-wide text-slate-500">Impuesto </span>
+                        <span className="font-semibold text-slate-800">{selectedVehiclePromoMeta.taxFeeLabel || "—"}</span>
+                      </p>
+                      <p>
+                        <span className="font-semibold uppercase tracking-wide text-slate-500">Transferencia </span>
+                        <span className="font-semibold text-slate-800">{selectedVehiclePromoMeta.transferFeeLabel || "—"}</span>
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+                </div>
               </div>
             </div>
             <div className="grid gap-3 md:gap-4 lg:grid-cols-2">
@@ -11814,7 +11838,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                   </div>
                 ) : null}
               </div>
-              <div className="vehicle-detail-summary min-h-0 w-full min-w-0 overflow-x-hidden rounded-xl p-3 shadow-sm md:h-[420px] md:overflow-y-auto md:rounded-2xl md:p-4">
+              <div className="vehicle-detail-summary min-h-0 w-full min-w-0 overflow-x-hidden rounded-xl p-3 shadow-sm md:rounded-2xl md:p-4">
                 <div className="mb-2 flex items-center justify-between gap-2 md:mb-3">
                   <h4 className="text-sm font-semibold text-slate-900 md:text-base">
                     <span className="md:hidden">Resumen</span>
@@ -11839,35 +11863,6 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                       </svg>
                     </button>
                   ) : null}
-                </div>
-                <div className="mb-3">
-                  {selectedVehiclePriceLabel ? (
-                    <>
-                      {selectedVehiclePromoMeta.promoEnabled && selectedVehicleOverride?.promoPrice?.trim() ? (
-                        <p className="text-sm font-semibold tabular-nums text-slate-400 line-through">{selectedVehiclePriceLabel}</p>
-                      ) : null}
-                      <p
-                        className={`text-3xl font-extrabold tabular-nums tracking-tight ${
-                          selectedVehiclePromoMeta.promoEnabled && selectedVehicleOverride?.promoPrice?.trim()
-                            ? "text-rose-700"
-                            : "text-[#0f4c5c]"
-                        }`}
-                      >
-                        {(selectedVehiclePromoMeta.promoEnabled && selectedVehicleOverride?.promoPrice?.trim()) ||
-                          selectedVehiclePriceLabel}
-                      </p>
-                    </>
-                  ) : null}
-                  <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Impuesto</p>
-                      <p className="font-semibold text-slate-800">{selectedVehiclePromoMeta.taxFeeLabel || "—"}</p>
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Transferencia</p>
-                      <p className="font-semibold text-slate-800">{selectedVehiclePromoMeta.transferFeeLabel || "—"}</p>
-                    </div>
-                  </div>
                 </div>
                 <div className="vehicle-tab-rail-shell sticky top-0 z-10 -mx-1 mb-3 bg-gradient-to-b from-[#faf6f1] via-[#faf6f1]/95 to-transparent pb-1 pt-0.5 backdrop-blur-sm md:static md:mx-0 md:bg-transparent md:backdrop-blur-none">
                   <div className="vehicle-tab-rail" role="tablist" aria-label="Secciones del vehiculo">
@@ -12008,171 +12003,6 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                     ))}
                   </dl>
                 )}
-                {selectedVehicleTab === "general" ? (
-                  <>
-                    <div className="mt-2 rounded-md border border-stone-200 bg-stone-100/60 p-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-cyan-800 md:text-xs">
-                          <span className="md:hidden">Precio ref.</span>
-                          <span className="hidden md:inline">Precio referencial</span>
-                        </p>
-                        {canAdminEditNow && selectedVehicle ? (
-                          <button
-                            type="button"
-                            onClick={startInlinePriceEdit}
-                            className="ui-focus inline-flex h-6 w-6 items-center justify-center rounded-full border border-cyan-200 bg-white text-cyan-800 transition hover:bg-cyan-50"
-                            title="Editar precios y desglose"
-                            aria-label="Editar precios y desglose"
-                          >
-                            <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" aria-hidden="true">
-                              <path d="M13.9 3.6a1.8 1.8 0 0 1 2.5 2.5l-8.6 8.6-3.3.8.8-3.3 8.6-8.6Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                              <path d="m12.4 5.1 2.5 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          </button>
-                        ) : null}
-                      </div>
-                      {inlinePriceEditing ? (
-                        <div className="mt-2 space-y-2 rounded-md border border-cyan-200 bg-white p-2">
-                          <input
-                            value={inlinePriceDraft.referencePrice}
-                            onChange={(event) =>
-                              setInlinePriceDraft((prev) => ({
-                                ...prev,
-                                referencePrice: event.target.value,
-                              }))
-                            }
-                            className="ui-focus w-full rounded border border-slate-300 px-2 py-1 text-sm"
-                            placeholder="Precio referencial"
-                          />
-                          <label className="inline-flex items-center gap-2 text-xs font-semibold text-cyan-800">
-                            <input
-                              type="checkbox"
-                              checked={inlinePriceDraft.promoEnabled}
-                              onChange={(event) =>
-                                setInlinePriceDraft((prev) => ({
-                                  ...prev,
-                                  promoEnabled: event.target.checked,
-                                }))
-                              }
-                            />
-                            Precio promocional activo
-                          </label>
-                          <input
-                            value={inlinePriceDraft.originalPrice}
-                            onChange={(event) =>
-                              setInlinePriceDraft((prev) => ({
-                                ...prev,
-                                originalPrice: event.target.value,
-                              }))
-                            }
-                            className="ui-focus w-full rounded border border-slate-300 px-2 py-1 text-sm"
-                            placeholder="Precio original"
-                          />
-                          {inlinePriceDraft.promoEnabled ? (
-                            <input
-                              value={inlinePriceDraft.promoPrice}
-                              onChange={(event) =>
-                                setInlinePriceDraft((prev) => ({
-                                  ...prev,
-                                  promoPrice: event.target.value,
-                                }))
-                              }
-                              className="ui-focus w-full rounded border border-rose-300 px-2 py-1 text-sm"
-                              placeholder="Precio promocional"
-                            />
-                          ) : null}
-                          <div className="grid gap-2 sm:grid-cols-2">
-                            <input
-                              value={inlinePriceDraft.taxFee}
-                              onChange={(event) =>
-                                setInlinePriceDraft((prev) => ({
-                                  ...prev,
-                                  taxFee: event.target.value,
-                                }))
-                              }
-                              className="ui-focus w-full rounded border border-slate-300 px-2 py-1 text-sm"
-                              placeholder="Impuestos"
-                            />
-                            <input
-                              value={inlinePriceDraft.transferFee}
-                              onChange={(event) =>
-                                setInlinePriceDraft((prev) => ({
-                                  ...prev,
-                                  transferFee: event.target.value,
-                                }))
-                              }
-                              className="ui-focus w-full rounded border border-slate-300 px-2 py-1 text-sm"
-                              placeholder="Transferencia"
-                            />
-                          </div>
-                          <div className="flex gap-1">
-                            <button
-                              type="button"
-                              onClick={saveInlinePriceEdit}
-                              className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700"
-                            >
-                              Guardar precios
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setInlinePriceEditing(false)}
-                              className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-600"
-                            >
-                              Cancelar
-                            </button>
-                          </div>
-                        </div>
-                      ) : selectedVehiclePromoMeta.promoEnabled &&
-                      selectedVehiclePromoMeta.originalPriceLabel &&
-                      selectedVehiclePriceLabel ? (
-                        <p className="mt-1 text-sm font-semibold text-slate-400 line-through">
-                          {selectedVehiclePromoMeta.originalPriceLabel}
-                        </p>
-                      ) : null}
-                      <p className={`mt-1 text-lg font-bold ${selectedVehiclePromoMeta.promoEnabled ? "text-rose-700" : "text-slate-900"}`}>
-                        {selectedVehiclePriceLabel ?? "No informado"}
-                      </p>
-                      {!inlinePriceEditing && selectedVehiclePromoMeta.promoEnabled ? (
-                        <p className="mt-1 inline-flex rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
-                          Precio promocional
-                        </p>
-                      ) : null}
-                      {!inlinePriceEditing && selectedVehicleHasFeeBreakdown ? (
-                        <div className="mt-2 rounded-md border border-stone-200 bg-white px-2 py-2 text-xs text-slate-700">
-                          <p className="font-semibold text-slate-800">Desglose referencial</p>
-                          <div className="mt-1 space-y-1">
-                            <div className="flex items-center justify-between gap-2">
-                              <span>Valor base</span>
-                              <span className="font-medium">
-                                {selectedVehicleReferencePriceDisplay || selectedVehiclePriceLabel || "No informado"}
-                              </span>
-                            </div>
-                            {selectedVehicleHasTaxFee ? (
-                              <div className="flex items-center justify-between gap-2">
-                                <span>Impuestos</span>
-                                <span className="font-medium">{selectedVehicleTaxFeeDisplay}</span>
-                              </div>
-                            ) : null}
-                            {selectedVehicleHasTransferFee ? (
-                              <div className="flex items-center justify-between gap-2">
-                                <span>Transferencia</span>
-                                <span className="font-medium">{selectedVehicleTransferFeeDisplay}</span>
-                              </div>
-                            ) : null}
-                            <div className="mt-1 flex items-center justify-between gap-2 border-t border-stone-200 pt-1 text-sm font-bold text-slate-900">
-                              <span>Total</span>
-                              <span>{selectedVehicleTotalWithFeesDisplay || "No informado"}</span>
-                            </div>
-                          </div>
-                        </div>
-                      ) : !inlinePriceEditing ? (
-                        <p className="mt-1 text-xs text-slate-600">
-                          Valor referencial.
-                        </p>
-                      ) : null}
-                    </div>
-                  </>
-                ) : null}
                 {selectedVehicleTab === "descripcion" ? (
                   <div className="mt-2 rounded-md border border-slate-200 bg-white p-3">
                     <div className="flex items-start justify-between gap-2">

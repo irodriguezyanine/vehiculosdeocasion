@@ -498,12 +498,6 @@ export function CatalogCard({
     !priceHidden && promoEnabled && shownPriceLabel && strikeSource && strikeSource !== shownPriceLabel
       ? strikeSource
       : null;
-  const publicationDescription =
-    typeof raw.descripcion === "string" && raw.descripcion.trim()
-      ? raw.descripcion.trim()
-      : typeof raw.description === "string" && raw.description.trim()
-        ? raw.description.trim()
-        : "";
   const publicationTags = visiblePublicationTags(
     parsePublicationTags({
       tags: raw.publication_tags,
@@ -678,17 +672,13 @@ export function CatalogCard({
                 </div>
               ) : (
                 <div className="mt-1 flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    {publicationDescription ? (
-                      <p className="line-clamp-4 whitespace-pre-line break-words text-[0.93rem] text-[#475569] [overflow-wrap:anywhere]">
-                        {publicationDescription}
-                      </p>
-                    ) : (
-                      <p className="break-words text-[0.93rem] text-[#475569] [overflow-wrap:anywhere]">
-                        {shortText(publicSubtitle) ?? "-"}
-                      </p>
-                    )}
-                  </div>
+                  {shortText(publicSubtitle) ? (
+                    <p className="break-words text-[0.93rem] text-[#475569] [overflow-wrap:anywhere]">
+                      {shortText(publicSubtitle)}
+                    </p>
+                  ) : (
+                    <span />
+                  )}
                   {canInlineEdit ? (
                     <button
                       type="button"

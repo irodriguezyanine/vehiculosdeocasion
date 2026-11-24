@@ -301,7 +301,6 @@ async function fetchFromSupabase(): Promise<CatalogItem[]> {
     .from(DEFAULT_TABLE)
     .select(DEFAULT_SELECT)
     .eq("linea_negocio", "vehiculos_de_ocasion")
-    .neq("estado_retiro", "vendido_fuera_bodega")
     .limit(Math.max(DEFAULT_LIMIT, 500));
 
   if (DEFAULT_ORDER_BY) {
@@ -1475,38 +1474,34 @@ async function enrichWithAutoredFallback(
   });
 }
 
-function mergeCatalogItems(primary: CatalogItem[], secondary: CatalogItem[]): CatalogItem[] {
-  const merged = new Map<string, CatalogItem>();
+/** Completa fotos y datos vacíos del inventario VDO. No agrega vehículos que solo existen en AWS. */
+function enrichPrimaryWithSecondary(primary: CatalogItem[], secondary: CatalogItem[]): CatalogItem[] {
+  const byStock = new Map<string, CatalogItem>();
+  for (const item of secondary) {
+    const stock = getItemStock(item);
+    if (stock) byStock.set(stock, item);
+  }
 
-  const upsert = (item: CatalogItem) => {
-    const key = getItemStock(item) || item.id;
-    const existing = merged.get(key);
-    if (!existing) {
-      merged.set(key, item);
-      return;
-    }
-
-    merged.set(key, {
-      ...existing,
+  return primary.map((item) => {
+    const stock = getItemStock(item);
+    const extra = stock ? byStock.get(stock) : undefined;
+    if (!extra) return item;
+    return {
       ...item,
-      subtitle: item.subtitle ?? existing.subtitle,
-      lot: item.lot ?? existing.lot,
-      status: item.status ?? existing.status,
-      location: item.location ?? existing.location,
-      auctionDate: item.auctionDate ?? existing.auctionDate,
-      images: item.images.length > 0 ? item.images : existing.images,
-      thumbnail: item.thumbnail ?? existing.thumbnail,
-      view3dUrl: item.view3dUrl ?? existing.view3dUrl,
+      subtitle: item.subtitle ?? extra.subtitle,
+      lot: item.lot ?? extra.lot,
+      status: item.status ?? extra.status,
+      location: item.location ?? extra.location,
+      auctionDate: item.auctionDate ?? extra.auctionDate,
+      images: item.images.length > 0 ? item.images : extra.images,
+      thumbnail: item.thumbnail ?? extra.thumbnail,
+      view3dUrl: item.view3dUrl ?? extra.view3dUrl,
       raw: mergeRawPreferPrimary(
         item.raw as Record<string, unknown>,
-        existing.raw as Record<string, unknown>,
+        extra.raw as Record<string, unknown>,
       ),
-    });
-  };
-
-  secondary.forEach(upsert);
-  primary.forEach(upsert);
-  return Array.from(merged.values());
+    };
+  });
 }
 
 // Requisito del negocio: el catálogo debe cargar el inventario completo.
@@ -1531,7 +1526,7 @@ export const getCatalogFeed = cache(async function getCatalogFeed(): Promise<Cat
     if (apiItems && apiItems.length > 0) {
       resolvedSource = "tasaciones-api";
       const awsItems = await fetchFromAwsInventory().catch(() => []);
-      const mergedItems = mergeCatalogItems(apiItems, awsItems);
+      const mergedItems = enrichPrimaryWithSecondary(apiItems, awsItems);
       const enrichedItems = await enrichWithAutoredFallback(mergedItems);
       const glo3dEnrichedItems = await enrichWithGlo3dInventory(enrichedItems);
       const filtered = filterEnBodega(glo3dEnrichedItems);
@@ -1548,7 +1543,7 @@ export const getCatalogFeed = cache(async function getCatalogFeed(): Promise<Cat
   try {
     const supabaseItems = await fetchFromSupabase();
     const awsItems = await fetchFromAwsInventory().catch(() => []);
-    const mergedItems = mergeCatalogItems(supabaseItems, awsItems);
+    const mergedItems = enrichPrimaryWithSecondary(supabaseItems, awsItems);
     const enrichedItems = await enrichWithAutoredFallback(mergedItems);
 
     const glo3dEnrichedItems = await enrichWithGlo3dInventory(enrichedItems);

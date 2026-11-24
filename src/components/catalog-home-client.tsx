@@ -3004,7 +3004,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   const [selectedVehicleLightboxIndex, setSelectedVehicleLightboxIndex] = useState<number | null>(null);
   const [selectedVehicleLightboxZoom, setSelectedVehicleLightboxZoom] = useState(1);
   const [detailEditorTab, setDetailEditorTab] = useState<DetailEditorTabId>("general");
-  const [selectedVehicleTab, setSelectedVehicleTab] = useState<VehicleDetailTabId>("general");
+  const [selectedVehicleTab, setSelectedVehicleTab] = useState<VehicleDetailTabId>("descripcion");
   const vehicleTabRefs = useRef<Partial<Record<VehicleDetailTabId, HTMLButtonElement | null>>>({});
   const [inlineSummaryField, setInlineSummaryField] = useState<string | null>(null);
   const [inlineSummaryValue, setInlineSummaryValue] = useState("");
@@ -5310,8 +5310,8 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   const selectedVehicleTabs = useMemo(
     () => {
       const tabs: VehicleDetailTabDef[] = [
-        { id: "general", label: "Informacion del vehiculo", shortLabel: "General" },
         { id: "descripcion", label: "Descripcion", shortLabel: "Desc." },
+        { id: "general", label: "Informacion del vehiculo", shortLabel: "General" },
         { id: "tecnica", label: "Detalles tecnicos", shortLabel: "Tecnica" },
       ];
       if (selectedVehicleGalleryImages.length > 0) {
@@ -5377,7 +5377,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
 
   useEffect(() => {
     if (selectedVehicle) {
-      setSelectedVehicleTab("general");
+      setSelectedVehicleTab("descripcion");
       setSelectedVehicleLightboxIndex(null);
       setSelectedVehicleLightboxZoom(1);
       setInlineSummaryField(null);

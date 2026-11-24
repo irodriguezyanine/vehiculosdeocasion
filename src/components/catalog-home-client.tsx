@@ -11766,29 +11766,36 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                   </button>
                 </div>
                 {selectedVehiclePriceLabel ? (
-                  <div className="md:text-right">
-                    {selectedVehiclePromoMeta.promoEnabled && selectedVehicleOverride?.promoPrice?.trim() ? (
-                      <p className="text-sm font-semibold tabular-nums text-slate-400 line-through">{selectedVehiclePriceLabel}</p>
-                    ) : null}
-                    <p
-                      className={`text-[1.65rem] font-extrabold leading-none tabular-nums tracking-tight ${
-                        selectedVehiclePromoMeta.promoEnabled && selectedVehicleOverride?.promoPrice?.trim()
-                          ? "text-rose-700"
-                          : "text-[#0f4c5c]"
-                      }`}
-                    >
-                      {(selectedVehiclePromoMeta.promoEnabled && selectedVehicleOverride?.promoPrice?.trim()) ||
-                        selectedVehiclePriceLabel}
-                    </p>
-                    <div className="mt-1.5 flex gap-4 text-xs md:justify-end">
-                      <p>
-                        <span className="font-semibold uppercase tracking-wide text-slate-500">Impuesto </span>
-                        <span className="font-semibold text-slate-800">{selectedVehiclePromoMeta.taxFeeLabel || "—"}</span>
-                      </p>
-                      <p>
-                        <span className="font-semibold uppercase tracking-wide text-slate-500">Transferencia </span>
-                        <span className="font-semibold text-slate-800">{selectedVehiclePromoMeta.transferFeeLabel || "—"}</span>
-                      </p>
+                  <div className="w-full rounded-2xl border border-[#d5e8ee] bg-white px-3.5 py-2.5 shadow-[0_8px_18px_rgba(15,76,92,0.06)] md:min-w-[24rem]">
+                    <div className="grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5b8a97]">Precio</p>
+                        {selectedVehiclePromoMeta.promoEnabled && selectedVehicleOverride?.promoPrice?.trim() ? (
+                          <p className="mt-1 text-xs font-semibold tabular-nums text-slate-400 line-through">{selectedVehiclePriceLabel}</p>
+                        ) : null}
+                        <p
+                          className={`mt-0.5 text-[1.35rem] font-extrabold leading-none tabular-nums tracking-tight ${
+                            selectedVehiclePromoMeta.promoEnabled && selectedVehicleOverride?.promoPrice?.trim()
+                              ? "text-rose-700"
+                              : "text-[#0f4c5c]"
+                          }`}
+                        >
+                          {(selectedVehiclePromoMeta.promoEnabled && selectedVehicleOverride?.promoPrice?.trim()) ||
+                            selectedVehiclePriceLabel}
+                        </p>
+                      </div>
+                      <div className="min-w-0 border-l border-slate-200 pl-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Impuesto</p>
+                        <p className="mt-1 text-sm font-semibold tabular-nums text-slate-800">
+                          {selectedVehiclePromoMeta.taxFeeLabel || "—"}
+                        </p>
+                      </div>
+                      <div className="min-w-0 border-l border-slate-200 pl-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Transferencia</p>
+                        <p className="mt-1 text-sm font-semibold tabular-nums text-slate-800">
+                          {selectedVehiclePromoMeta.transferFeeLabel || "—"}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 ) : null}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CATALOG_HERO_VIDEO_SRC } from "@/lib/catalog-hero-media";
 
 function resumeHeroVideo(video: HTMLVideoElement) {
@@ -17,10 +17,16 @@ function resumeHeroVideo(video: HTMLVideoElement) {
 
 export function CatalogHeroBackgroundVideo() {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const start = window.setTimeout(() => setReady(true), 1600);
+    return () => window.clearTimeout(start);
+  }, []);
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || !ready) return;
 
     video.loop = true;
     video.muted = true;
@@ -31,6 +37,7 @@ export function CatalogHeroBackgroundVideo() {
 
     const handleResume = () => resumeHeroVideo(video);
 
+    video.load();
     handleResume();
 
     video.addEventListener("ended", handleResume);
@@ -46,7 +53,7 @@ export function CatalogHeroBackgroundVideo() {
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
 
-    const keepAliveId = window.setInterval(handleResume, 2500);
+    const keepAliveId = window.setInterval(handleResume, 8000);
 
     const unlockAutoplay = () => {
       handleResume();
@@ -67,7 +74,7 @@ export function CatalogHeroBackgroundVideo() {
       window.removeEventListener("keydown", unlockAutoplay);
       window.removeEventListener("touchstart", unlockAutoplay);
     };
-  }, []);
+  }, [ready]);
 
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
@@ -79,12 +86,12 @@ export function CatalogHeroBackgroundVideo() {
         loop
         muted
         playsInline
-        preload="auto"
+        preload="none"
         tabIndex={-1}
         disablePictureInPicture
         disableRemotePlayback
       >
-        <source src={CATALOG_HERO_VIDEO_SRC} type="video/mp4" />
+        {ready ? <source src={CATALOG_HERO_VIDEO_SRC} type="video/mp4" /> : null}
       </video>
       <div className="hero-video-overlay absolute inset-0" />
     </div>

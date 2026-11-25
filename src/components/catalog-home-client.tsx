@@ -88,10 +88,11 @@ import {
   mergeGlo3dResponseIntoCatalogItems,
 } from "@/lib/enrich-published-vehicles";
 import {
+  catalogDisplaySrc,
   isPlaceholderCatalogThumbnail,
   resolveCatalogItemThumbnail,
   resolveGlo3dThumbnailFromRecord,
-} from "@/lib/catalog";
+} from "@/lib/catalog-image";
 import {
   getAutoredClientCooldownMs,
   lookupAutoredPatentClient,
@@ -2699,7 +2700,7 @@ function HorizontalCardsRail({
           <div key={`${sectionKey}-${item.id}`} className="catalog-rail-item">
             <CatalogCard
               item={item}
-              imageLoading={index < 4 ? "eager" : "lazy"}
+              imageLoading={index < 2 ? "eager" : "lazy"}
               priceLabel={formatPrice(priceMap[getVehicleKey(item)])}
               upcomingAuctionLabel={upcomingAuctionByVehicleKey?.[getVehicleKey(item)]}
               density={cardDensity}
@@ -2776,7 +2777,7 @@ function Section({
             <CatalogCard
               key={`${id}-expanded-${item.id}`}
               item={item}
-              imageLoading={index < 8 ? "eager" : "lazy"}
+              imageLoading={index < 2 ? "eager" : "lazy"}
               priceLabel={formatPrice(priceMap[getVehicleKey(item)])}
               upcomingAuctionLabel={upcomingAuctionByVehicleKey?.[getVehicleKey(item)]}
               density={cardDensity}
@@ -3000,6 +3001,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [selectedVehicle, setSelectedVehicle] = useState<CatalogItem | null>(null);
+  const [showVehicle3d, setShowVehicle3d] = useState(false);
   const [selectedVehicleImageIndex, setSelectedVehicleImageIndex] = useState(0);
   const [selectedVehicleLightboxIndex, setSelectedVehicleLightboxIndex] = useState<number | null>(null);
   const [selectedVehicleLightboxZoom, setSelectedVehicleLightboxZoom] = useState(1);
@@ -3487,6 +3489,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
 
   useEffect(() => {
     setSelectedVehicleImageIndex(0);
+    setShowVehicle3d(false);
   }, [selectedVehicle]);
 
   useEffect(() => {
@@ -11261,7 +11264,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
               config.homeLayout.heroAlignment === "center" ? "text-center" : "text-left"
             }`}
           >
-            <CatalogHeroBackgroundVideo />
+            {selectedVehicle ? null : <CatalogHeroBackgroundVideo />}
             <div className="hero-video-content">
             <p
               className="hero-video-kicker text-xs font-semibold uppercase tracking-[0.2em]"
@@ -11804,41 +11807,60 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
             </div>
             <div className="grid gap-3 md:gap-4 lg:grid-cols-2">
               <div className="space-y-2">
-                <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-sm md:rounded-2xl">
-                  {selectedVehicle.view3dUrl ? (
+                <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-sm md:rounded-2xl">
+                  {showVehicle3d && selectedVehicle.view3dUrl ? (
                     <iframe
                       src={selectedVehicle.view3dUrl}
                       title={`Visor 3D ${selectedVehicle.title}`}
                       className="h-52 min-h-[50vh] w-full border-0 md:h-[420px] md:min-h-0"
+                      loading="lazy"
                       allow="fullscreen; autoplay"
                     />
                   ) : (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={selectedVehicleMainImage}
+                      src={catalogDisplaySrc(selectedVehicleMainImage, 960)}
                       alt={selectedVehicle.title}
                       className="h-52 w-full object-cover md:h-[420px]"
+                      fetchPriority="high"
+                      decoding="async"
                     />
                   )}
+                  {selectedVehicle.view3dUrl ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowVehicle3d((current) => !current)}
+                      className="ui-focus absolute bottom-3 right-3 rounded-full bg-[#0f4c5c]/90 px-3 py-1.5 text-xs font-semibold text-white shadow"
+                      title={showVehicle3d ? "Ver fotos" : "Visor 3D"}
+                      aria-label={showVehicle3d ? "Ver fotos" : "Visor 3D"}
+                    >
+                      {showVehicle3d ? "Fotos" : "3D"}
+                    </button>
+                  ) : null}
                 </div>
-                {selectedVehicle.view3dUrl ? null : selectedVehicleGalleryImages.length > 1 ? (
+                {selectedVehicleGalleryImages.length > 1 ? (
                   <div className="flex gap-2 overflow-x-auto rounded-xl border border-slate-200 bg-white p-2 md:flex">
                     {selectedVehicleGalleryImages.map((imageUrl, index) => (
                       <button
                         key={`${imageUrl}-${index}`}
                         type="button"
-                        onClick={() => setSelectedVehicleImageIndex(index)}
+                        onClick={() => {
+                          setShowVehicle3d(false);
+                          setSelectedVehicleImageIndex(index);
+                        }}
                         className={`ui-focus h-16 w-20 shrink-0 overflow-hidden rounded-lg border transition ${
-                          selectedVehicleImageIndex === index
+                          selectedVehicleImageIndex === index && !showVehicle3d
                             ? "border-amber-600 ring-2 ring-stone-300"
                             : "border-slate-200 hover:border-cyan-200"
                         }`}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={imageUrl}
+                          src={catalogDisplaySrc(imageUrl, 160)}
                           alt={`${selectedVehicle.title} vista ${index + 1}`}
                           className="h-full w-full object-cover"
+                          loading={index < 4 ? "eager" : "lazy"}
+                          decoding="async"
                         />
                       </button>
                     ))}
@@ -11910,9 +11932,10 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={selectedVehicleMainImage}
+                          src={catalogDisplaySrc(selectedVehicleMainImage, 960)}
                           alt={`Foto principal de ${selectedVehicle.title}`}
                           className="h-52 w-full object-cover"
+                          decoding="async"
                         />
                       </button>
                       <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2">
@@ -11932,9 +11955,11 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
-                              src={imageUrl}
+                              src={catalogDisplaySrc(imageUrl, 320)}
                               alt={`${selectedVehicle.title} foto ${index + 1}`}
                               className="h-20 w-full object-cover"
+                              loading="lazy"
+                              decoding="async"
                             />
                           </button>
                         ))}
@@ -12169,6 +12194,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                       alt={`Foto ampliada ${selectedVehicle.title}`}
                       className="max-h-[92vh] w-full rounded-xl object-contain transition-transform duration-200"
                       style={{ transform: `scale(${selectedVehicleLightboxZoom})` }}
+                      decoding="async"
                     />
                   </div>
                 </div>
@@ -12210,10 +12236,11 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                           <div className="h-12 w-16 shrink-0 overflow-hidden rounded-md border border-slate-200 bg-slate-100">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
-                              src={item.thumbnail ?? item.images[0] ?? "/placeholder-car.svg"}
+                              src={catalogDisplaySrc(item.thumbnail ?? item.images[0] ?? "/placeholder-car.svg", 128)}
                               alt={`Miniatura ${item.title}`}
                               className="h-full w-full object-cover"
                               loading="lazy"
+                              decoding="async"
                               onError={(event) => {
                                 event.currentTarget.src = "/placeholder-car.svg";
                               }}

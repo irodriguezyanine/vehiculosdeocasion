@@ -25,7 +25,7 @@ import { buildVehicleOfferJsonLd } from "@/lib/seo/json-ld";
 import { BUSINESS, SITE_NAME } from "@/lib/seo/site-config";
 import type { CatalogItem } from "@/types/catalog";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 120;
 export const dynamicParams = true;
 
 type PageProps = {

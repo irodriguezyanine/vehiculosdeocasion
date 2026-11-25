@@ -7,7 +7,7 @@ import {
 } from "react";
 import { getPublicVehicleSubtitle } from "@/lib/public-patent-policy";
 import type { CatalogItem } from "@/types/catalog";
-import { resolveCatalogItemThumbnail } from "@/lib/catalog";
+import { catalogDisplaySrc, resolveCatalogItemThumbnail } from "@/lib/catalog-image";
 import { WHATSAPP_API_BASE } from "@/lib/contact";
 import {
   parsePublicationTags,
@@ -582,10 +582,12 @@ export function CatalogCard({
         <div className={`relative w-full overflow-hidden bg-[#e2e8f0] ${isCompact ? "h-40 max-md:h-36" : "h-48 max-md:h-44 md:h-56"}`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={coverSrc}
+            src={catalogDisplaySrc(coverSrc, isCompact ? 480 : 720)}
             alt={item.title}
             className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
             loading={imageLoading}
+            decoding="async"
+            fetchPriority={imageLoading === "eager" ? "high" : "low"}
             onError={() => setCoverSrc("/placeholder-car.svg")}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent" />

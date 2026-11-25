@@ -1,14 +1,37 @@
 import { createClient } from "@supabase/supabase-js";
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, ScanCommand } from "@aws-sdk/lib-dynamodb";
+import { unstable_cache } from "next/cache";
 import { cache } from "react";
 import type { CatalogFeed, CatalogItem, CatalogSource } from "@/types/catalog";
 import { toPublicCatalogId } from "@/lib/public-patent-policy";
-import { fetchAutoredPatentData, mapAutoredToDraftPartial, AutoredLookupError } from "@/lib/autored-lookup";
 import { extractGlo3dTechnicalRawFromRecord } from "@/lib/glo3d-custom-specs";
 
 const DEFAULT_TABLE = process.env.CATALOG_SUPABASE_TABLE ?? "inventario";
-const DEFAULT_SELECT = process.env.CATALOG_SUPABASE_SELECT ?? "*";
+const PUBLIC_SUPABASE_SELECT = [
+  "id",
+  "created_at",
+  "patente",
+  "marca",
+  "modelo",
+  "ano",
+  "version",
+  "descripcion",
+  "categoria",
+  "kilometraje",
+  "estado_retiro",
+  "linea_negocio",
+  "imagenes",
+  "foto_portada",
+  "glo3d_id",
+  "valor_minimo",
+  "valor_esperado",
+  "precio_minimo_remate",
+  "precio_apertura_remate",
+  "num_siniestro",
+  "es_siniestrado",
+].join(",");
+const configuredSelect = process.env.CATALOG_SUPABASE_SELECT?.trim();
+const DEFAULT_SELECT =
+  configuredSelect && configuredSelect !== "*" ? configuredSelect : PUBLIC_SUPABASE_SELECT;
 const DEFAULT_LIMIT = Number(process.env.CATALOG_LIMIT ?? "60");
 const DEFAULT_ORDER_BY = process.env.CATALOG_SUPABASE_ORDER_BY ?? "created_at";
 const AUTORED_API_URL = process.env.CATALOG_SOURCE_AUTORED_API_URL;
@@ -249,13 +272,17 @@ async function fetchFromTasacionesApi(): Promise<CatalogItem[] | null> {
 
   endpoint.searchParams.set(
     "limit",
-    process.env.CATALOG_SOURCE_API_LIMIT ?? "500",
+    process.env.CATALOG_SOURCE_API_LIMIT ?? "200",
   );
   endpoint.searchParams.set(
     "incluir_historicos",
-    process.env.CATALOG_SOURCE_API_INCLUIR_HISTORICOS ?? "true",
+    process.env.CATALOG_SOURCE_API_INCLUIR_HISTORICOS ?? "false",
   );
   endpoint.searchParams.set("linea_negocio", "vehiculos_de_ocasion");
+  // Fotos ya guardadas. Sin esto, limit > 50 apaga los medios y la ficha espera AWS/Glo3D.
+  endpoint.searchParams.set("incluir_medios", "true");
+  endpoint.searchParams.set("fetch_glo3d", "false");
+  endpoint.searchParams.set("persistir_medios", "false");
 
   const response = await fetch(endpoint.toString(), {
     method: "GET",
@@ -301,7 +328,8 @@ async function fetchFromSupabase(): Promise<CatalogItem[]> {
     .from(DEFAULT_TABLE)
     .select(DEFAULT_SELECT)
     .eq("linea_negocio", "vehiculos_de_ocasion")
-    .limit(Math.max(DEFAULT_LIMIT, 500));
+    .neq("estado_retiro", "vendido_fuera_bodega")
+    .limit(Math.max(DEFAULT_LIMIT, 200));
 
   if (DEFAULT_ORDER_BY) {
     query = query.order(DEFAULT_ORDER_BY, { ascending: false });
@@ -510,6 +538,8 @@ async function fetchFromAwsInventory(): Promise<CatalogItem[]> {
 
   if (!accessKeyId || !secretAccessKey) return [];
 
+  const { DynamoDBClient } = await import("@aws-sdk/client-dynamodb");
+  const { DynamoDBDocumentClient, ScanCommand } = await import("@aws-sdk/lib-dynamodb");
   const client = new DynamoDBClient({
     region,
     credentials: {
@@ -1115,7 +1145,7 @@ async function fetchGlo3dInventoryPayload(
       Authorization: authHeader,
     },
     body: JSON.stringify(body),
-    cache: "no-store",
+    next: { revalidate: 600 },
   });
   if (!response.ok) return null;
 
@@ -1162,6 +1192,8 @@ async function fetchGlo3dEntryByDirectSearch(
 
 export type Glo3dLookupOptions = {
   exhaustive?: boolean;
+  /** Una página, sin las 8 búsquedas por patente. */
+  quick?: boolean;
 };
 
 async function fetchGlo3dByStocks(
@@ -1175,8 +1207,9 @@ async function fetchGlo3dByStocks(
   const pending = new Set(stocks.map(normalizeStock).filter(Boolean));
   const resolved = new Map<string, Glo3dInventoryEntry>();
   const authHeader = `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`;
-  const targetedLookup = options.exhaustive || stocks.length <= GLO3D_TARGETED_LOOKUP_THRESHOLD;
-  const maxPages = targetedLookup ? GLO3D_EXHAUSTIVE_MAX_PAGES : GLO3D_MAX_PAGES;
+  const targetedLookup =
+    !options.quick && (options.exhaustive || stocks.length <= GLO3D_TARGETED_LOOKUP_THRESHOLD);
+  const maxPages = options.quick ? 1 : targetedLookup ? GLO3D_EXHAUSTIVE_MAX_PAGES : GLO3D_MAX_PAGES;
 
   let page = 0;
   while (page < maxPages && pending.size > 0) {
@@ -1194,7 +1227,7 @@ async function fetchGlo3dByStocks(
     page += 1;
   }
 
-  if (pending.size > 0 && targetedLookup) {
+  if (pending.size > 0 && targetedLookup && !options.quick) {
     for (const stock of [...pending]) {
       const entry = await fetchGlo3dEntryByDirectSearch(stock, authHeader);
       if (!entry) continue;
@@ -1320,12 +1353,14 @@ function isMeaningfulValue(value: unknown): boolean {
 async function fetchAutoredByPatent(
   patent: string,
 ): Promise<Record<string, unknown> | null> {
+  const { fetchAutoredPatentData } = await import("@/lib/autored-lookup");
   return fetchAutoredPatentData(patent);
 }
 
-function normalizeAutoredTechnicalFields(
+async function normalizeAutoredTechnicalFields(
   autoredRaw: Record<string, unknown>,
-): Record<string, unknown> {
+): Promise<Record<string, unknown>> {
+  const { mapAutoredToDraftPartial } = await import("@/lib/autored-lookup");
   const mapped = mapAutoredToDraftPartial(autoredRaw);
   const result: Record<string, unknown> = {};
   if (mapped.patente) {
@@ -1448,9 +1483,13 @@ async function enrichWithAutoredFallback(
   for (const entry of limitedCandidates) {
     try {
       const autored = await fetchAutoredByPatent(entry.stock);
-      if (autored) byStock.set(entry.stock, normalizeAutoredTechnicalFields(autored));
+      if (autored) byStock.set(entry.stock, await normalizeAutoredTechnicalFields(autored));
     } catch (error) {
-      if (error instanceof AutoredLookupError && error.code === "RATE_LIMITED") {
+      const code =
+        error && typeof error === "object" && "code" in error
+          ? (error as { code?: string }).code
+          : undefined;
+      if (code === "RATE_LIMITED") {
         break;
       }
     }
@@ -1518,22 +1557,93 @@ function filterEnBodega(items: CatalogItem[]): CatalogItem[] {
   return items.filter((item) => item.enBodega !== false);
 }
 
-export const getCatalogFeed = cache(async function getCatalogFeed(): Promise<CatalogFeed> {
-  let resolvedSource: CatalogSource = "empty";
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(fallback), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      () => {
+        clearTimeout(timer);
+        resolve(fallback);
+      },
+    );
+  });
+}
 
+const HEAVY_RAW_KEYS = new Set([
+  "fotos_urls",
+  "fotos",
+  "galeria",
+  "galeria_fotos",
+  "images",
+  "imagenes",
+  "photos",
+  "photo_urls",
+  "frames",
+  "hotspots",
+  "gallery",
+]);
+
+function slimRawValue(value: unknown, depth: number): unknown {
+  if (value == null || typeof value === "number" || typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    if (value.length > 1500 && (value.startsWith("data:") || value.includes("base64,"))) return undefined;
+    return value.length > 8000 ? value.slice(0, 8000) : value;
+  }
+  if (Array.isArray(value)) {
+    if (!value.every((entry) => typeof entry === "string")) return undefined;
+    const strings = value.filter((entry) => entry.length > 0 && entry.length < 500).slice(0, 40);
+    return strings.length > 0 ? strings : undefined;
+  }
+  if (typeof value !== "object" || depth >= 3) return undefined;
+  const out: Record<string, unknown> = {};
+  for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+    if (HEAVY_RAW_KEYS.has(key)) continue;
+    const next = slimRawValue(nested, depth + 1);
+    if (next !== undefined) out[key] = next;
+  }
+  return out;
+}
+
+function slimPublicCatalogItem(item: CatalogItem): CatalogItem {
+  const raw = slimRawValue(item.raw, 0);
+  return {
+    ...item,
+    images: item.images.slice(0, 30),
+    raw: raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {},
+  };
+}
+
+function itemHasPublicPhoto(item: CatalogItem): boolean {
+  if (item.images.length > 0) return true;
+  return Boolean(item.thumbnail && !isPlaceholderCatalogThumbnail(item.thumbnail));
+}
+
+async function fillMissingPhotos(items: CatalogItem[]): Promise<CatalogItem[]> {
+  const missing = items.filter((item) => !itemHasPublicPhoto(item)).slice(0, 8);
+  if (missing.length === 0) return items;
+  const stocks = Array.from(
+    new Set(missing.map(getItemStock).filter((value): value is string => !!value)),
+  );
+  if (stocks.length === 0) return items;
+  const glo3dMap = await withTimeout(
+    fetchGlo3dByStocks(stocks, { quick: true }),
+    1800,
+    new Map<string, Glo3dInventoryEntry>(),
+  );
+  return mergeGlo3dLookupIntoCatalogItems(items, glo3dMap);
+}
+
+async function loadPublicCatalogFeed(): Promise<CatalogFeed> {
   try {
     const apiItems = await fetchFromTasacionesApi();
     if (apiItems && apiItems.length > 0) {
-      resolvedSource = "tasaciones-api";
-      const awsItems = await fetchFromAwsInventory().catch(() => []);
-      const mergedItems = enrichPrimaryWithSecondary(apiItems, awsItems);
-      const enrichedItems = await enrichWithAutoredFallback(mergedItems);
-      const glo3dEnrichedItems = await enrichWithGlo3dInventory(enrichedItems);
-      const filtered = filterEnBodega(glo3dEnrichedItems);
-
       return {
-        source: resolvedSource,
-        items: filtered,
+        source: "tasaciones-api",
+        items: filterEnBodega(await fillMissingPhotos(apiItems)).map(slimPublicCatalogItem),
       };
     }
   } catch (error) {
@@ -1542,13 +1652,7 @@ export const getCatalogFeed = cache(async function getCatalogFeed(): Promise<Cat
 
   try {
     const supabaseItems = await fetchFromSupabase();
-    const awsItems = await fetchFromAwsInventory().catch(() => []);
-    const mergedItems = enrichPrimaryWithSecondary(supabaseItems, awsItems);
-    const enrichedItems = await enrichWithAutoredFallback(mergedItems);
-
-    const glo3dEnrichedItems = await enrichWithGlo3dInventory(enrichedItems);
-    const filtered = filterEnBodega(glo3dEnrichedItems);
-
+    const filtered = filterEnBodega(await fillMissingPhotos(supabaseItems)).map(slimPublicCatalogItem);
     return {
       source: filtered.length > 0 ? "supabase" : "empty",
       items: filtered,
@@ -1567,6 +1671,14 @@ export const getCatalogFeed = cache(async function getCatalogFeed(): Promise<Cat
           : "No fue posible cargar inventario.",
     };
   }
+}
+
+const loadPublicCatalogFeedCached = unstable_cache(loadPublicCatalogFeed, ["vdo-public-catalog-v3"], {
+  revalidate: 90,
+});
+
+export const getCatalogFeed = cache(async function getCatalogFeed(): Promise<CatalogFeed> {
+  return loadPublicCatalogFeedCached();
 });
 
 export function sourceLabel(source: CatalogSource): string {

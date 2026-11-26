@@ -118,6 +118,7 @@ const FAVORITES_STORAGE_KEY = "vehiculosdeocasion_client_favorites";
 const HOME_QUICK_FILTERS_STORAGE_KEY = "vehiculosdeocasion_home_quick_filters";
 const HOME_CARD_DENSITY_STORAGE_KEY = "vehiculosdeocasion_home_card_density";
 const EDITOR_PAGE_SIZE = 20;
+const HOME_PAGE_SIZE = 12;
 const EDITOR_PATENT_PAGE_SIZE = 100;
 /** Este sitio no opera remates; solo venta directa y secciones del home. */
 const AUCTION_ADMIN_ENABLED = false;
@@ -2432,6 +2433,72 @@ type MinimizableSectionHeaderProps = {
   trailing?: ReactNode;
 };
 
+function CatalogPageNav({
+  page,
+  pageCount,
+  onPage,
+}: {
+  page: number;
+  pageCount: number;
+  onPage: (page: number) => void;
+}) {
+  if (pageCount <= 1) return null;
+  const buttonClass = (active: boolean) =>
+    `ui-focus inline-flex h-8 min-w-8 items-center justify-center rounded-full border px-2 text-xs font-semibold transition disabled:pointer-events-none disabled:opacity-40 ${
+      active
+        ? "border-cyan-600 bg-cyan-600 text-white"
+        : "border-cyan-200/70 bg-white text-[#155e75] hover:bg-[#f0f9ff]"
+    }`;
+  return (
+    <nav className="mt-4 flex flex-wrap items-center justify-center gap-1.5" aria-label="Paginas">
+      <button
+        type="button"
+        className={buttonClass(false)}
+        disabled={page <= 0}
+        onClick={() => onPage(page - 1)}
+        title="Anterior"
+        aria-label="Anterior"
+      >
+        ‹
+      </button>
+      {Array.from({ length: pageCount }, (_, index) => (
+        <button
+          key={index}
+          type="button"
+          className={buttonClass(index === page)}
+          onClick={() => onPage(index)}
+          aria-current={index === page ? "page" : undefined}
+          aria-label={`Pagina ${index + 1}`}
+          title={`${index + 1}`}
+        >
+          {index + 1}
+        </button>
+      ))}
+      <button
+        type="button"
+        className={buttonClass(false)}
+        disabled={page >= pageCount - 1}
+        onClick={() => onPage(page + 1)}
+        title="Siguiente"
+        aria-label="Siguiente"
+      >
+        ›
+      </button>
+    </nav>
+  );
+}
+
+function useCatalogPage(items: CatalogItem[]) {
+  const itemsKey = items.map((item) => item.id).join("\0");
+  const [pageState, setPageState] = useState({ key: itemsKey, page: 0 });
+  const pageCount = Math.max(1, Math.ceil(items.length / HOME_PAGE_SIZE));
+  const page = pageState.key === itemsKey ? Math.min(pageState.page, pageCount - 1) : 0;
+  const pageItems = items.slice(page * HOME_PAGE_SIZE, page * HOME_PAGE_SIZE + HOME_PAGE_SIZE);
+  const setPage = (next: number) =>
+    setPageState({ key: itemsKey, page: Math.max(0, Math.min(pageCount - 1, next)) });
+  return { page, pageCount, pageItems, setPage };
+}
+
 function MinimizableSectionHeader({
   kicker,
   title,
@@ -2734,6 +2801,21 @@ function HorizontalCardsRail({
   );
 }
 
+function PagedHorizontalRail(props: HorizontalCardsRailProps) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const { page, pageCount, pageItems, setPage } = useCatalogPage(props.items);
+  const selectPage = (next: number) => {
+    setPage(next);
+    rootRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  return (
+    <div ref={rootRef}>
+      <HorizontalCardsRail {...props} items={pageItems} />
+      <CatalogPageNav page={page} pageCount={pageCount} onPage={selectPage} />
+    </div>
+  );
+}
+
 function Section({
   id,
   title,
@@ -2752,9 +2834,16 @@ function Section({
   onInlineSaveItem,
 }: SectionProps) {
   const [isMinimized, setIsMinimized] = useState(false);
+  const rootRef = useRef<HTMLElement>(null);
+  const { page, pageCount, pageItems, setPage } = useCatalogPage(items);
+  const selectPage = (next: number) => {
+    setPage(next);
+    rootRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   return (
     <section
+      ref={rootRef}
       id={id}
       className={`section-shell scroll-mt-24 ${isMinimized ? "py-4 sm:py-4" : ""}`}
     >
@@ -2772,37 +2861,40 @@ function Section({
           No encontramos unidades en esta seccion. Prueba limpiar filtros o cambiar el tipo de vehiculo.
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {items.map((item, index) => (
-            <CatalogCard
-              key={`${id}-expanded-${item.id}`}
-              item={item}
-              imageLoading={index < 2 ? "eager" : "lazy"}
-              priceLabel={formatPrice(priceMap[getVehicleKey(item)])}
-              upcomingAuctionLabel={upcomingAuctionByVehicleKey?.[getVehicleKey(item)]}
-              density={cardDensity}
-              onOpen={() => onOpenVehicle(item)}
-              isFavorite={favoriteKeys.includes(getVehicleKey(item))}
-              onToggleFavorite={() => onToggleFavorite(getVehicleKey(item))}
-              isCompared={compareKeys.includes(getVehicleKey(item))}
-              onToggleCompare={() => onToggleCompare(getVehicleKey(item))}
-              onWhatsappClick={() =>
-                trackEvent("whatsapp_click_card", {
-                  section: id,
-                  itemKey: getVehicleKey(item),
-                })
-              }
-              canInlineEdit={canInlineEdit}
-              showPatent={showPatent}
-              editablePriceValue={priceMap[getVehicleKey(item)]}
-              onInlineSave={
-                onInlineSaveItem
-                  ? (changes) => onInlineSaveItem(item, changes)
-                  : undefined
-              }
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {pageItems.map((item, index) => (
+              <CatalogCard
+                key={`${id}-expanded-${item.id}`}
+                item={item}
+                imageLoading={index < 2 ? "eager" : "lazy"}
+                priceLabel={formatPrice(priceMap[getVehicleKey(item)])}
+                upcomingAuctionLabel={upcomingAuctionByVehicleKey?.[getVehicleKey(item)]}
+                density={cardDensity}
+                onOpen={() => onOpenVehicle(item)}
+                isFavorite={favoriteKeys.includes(getVehicleKey(item))}
+                onToggleFavorite={() => onToggleFavorite(getVehicleKey(item))}
+                isCompared={compareKeys.includes(getVehicleKey(item))}
+                onToggleCompare={() => onToggleCompare(getVehicleKey(item))}
+                onWhatsappClick={() =>
+                  trackEvent("whatsapp_click_card", {
+                    section: id,
+                    itemKey: getVehicleKey(item),
+                  })
+                }
+                canInlineEdit={canInlineEdit}
+                showPatent={showPatent}
+                editablePriceValue={priceMap[getVehicleKey(item)]}
+                onInlineSave={
+                  onInlineSaveItem
+                    ? (changes) => onInlineSaveItem(item, changes)
+                    : undefined
+                }
+              />
+            ))}
+          </div>
+          <CatalogPageNav page={page} pageCount={pageCount} onPage={selectPage} />
+        </>
       )}
     </section>
   );
@@ -2869,7 +2961,7 @@ function UpcomingAuctionsSection({
                 {formatAuctionDateLabel(auction.date)}  ·  {items.length} vehiculos
               </span>
             </div>
-            <HorizontalCardsRail
+            <PagedHorizontalRail
               sectionKey={`proximos-remates-${auction.id}`}
               items={items}
               priceMap={priceMap}
@@ -11576,7 +11668,7 @@ export function CatalogHomeClient({ feed, initialConfig, scrollToCatalogOnLoad =
                   Prueba con Livianos, quita filtros activos o busca por marca o modelo.
                 </div>
               ) : (
-                <HorizontalCardsRail
+                <PagedHorizontalRail
                   sectionKey="catalogo"
                   items={filteredCatalogItems}
                   priceMap={config.vehiclePrices}
